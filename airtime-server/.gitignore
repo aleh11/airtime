@@ -1,0 +1,30 @@
+# SQLite database files
+database/airtime.db-wal
+database/airtime.db-shm
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+#Claude/Gemini
+.agents
+CLAUDE.md
