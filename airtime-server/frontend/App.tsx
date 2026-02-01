@@ -396,7 +396,7 @@ Continue with update?`}
 
 
         <footer className="text-center text-xs text-slate-600 pt-12 pb-4">
-          Airtime Control Dashboard • v1.0.0
+          Airtime Control Dashboard • Build: {status?.git_commit || 'unknown'}
         </footer>
       </div>
     </div>
