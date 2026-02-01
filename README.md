@@ -27,9 +27,6 @@ This system makes use of several hardware components:
 
 All hardware related setup is covered in the provided [airtime-manual](docs/airtime-manual.pdf).
 
-### Software
-All software/firmware prerequisites will be automatically installed by the `install.sh` script.
-
 ## 2. Quick Start 
 This proccess assumes you have flashed a Raspberry Pi 2W and have SSH access, this is also covered within the [airtime-manual](docs/airtime-manual.pdf).
 
@@ -110,9 +107,8 @@ Hardware monitor uses these pins:
 **Button Actions:**
 - Short press (<3s): Start broadcast with default settings
 - Long hold (3s): Toggle stealth mode (LEDs off)
----
 
-## 4. Troubleshooting
+## 5. Troubleshooting
 
 ### Service won't start
 ```bash
