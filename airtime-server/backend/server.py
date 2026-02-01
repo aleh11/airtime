@@ -19,6 +19,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.on_event("startup")
+async def startup_event():
+    """Run cron sync on server startup"""
+    try:
+        print("[STARTUP] Syncing system crontab with database...")
+        crons.sync()
+    except Exception as e:
+        print(f"[STARTUP] Error syncing crons: {e}")
+
 # --- Pydantic Models ---
 class CronJobInput(BaseModel):
     id: str

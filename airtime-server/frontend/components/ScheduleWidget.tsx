@@ -35,6 +35,24 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
     const [selectedService, setSelectedService] = useState('DCF77');
     const [duration, setDuration] = useState(10);
 
+    // Sort State
+    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+
+    // Sort Logic
+    const sortedJobs = [...jobs].sort((a, b) => {
+        const timeA = a.friendly_time;
+        const timeB = b.friendly_time;
+        if (sortDirection === 'asc') {
+            return timeA.localeCompare(timeB);
+        } else {
+            return timeB.localeCompare(timeA);
+        }
+    });
+
+    const toggleSort = () => {
+        setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    };
+
     // Modal State
     const [modalConfig, setModalConfig] = useState<{
         isOpen: boolean;
@@ -226,7 +244,16 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="text-xs font-bold text-slate-500 uppercase border-b border-slate-700">
-                                <th className="pb-3 pl-4">Time</th>
+                                <th
+                                    className="pb-3 pl-4 cursor-pointer hover:text-cyan-400 transition-colors select-none flex items-center gap-1 group"
+                                    onClick={toggleSort}
+                                >
+                                    Time
+                                    <div className="flex flex-col text-[8px] leading-[8px] opacity-50 group-hover:opacity-100">
+                                        <span className={sortDirection === 'asc' ? 'text-cyan-400' : ''}>▲</span>
+                                        <span className={sortDirection === 'desc' ? 'text-cyan-400' : ''}>▼</span>
+                                    </div>
+                                </th>
                                 <th className="pb-3">Frequency</th>
                                 <th className="pb-3">Service</th>
                                 <th className="pb-3">Duration</th>
@@ -294,7 +321,7 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
                                 </tr>
                             )}
 
-                            {jobs.map((job) => {
+                            {sortedJobs.map((job) => {
                                 const isEditingThis = editingJobId === job.id;
                                 const isActive = isJobActive(job);
 

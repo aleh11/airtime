@@ -301,6 +301,26 @@ def ensure_initialized() -> None:
         print("First run - creating normalized database...")
         init_database()
 
+    # Check for empty cron_jobs table and add default
+    with get_connection() as conn:
+        count = conn.execute("SELECT COUNT(*) FROM cron_jobs").fetchone()[0]
+        if count == 0:
+            print("No cron jobs found. Adding default daily broadcast.")
+            # Default: 11:55 Daily, DCF77, 6 hours (360 mins)
+            # Cron: 55 11 * * *
+            conn.execute(
+                """
+                INSERT INTO cron_jobs (id, command, schedule, enabled, updated_at)
+                VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+                """,
+                (
+                    "default-daily-broadcast",
+                    "/usr/bin/txtempus -s DCF77 -r 360",
+                    "55 11 * * *",
+                    True
+                )
+            )
+
 
 # Auto-initialize on import
 ensure_initialized()
