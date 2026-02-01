@@ -1,7 +1,7 @@
 # SQLite database files
 database/airtime.db-wal
 database/airtime.db-shm
-
+database/*.db
 # Python cache
 __pycache__/
 *.pyc
@@ -26,5 +26,5 @@ env/
 Thumbs.db
 
 #Claude/Gemini
-.agents
+.agent
 CLAUDE.md
