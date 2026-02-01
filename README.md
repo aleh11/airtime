@@ -3,12 +3,19 @@
 **AirTime** transmits precise time signals over radio frequencies (DCF77, WWVB, MSF, JJY40, JJY60) using the [txtempus](https://github.com/hzeller/txtempus) transmitter. Features a modern dashboard for monitoring, scheduling broadcasts, and controlling hardware.
 <table>
   <tr>
-    <td><img src="assets/airtime-1.jpg" width="200"></td>
-    <td><img src="assets/airtime-2.jpg" width="200"></td>
+    <td><img src="assets/airtime-1.jpg" width="500"></td>
+    <td><img src="assets/airtime-2.jpg" width="500"></td>
   </tr>
 </table>
 ---
 ## 1. Prerequisites
+
+### Hardware
+This system makes use of several hardware components:
+- A [Raspberry Pi Zero 2W](https://www.raspberrypi.com/products/raspberry-pi-zero-2-w/)
+
+### Software
+All software/firmware prerequisites will be automatically installed by the `install.sh` script.
 
 ## 2. Quick Start 
 
@@ -22,6 +29,7 @@ sudo ./install.sh
 ```
 
 The `install.sh` does the following:
+- Installs and setups the [txtempus](https://github.com/hzeller/txtempus) binary.
 - Installs system packages: `python3`, `sqlite3`, `nginx`, `chrony` (NTP), `git`
 - Installs system Python packages: `gpiozero`, `python-crontab` (for GPIO control)
 - Installs UV package manager
