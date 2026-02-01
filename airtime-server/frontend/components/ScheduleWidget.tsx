@@ -37,20 +37,61 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
 
     // Sort State
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+    const [sortColumn, setSortColumn] = useState<string>('time');
 
     // Sort Logic
     const sortedJobs = [...jobs].sort((a, b) => {
-        const timeA = a.friendly_time;
-        const timeB = b.friendly_time;
+        let valA: any = '';
+        let valB: any = '';
+
+        switch (sortColumn) {
+            case 'time':
+                valA = a.friendly_time;
+                valB = b.friendly_time;
+                break;
+            case 'freq':
+                valA = a.friendly_freq;
+                valB = b.friendly_freq;
+                break;
+            case 'service':
+                valA = a.radio_details.service;
+                valB = b.radio_details.service;
+                break;
+            case 'duration':
+                valA = parseInt(a.radio_details.duration);
+                valB = parseInt(b.radio_details.duration);
+                break;
+            default:
+                valA = a.friendly_time;
+                valB = b.friendly_time;
+        }
+
+        if (valA === valB) return 0;
+
         if (sortDirection === 'asc') {
-            return timeA.localeCompare(timeB);
+            return valA > valB ? 1 : -1;
         } else {
-            return timeB.localeCompare(timeA);
+            return valA < valB ? 1 : -1;
         }
     });
 
-    const toggleSort = () => {
-        setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    const toggleSort = (column: string) => {
+        if (sortColumn === column) {
+            setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortColumn(column);
+            setSortDirection('asc');
+        }
+    };
+
+    const SortIcon = ({ column }: { column: string }) => {
+        if (sortColumn !== column) return <div className="ml-1 w-2" />; // Spacer
+        return (
+            <div className="flex flex-col text-[8px] leading-[8px] ml-1">
+                <span className={sortDirection === 'asc' ? 'text-cyan-400' : 'text-slate-600'}>▲</span>
+                <span className={sortDirection === 'desc' ? 'text-cyan-400' : 'text-slate-600'}>▼</span>
+            </div>
+        );
     };
 
     // Modal State
@@ -245,18 +286,41 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
                         <thead>
                             <tr className="text-xs font-bold text-slate-500 uppercase border-b border-slate-700">
                                 <th
-                                    className="pb-3 pl-4 cursor-pointer hover:text-cyan-400 transition-colors select-none flex items-center gap-1 group"
-                                    onClick={toggleSort}
+                                    className="pb-3 pl-4 cursor-pointer hover:text-cyan-400 transition-colors select-none group"
+                                    onClick={() => toggleSort('time')}
                                 >
-                                    Time
-                                    <div className="flex flex-col text-[8px] leading-[8px] opacity-50 group-hover:opacity-100">
-                                        <span className={sortDirection === 'asc' ? 'text-cyan-400' : ''}>▲</span>
-                                        <span className={sortDirection === 'desc' ? 'text-cyan-400' : ''}>▼</span>
+                                    <div className="flex items-center gap-1">
+                                        Time
+                                        <SortIcon column="time" />
                                     </div>
                                 </th>
-                                <th className="pb-3">Frequency</th>
-                                <th className="pb-3">Service</th>
-                                <th className="pb-3">Duration</th>
+                                <th
+                                    className="pb-3 cursor-pointer hover:text-cyan-400 transition-colors select-none group"
+                                    onClick={() => toggleSort('freq')}
+                                >
+                                    <div className="flex items-center gap-1">
+                                        Frequency
+                                        <SortIcon column="freq" />
+                                    </div>
+                                </th>
+                                <th
+                                    className="pb-3 cursor-pointer hover:text-cyan-400 transition-colors select-none group"
+                                    onClick={() => toggleSort('service')}
+                                >
+                                    <div className="flex items-center gap-1">
+                                        Service
+                                        <SortIcon column="service" />
+                                    </div>
+                                </th>
+                                <th
+                                    className="pb-3 cursor-pointer hover:text-cyan-400 transition-colors select-none group"
+                                    onClick={() => toggleSort('duration')}
+                                >
+                                    <div className="flex items-center gap-1">
+                                        Duration
+                                        <SortIcon column="duration" />
+                                    </div>
+                                </th>
                                 <th className="pb-3 text-center">Active</th>
                                 <th className="pb-3 text-right pr-4">Actions</th>
                             </tr>

@@ -30,7 +30,7 @@ All hardware related setup is covered in the provided [airtime-manual](docs/airt
 ## 2. Quick Start 
 This proccess assumes you have flashed a Raspberry Pi 2W and have SSH access, this is also covered within the [airtime-manual](docs/airtime-manual.pdf).
 
-Clone and run **one command** to set up everything:
+Clone and run **one command** (Ensure you are in the home directory):
 
 ```bash
 git clone https://github.com/aleh11/airtime.git
