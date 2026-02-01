@@ -329,7 +329,7 @@ def get_git_commit():
     try:
         # Resolve absolute path to project root
         import os
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         
         # Use git rev-parse for speed
         # Run as user 'time' to match environment
@@ -582,7 +582,7 @@ async def check_updates():
     import os
 
     # Resolve absolute path to project root
-    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
     try:
         # IMPORTANT: Run git commands as user 'time' (not root) to use correct SSH keys
