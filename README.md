@@ -7,7 +7,6 @@
     <td><img src="assets/airtime-2.jpg" width="500"></td>
   </tr>
 </table>
----
 
 ## 1. Prerequisites
 
@@ -25,7 +24,7 @@ Clone and run **one command** to set up everything:
 ```bash
 git clone https://github.com/aleh11/airtime.git
 
-cd airtime/airtime-server
+cd airtime
 sudo ./install.sh
 ```
 
