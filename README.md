@@ -1,10 +1,16 @@
 # Airtime: Local Time-signal Transmitter
 
-**AirTime** transmits precise time signals over radio frequencies (DCF77, WWVB, MSF, JJY40, JJY60) using the [txtempus](https://github.com/hzeller/txtempus) transmitter. Features a modern dashboard for monitoring, scheduling broadcasts, and controlling hardware.
+**[Airtime](https://airtime.diy/)** transmits precise time signals over radio frequencies (DCF77, WWVB, MSF, JJY40, JJY60) using the [txtempus](https://github.com/hzeller/txtempus) transmitter. Features a modern dashboard for monitoring, scheduling broadcasts, and controlling hardware.
 <table>
   <tr>
-    <td><img src="assets/airtime-1.jpg" width="500"></td>
-    <td><img src="assets/airtime-2.jpg" width="500"></td>
+    <td>
+      <img src="assets/airtime-2.jpg" width="450"><br>
+      <em>Airtime with the custom Pi Hat</em>
+    </td>
+    <td>
+      <img src="assets/airtime-1.jpg" width="450"><br>
+      <em>Airtime with additional Ethernet/USB HUB HAT Expansion</em>
+    </td>
   </tr>
 </table>
 
@@ -13,6 +19,11 @@
 ### Hardware
 This system makes use of several hardware components:
 - A [Raspberry Pi Zero 2W](https://www.raspberrypi.com/products/raspberry-pi-zero-2-w/)
+- Custom Airtime Pi Hat (see [docs/AirTime-Hat-PCB/](docs/AirTime-Hat-PCB/))
+- Optional: Ferrite core (used for extended antenna range)
+- Optional: [Ethernet/USB HUB HAT Expansion](https://www.amazon.com/expansi%25C3%25B3n-USB-HUB-HAT-compatible/dp/B07X1BH5FN?__mk_es_US=%C3%85M%C3%85%C5%BD%C3%95%C3%91&sr=8-1&language=en_US&currency=USD)
+
+All hardware related setup is covered in the [docs/airtime-manual.pdf](docs/airtime-manual.pdf) file.
 
 ### Software
 All software/firmware prerequisites will be automatically installed by the `install.sh` script.
@@ -46,7 +57,9 @@ The `install.sh` does the following:
 | `airtime-server` | FastAPI REST API | 8000 |
 | `airtime-status` | GPIO/LED/Button control | - |
 | `nginx` | Frontend + API proxy | 80 |
- After installation, your dashboard will be available at `http://<pi-ip-address>/
+
+
+- After installation, your dashboard will be available at `http://<pi-ip-address>/
 
 ---
 ## 3. System specifications
