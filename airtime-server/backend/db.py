@@ -306,8 +306,8 @@ def ensure_initialized() -> None:
         count = conn.execute("SELECT COUNT(*) FROM cron_jobs").fetchone()[0]
         if count == 0:
             print("No cron jobs found. Adding default daily broadcast.")
-            # Default: 11:55 Daily, DCF77, 6 hours (360 mins)
-            # Cron: 55 11 * * *
+            # Default: 23:55 Daily, DCF77, 6 hours (360 mins)
+            # Cron: 55 23 * * *
             conn.execute(
                 """
                 INSERT INTO cron_jobs (id, command, schedule, enabled, updated_at)
@@ -316,7 +316,7 @@ def ensure_initialized() -> None:
                 (
                     "default-daily-broadcast",
                     "/usr/bin/txtempus -s DCF77 -r 360",
-                    "55 11 * * *",
+                    "55 23 * * *",
                     True
                 )
             )
