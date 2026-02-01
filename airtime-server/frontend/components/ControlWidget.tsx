@@ -528,7 +528,10 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
                             </button>
                             <button
                                 onClick={onCheckUpdates}
-                                className="flex items-center justify-center gap-1.5 py-2 rounded-lg font-bold text-[10px] tracking-wide transition-all bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 shadow-lg shadow-cyan-900/10"
+                                disabled={isTransmitting}
+                                className={`flex items-center justify-center gap-1.5 py-2 rounded-lg font-bold text-[10px] tracking-wide transition-all border shadow-lg ${isTransmitting
+                                    ? 'bg-slate-800 text-slate-600 border-slate-700 shadow-none cursor-not-allowed opacity-50'
+                                    : 'bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border-cyan-500/30 shadow-cyan-900/10'}`}
                             >
                                 <RefreshCw size={13} />
                                 UPDATE

@@ -1,4 +1,4 @@
-# Airtime: Local Time-signal Transmitter
+# [Airtime](https://airtime.diy/): Local Time-signal Transmitter
 
 **[Airtime](https://airtime.diy/)** transmits precise time signals over radio frequencies (DCF77, WWVB, MSF, JJY40, JJY60) using the [txtempus](https://github.com/hzeller/txtempus) transmitter. Features a modern dashboard for monitoring, scheduling broadcasts, and controlling hardware.
 <table>
@@ -9,7 +9,7 @@
     </td>
     <td>
       <img src="assets/airtime-1.jpg" width="450"><br>
-      <em>Airtime with additional Ethernet/USB HUB HAT Expansion</em>
+      <em>Airtime with additional SB expansion</em>
     </td>
   </tr>
 </table>
@@ -19,16 +19,19 @@
 ### Hardware
 This system makes use of several hardware components:
 - A [Raspberry Pi Zero 2W](https://www.raspberrypi.com/products/raspberry-pi-zero-2-w/)
+- MicroSD Card (8GB or larger)
 - Custom Airtime Pi Hat (see [docs/AirTime-Hat-PCB/](docs/AirTime-Hat-PCB/))
-- Optional: Ferrite core (used for extended antenna range)
+- Optional (but highly recommended): heatsink for the Pi Zero 2W.
+- Optional (but highly recommended): Ferrite core (used for extended antenna range)
 - Optional: [Ethernet/USB HUB HAT Expansion](https://www.amazon.com/expansi%25C3%25B3n-USB-HUB-HAT-compatible/dp/B07X1BH5FN?__mk_es_US=%C3%85M%C3%85%C5%BD%C3%95%C3%91&sr=8-1&language=en_US&currency=USD)
 
-All hardware related setup is covered in the [docs/airtime-manual.pdf](docs/airtime-manual.pdf) file.
+All hardware related setup is covered in the provided [airtime-manual](docs/airtime-manual.pdf).
 
 ### Software
 All software/firmware prerequisites will be automatically installed by the `install.sh` script.
 
 ## 2. Quick Start 
+This proccess assumes you have flashed a Raspberry Pi 2W and have SSH access, this is also covered within the [airtime-manual](docs/airtime-manual.pdf).
 
 Clone and run **one command** to set up everything:
 
@@ -59,10 +62,33 @@ The `install.sh` does the following:
 | `nginx` | Frontend + API proxy | 80 |
 
 
-- After installation, your dashboard will be available at `http://<pi-ip-address>/
+After installation, your dashboard will be available at `http://pi-ip-address/`
+#### Additional scripts
+- `restart.sh` - Restarts all services
+- `status.sh` - Displays status of all services
 
----
-## 3. System specifications
+## 3. Dashboard & Interface
+
+![Airtime Dashboard](assets/airtime-dashboard.png)
+
+The Airtime dashboard provides an easy way to interact with the Airtime pi, and allows full control over the transmitter.
+
+- **System Health**: Real-time monitoring of CPU, RAM, Temperature, and Internet connectivity.
+- **Precision Clock**: Displays the time as provided on the Airtime Pi.
+- **Broadcast Control**: 
+    - Manually start/stop transmissions.
+    - Select from all supported time signal standards.
+    - Configure transmission duration and custom time offsets.
+- **Scheduler**: Automate daily or weekly broadcasts with a user-friendly schedule manager.
+- **Additional Features**: 
+    - **Stealth Mode**: Toggle hardware LEDs.
+    - **Global Offset**: Apply a time offset to all transmissions (usefull for timezone differences on certain services/watches).
+    - **Auto-Update**: System updates directly from the UI.
+    - **System Restart**: Invoke a system restart, (invokes the `restart.sh` script).
+    - **Pi Reboot**: Reboot the Pi directly from the dashboard UI.
+
+  
+## 4. System specifications
 
 ### Available Services
 - **DCF77** - Germany (77.5 kHz)
@@ -125,11 +151,11 @@ sudo tail -f /var/log/nginx/airtime-error.log
 If nginx shows "Permission denied" for frontend files:
 ```bash
 # Fix frontend file permissions (nginx needs read access)
-sudo chmod o+rx /home/time
-sudo chmod o+rx /home/time/airtime
-sudo chmod o+rx /home/time/airtime/frontend
-sudo chmod o+rx /home/time/airtime/frontend/dist
-sudo chmod -R o+r /home/time/airtime/frontend/dist
+sudo chmod o+rx /home/{usr}
+sudo chmod o+rx /home/{usr}/airtime/airtime-server/
+sudo chmod o+rx /home/{usr}/airtime/airtime-server/frontend
+sudo chmod o+rx /home/{usr}/airtime/airtime-server/frontend/dist
+sudo chmod -R o+r /home/{usr}/airtime/airtime-server/frontend/dist
 
 # Restart nginx
 sudo systemctl restart nginx
@@ -163,5 +189,5 @@ python crons.py
 
 - [**Official website**](https://airtime.diy/)
 - [**txtempus**](https://github.com/hzeller/txtempus)
-- [Live dashboard](http://airtime.ddns.net:8000)
+- [**Live dashboard**](http://airtime.ddns.net:8000)
 
