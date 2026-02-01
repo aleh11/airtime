@@ -544,9 +544,9 @@ async def restart_server():
     """Execute the restart script to reboot services"""
     import os
     
-    # Resolve absolute path to restart script (one level up from this file)
-    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    script_path = os.path.join(base_dir, 'restart')
+    # Resolve absolute path to restart script (two levels up from this file: backend -> airtime-server -> root)
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    script_path = os.path.join(base_dir, 'restart.sh')
     
     if not os.path.exists(script_path):
         raise HTTPException(status_code=500, detail="Restart script not found")
@@ -644,8 +644,8 @@ async def apply_update():
     import os
 
     # Resolve absolute paths
-    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    script_path = os.path.join(base_dir, 'restart')
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    script_path = os.path.join(base_dir, 'restart.sh')
 
     print(f"[APPLY UPDATE] Base dir: {base_dir}")
     print(f"[APPLY UPDATE] Restart script: {script_path}")
