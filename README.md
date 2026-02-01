@@ -38,8 +38,7 @@ Clone and run **one command** to set up everything:
 ```bash
 git clone https://github.com/aleh11/airtime.git
 
-cd airtime
-sudo ./install.sh
+cd airtime && sudo ./install.sh
 ```
 
 The `install.sh` does the following:
