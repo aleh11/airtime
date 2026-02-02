@@ -12,6 +12,12 @@
       <em>Airtime with additional USB/Ethernet expansion</em>
     </td>
   </tr>
+  <tr>
+    <td colspan="2" align="center">
+      <img src="assets/airtime-dashboard.png" width="900"><br>
+      <em>Airtime Dashboard</em>
+    </td>
+  </tr>
 </table>
 
 ## 1. Prerequisites

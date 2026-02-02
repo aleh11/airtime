@@ -358,18 +358,26 @@ Continue with update?`}
         {/* Dashboard Grid */}
         <main className="grid grid-cols-1 lg:grid-cols-12 gap-4">
 
-          {/* Left Column: Clock & Performance */}
-          <div className="lg:col-span-7 flex flex-col gap-4">
-            <div>
-              <ClockWidget status={status} />
-            </div>
-            <div>
-              <PerformanceWidget metrics={metrics} status={status} />
-            </div>
+          {/* Clock - Mobile Order 1, Desktop Left */}
+          <div className="order-1 lg:col-span-7">
+            <ClockWidget status={status} />
           </div>
 
-          {/* Right Column: Controls */}
-          <div className="lg:col-span-5 h-full">
+          {/* Control - Mobile Order 2, Desktop Right (Spans 2 rows roughly) */}
+          {/* Note: In a flat grid, if we want Control to be on the right and span the height of Clock+Perf, 
+              we need to handle the rows carefully or go back to a different strategy. 
+              However, CSS Grid flow dense or simple column spans works if height aligns. 
+              But ensuring Control is to the right of Clock AND Performance is tricky with just col-spans in a single flatted grid if rows aren't fixed.
+              
+              actually, simpler approach: 
+              Mobile: Flex-col with order.
+              Desktop: Grid with 2 columns.
+              
+              Let's try:
+              flex flex-col lg:grid lg:grid-cols-12
+          */}
+
+          <div className="order-2 lg:col-span-5 lg:row-span-2 h-full lg:order-last">
             <ControlWidget
               radioConfig={radioConfig}
               onBroadcastStart={handleBroadcastStart}
@@ -381,8 +389,13 @@ Continue with update?`}
             />
           </div>
 
-          {/* Bottom Row: Schedule */}
-          <div className="lg:col-span-12">
+          {/* Performance - Mobile Order 3, Desktop Left (under Clock) */}
+          <div className="order-3 lg:col-span-7">
+            <PerformanceWidget metrics={metrics} status={status} />
+          </div>
+
+          {/* Schedule - Mobile Order 4, Desktop Bottom */}
+          <div className="order-4 lg:col-span-12">
             <ScheduleWidget
               jobs={crons}
               onUpdate={refreshCrons}

@@ -282,7 +282,8 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
                 }
             >
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
+                    {/* Desktop Table View */}
+                    <table className="hidden md:table w-full text-left border-collapse">
                         <thead>
                             <tr className="text-xs font-bold text-slate-500 uppercase border-b border-slate-700">
                                 <th
@@ -334,7 +335,7 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
                                 </tr>
                             )}
 
-                            {/* New Job Form Row */}
+                            {/* New Job Form Row (Desktop) */}
                             {isAdding && (
                                 <tr className="border-b border-slate-600 bg-cyan-900/20">
                                     <td className="py-3 pl-4">
@@ -392,12 +393,11 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
                                 // Display Logic
                                 const durationValue = parseInt(job.radio_details.duration);
                                 const durationLabel = DURATION_OPTIONS.find(opt => opt.value === durationValue)?.label || `${durationValue}m`;
-                                const offsetValue = parseInt(job.radio_details.offset) || 0;
 
                                 if (isEditingThis) {
                                     return (
                                         <tr key={job.id} className="border-b border-slate-600 bg-slate-700/50">
-                                            {/* Edit Mode Rows (Same as before) */}
+                                            {/* Edit Mode Rows */}
                                             <td className="py-3 pl-4">
                                                 <input
                                                     type="time"
@@ -518,6 +518,203 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
                             })}
                         </tbody>
                     </table>
+
+                    {/* Mobile List View (Cards) */}
+                    <div className="md:hidden space-y-3">
+                        {isAdding && (
+                            <div className="bg-slate-800/50 border border-cyan-500/30 rounded-lg p-4 animate-fade-in">
+                                <h4 className="text-xs font-bold text-cyan-400 mb-3 uppercase tracking-wider">New Schedule</h4>
+                                <div className="space-y-3">
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="text-[10px] text-slate-500 font-bold uppercase mb-1 block">Time</label>
+                                            <input
+                                                type="time"
+                                                value={newJob.time}
+                                                onChange={e => setNewJob({ ...newJob, time: e.target.value })}
+                                                className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-2 text-sm text-slate-200"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] text-slate-500 font-bold uppercase mb-1 block">Frequency</label>
+                                            <select
+                                                value={newJob.frequency}
+                                                onChange={e => setNewJob({ ...newJob, frequency: e.target.value })}
+                                                className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-2 text-sm text-slate-200"
+                                            >
+                                                <option value="daily">Daily</option>
+                                                <option value="weekly">Weekly</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="text-[10px] text-slate-500 font-bold uppercase mb-1 block">Service</label>
+                                            <select
+                                                value={selectedService}
+                                                onChange={e => setSelectedService(e.target.value)}
+                                                className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-2 text-sm text-slate-200"
+                                            >
+                                                {Object.values(ServiceType).map(s => <option key={s} value={s}>{s}</option>)}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] text-slate-500 font-bold uppercase mb-1 block">Duration</label>
+                                            <select
+                                                value={duration}
+                                                onChange={e => setDuration(parseInt(e.target.value))}
+                                                className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-2 text-sm text-slate-200"
+                                            >
+                                                {DURATION_OPTIONS.map(opt => (
+                                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <button onClick={() => handleSave()} className="w-full mt-2 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded text-sm transition-colors">
+                                        SAVE SCHEDULE
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {jobs.length === 0 && !isAdding && (
+                            <div className="text-center py-8 text-slate-500 italic text-sm">
+                                No scheduled broadcasts.
+                            </div>
+                        )}
+
+                        {sortedJobs.map((job) => {
+                            const isEditingThis = editingJobId === job.id;
+                            const isActive = isJobActive(job);
+                            const durationValue = parseInt(job.radio_details.duration);
+                            const durationLabel = DURATION_OPTIONS.find(opt => opt.value === durationValue)?.label || `${durationValue}m`;
+
+                            if (isEditingThis) {
+                                // Mobile Edit Mode Card
+                                return (
+                                    <div key={job.id} className="bg-slate-800 border border-cyan-500/30 rounded-lg p-4 animate-fade-in">
+                                        <div className="space-y-3">
+                                            <div className="flex justify-between items-center mb-2">
+                                                <span className="text-xs font-bold text-cyan-400 uppercase">Editing Job</span>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div>
+                                                    <label className="text-[10px] text-slate-500 font-bold uppercase mb-1 block">Time</label>
+                                                    <input
+                                                        type="time"
+                                                        value={newJob.time}
+                                                        onChange={e => setNewJob({ ...newJob, time: e.target.value })}
+                                                        className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-2 text-sm text-slate-200"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="text-[10px] text-slate-500 font-bold uppercase mb-1 block">Frequency</label>
+                                                    <select
+                                                        value={newJob.frequency}
+                                                        onChange={e => setNewJob({ ...newJob, frequency: e.target.value })}
+                                                        className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-2 text-sm text-slate-200"
+                                                    >
+                                                        <option value="daily">Daily</option>
+                                                        <option value="weekly">Weekly</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div>
+                                                    <label className="text-[10px] text-slate-500 font-bold uppercase mb-1 block">Service</label>
+                                                    <select
+                                                        value={selectedService}
+                                                        onChange={e => setSelectedService(e.target.value)}
+                                                        className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-2 text-sm text-slate-200"
+                                                    >
+                                                        {Object.values(ServiceType).map(s => <option key={s} value={s}>{s}</option>)}
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label className="text-[10px] text-slate-500 font-bold uppercase mb-1 block">Duration</label>
+                                                    <select
+                                                        value={duration}
+                                                        onChange={e => setDuration(parseInt(e.target.value))}
+                                                        className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-2 text-sm text-slate-200"
+                                                    >
+                                                        {DURATION_OPTIONS.map(opt => (
+                                                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-2 mt-2">
+                                                <button onClick={() => setEditingJobId(null)} className="flex-1 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold rounded text-sm transition-colors">
+                                                    CANCEL
+                                                </button>
+                                                <button onClick={() => handleSave(job.id)} className="flex-1 py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded text-sm transition-colors">
+                                                    UPDATE
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            }
+
+                            return (
+                                <div key={job.id} className={`p-4 rounded-lg border ${isActive ? 'bg-emerald-900/10 border-emerald-500/50' : 'bg-slate-800/50 border-slate-700'} ${!job.enabled ? 'opacity-60' : ''}`}>
+                                    <div className="flex justify-between items-start mb-3">
+                                        <div className="flex items-center gap-2">
+                                            <Clock size={16} className={isActive ? "text-emerald-400" : "text-slate-500"} />
+                                            <span className={`text-xl font-mono font-bold ${isActive ? 'text-emerald-300' : 'text-white'}`}>
+                                                {job.friendly_time}
+                                            </span>
+                                        </div>
+                                        <button
+                                            onClick={() => handleToggle(job)}
+                                            className={`w-10 h-5 rounded-full p-0.5 transition-colors duration-200 ease-in-out relative inline-flex items-center ${job.enabled ? 'bg-emerald-500' : 'bg-slate-600'}`}
+                                        >
+                                            <div className={`bg-white w-4 h-4 rounded-full shadow transform transition-transform duration-200 ${job.enabled ? 'translate-x-5' : 'translate-x-0'}`} />
+                                        </button>
+                                    </div>
+
+                                    <div className="grid grid-cols-3 gap-2 text-xs mb-4">
+                                        <div className="bg-slate-900/50 p-2 rounded border border-slate-700/50">
+                                            <div className="text-slate-500 uppercase text-[10px] font-bold mb-0.5">FREQ</div>
+                                            <div className="text-slate-300 capitalize">{job.friendly_freq}</div>
+                                        </div>
+                                        <div className="bg-slate-900/50 p-2 rounded border border-slate-700/50">
+                                            <div className="text-slate-500 uppercase text-[10px] font-bold mb-0.5">SERVICE</div>
+                                            <div className="text-cyan-300 font-bold">{job.radio_details.service}</div>
+                                        </div>
+                                        <div className="bg-slate-900/50 p-2 rounded border border-slate-700/50">
+                                            <div className="text-slate-500 uppercase text-[10px] font-bold mb-0.5">DUR</div>
+                                            <div className="text-slate-300 font-mono">{durationLabel}</div>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex justify-end gap-2 border-t border-slate-700/50 pt-3">
+                                        {isActive ? (
+                                            <div className="w-full flex items-center justify-center gap-2 text-emerald-400 font-bold text-sm bg-emerald-500/10 py-1.5 rounded">
+                                                <Zap size={14} fill="currentColor" /> LIVE BROADCAST
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <button
+                                                    onClick={() => handleEdit(job)}
+                                                    className="flex-1 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs font-bold rounded flex items-center justify-center gap-2 transition-colors"
+                                                >
+                                                    <Edit2 size={12} /> EDIT
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDelete(job.id)}
+                                                    className="flex-1 py-1.5 bg-red-900/20 hover:bg-red-900/40 text-red-400 text-xs font-bold rounded flex items-center justify-center gap-2 transition-colors border border-red-900/30"
+                                                >
+                                                    <Trash2 size={12} /> DELETE
+                                                </button>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
             </Card>
 
