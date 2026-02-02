@@ -398,7 +398,7 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
                                     return (
                                         <tr key={job.id} className="border-b border-slate-600 bg-slate-700/50">
                                             {/* Edit Mode Rows */}
-                                            <td className="py-3 pl-4">
+                                            <td className="py-3">
                                                 <input
                                                     type="time"
                                                     value={newJob.time}
