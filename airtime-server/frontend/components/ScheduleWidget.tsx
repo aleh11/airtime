@@ -525,7 +525,7 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
                             <div className="bg-slate-800/50 border border-cyan-500/30 rounded-lg p-4 animate-fade-in">
                                 <h4 className="text-xs font-bold text-cyan-400 mb-3 uppercase tracking-wider">New Schedule</h4>
                                 <div className="space-y-3">
-                                    <div className="grid grid-cols-[2fr_3fr] gap-3">
+                                    <div className="grid grid-cols-[auto_1fr] gap-3">
                                         <div>
                                             <label className="text-[10px] text-slate-500 font-bold uppercase mb-1 block">Time</label>
                                             <input
