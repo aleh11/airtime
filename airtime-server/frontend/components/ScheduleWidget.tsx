@@ -525,14 +525,14 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
                             <div className="bg-slate-800/50 border border-cyan-500/30 rounded-lg p-4 animate-fade-in">
                                 <h4 className="text-xs font-bold text-cyan-400 mb-3 uppercase tracking-wider">New Schedule</h4>
                                 <div className="space-y-3">
-                                    <div className="grid grid-cols-[auto_1fr] gap-3">
+                                    <div className="grid grid-cols-2 gap-3">
                                         <div>
                                             <label className="text-[10px] text-slate-500 font-bold uppercase mb-1 block">Time</label>
                                             <input
                                                 type="time"
                                                 value={newJob.time}
                                                 onChange={e => setNewJob({ ...newJob, time: e.target.value })}
-                                                className="w-full bg-slate-900 border border-slate-600 rounded px-2 h-9 text-sm text-slate-200 py-0 leading-none"
+                                                className="w-24 bg-slate-900 border border-slate-600 rounded px-2 h-9 text-sm text-slate-200 py-0 leading-none"
                                             />
                                         </div>
                                         <div>
