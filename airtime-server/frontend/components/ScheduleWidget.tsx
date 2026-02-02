@@ -532,7 +532,7 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
                                                 type="time"
                                                 value={newJob.time}
                                                 onChange={e => setNewJob({ ...newJob, time: e.target.value })}
-                                                className="w-36 bg-slate-900 border border-slate-600 rounded px-2 h-9 text-sm text-slate-200 py-0 leading-none"
+                                                className="w-32 bg-slate-900 border border-slate-600 rounded px-2 h-9 text-sm text-slate-200 py-0 leading-none"
                                             />
                                         </div>
                                         <div>
@@ -605,7 +605,7 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
                                                         type="time"
                                                         value={newJob.time}
                                                         onChange={e => setNewJob({ ...newJob, time: e.target.value })}
-                                                        className="w-36 bg-slate-900 border border-slate-600 rounded px-2 h-9 text-sm text-slate-200 py-0 leading-none"
+                                                        className="w-32 bg-slate-900 border border-slate-600 rounded px-2 h-9 text-sm text-slate-200 py-0 leading-none"
                                                     />
                                                 </div>
                                                 <div>
