@@ -99,6 +99,5 @@ The Airtime dashboard provides an easy way to interact with the Airtime pi, and 
 ## Links
 
 - [**Official website**](https://airtime.diy/)
-- [**txtempus**](https://github.com/hzeller/txtempus)
-- [**Live dashboard**](http://airtime.ddns.net:8000)
+- [**txtempus repo**](https://github.com/hzeller/txtempus)
 - [**Contact us**](mailto:aless.montalto@gmail.com)
