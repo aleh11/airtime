@@ -377,7 +377,7 @@ Continue with update?`}
               flex flex-col lg:grid lg:grid-cols-12
           */}
 
-          <div className="order-2 lg:col-span-5 lg:row-span-2 h-full lg:order-last">
+          <div className="order-2 lg:col-span-5 lg:row-span-2 h-full">
             <ControlWidget
               radioConfig={radioConfig}
               onBroadcastStart={handleBroadcastStart}
