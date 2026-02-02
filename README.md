@@ -20,14 +20,13 @@
   </tr>
 </table>
 
-## 1. Prerequisites
-
-### Hardware
+## 1. Hardware Requirements
 This system makes use of several hardware components:
-- A [Raspberry Pi Zero 2W](https://www.raspberrypi.com/products/raspberry-pi-zero-2-w/)
+- [Raspberry Pi Zero 2W](https://www.raspberrypi.com/products/raspberry-pi-zero-2-w/)
+- 
 - MicroSD Card (8GB or larger)
 - Custom Airtime Pi Hat (see [docs/AirTime-Hat-PCB/](docs/AirTime-Hat-PCB/))
-- Optional (but highly recommended): heatsink for the Pi Zero 2W.
+- Optional (but highly recommended): Heatsink for the Pi Zero 2W.
 - Optional (but highly recommended): DCF77 decoder coil (this still works for the other services) [Alibaba](https://www.aliexpress.com/item/1005007832198551.html)
 - Optional: [Ethernet/USB HUB HAT Expansion](https://www.amazon.com/expansi%25C3%25B3n-USB-HUB-HAT-compatible/dp/B07X1BH5FN?__mk_es_US=%C3%85M%C3%85%C5%BD%C3%95%C3%91&sr=8-1&language=en_US&currency=USD)
 

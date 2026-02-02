@@ -93,7 +93,7 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({ status }) => {
                 {isTransmitting && (
                     <div className="flex items-center gap-6 animate-fade-in pr-4 pt-2">
                         {/* Glowing Border + Text */}
-                        <div className="relative px-2 py-1 md:px-4 md:py-1.5">
+                        <div className="relative px-2 py-1 md:px-4 md:py-1.5 hidden md:block">
                             <div className="absolute inset-0 border-2 border-cyan-500/50 rounded blur-sm animate-pulse"></div>
                             <div className="absolute inset-0 border border-cyan-500/80 rounded"></div>
                             <span className="font-black text-cyan-500 tracking-widest text-xs md:text-2xl relative z-10 drop-shadow-[0_0_12px_rgba(6,182,212,0.9)]">
