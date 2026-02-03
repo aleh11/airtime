@@ -294,8 +294,8 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
     const handleRestart = async () => {
         setModalConfig({
             isOpen: true,
-            title: 'Restart Server',
-            message: 'Are you sure you want to restart the Airtime server? Broadcasts will be interrupted.',
+            title: 'Restart Airtime',
+            message: 'Are you sure you want to restart Airtime? This will restart the UI, System Monitor, and Server. Active broadcasts will be interrupted.',
             type: 'warning',
             confirmText: 'Restart',
             onConfirm: async () => {
@@ -517,7 +517,7 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
                                 className="flex items-center justify-center gap-1.5 py-2 rounded-lg font-bold text-[10px] tracking-wide transition-all bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/30 shadow-lg shadow-purple-900/10"
                             >
                                 <RotateCw size={13} />
-                                SERVER
+                                AIRTIME
                             </button>
                             <button
                                 onClick={handleRestartPi}
