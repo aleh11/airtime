@@ -32,10 +32,10 @@ This system makes use of several hardware components:
 - Optional: [Ethernet/USB HUB HAT Expansion](https://www.amazon.com/expansi%25C3%25B3n-USB-HUB-HAT-compatible/dp/B07X1BH5FN?__mk_es_US=%C3%85M%C3%85%C5%BD%C3%95%C3%91&sr=8-1&language=en_US&currency=USD)
 
 ### Building the Airtime Hat
-Refer to the full user guide on assembling the Airtime Pi Hat [here](docs/airtime-manual.pdf).
+Refer to the full user guide on assembling the Airtime Pi Hat [here](docs/Airtime3.pdf).
 
 ## Installing the Airtime software
-This proccess assumes you have flashed a Raspberry Pi 2W and have SSH access, this is also covered within the [full user guide](docs/airtime-manual.pdf).
+This proccess assumes you have flashed a Raspberry Pi 2W and have SSH access, this is also covered within the [full user guide](docs/Airtime3.pdf).
 
 Clone and run **one command** (Ensure you are in the home directory):
 
@@ -88,6 +88,7 @@ The Airtime dashboard provides an easy way to interact with the Airtime pi, and 
     - **System Restart**: Restart **all** of the system services (invokes the `restart.sh` script).
     - **Pi Reboot**: Reboot the Pi directly from the dashboard UI.
 
+The UI is also fully covered within the [full user guide](docs/Airtime3.pdf), so if you still have questions, refer to that document.
   
 ## Supported Frequencies and encoding
 - **DCF77** - Germany (77.5 kHz)
