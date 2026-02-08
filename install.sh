@@ -448,6 +448,19 @@ NGINXEOF
 fi
 
 echo ""
+echo "=========================================="
+echo "  SSL Certificate Setup"
+echo "=========================================="
+echo ""
+
+cd "$PROJECT_DIR/airtime-server/ssl"
+./setup-ssl.sh
+cd "$PROJECT_DIR"
+
+echo ""
+echo -e "${GREEN}✓${NC} SSL certificates configured - services will start with HTTPS"
+
+echo ""
 echo -e "${YELLOW}Starting airtime-server...${NC}"
 systemctl start airtime-server
 sleep 1
@@ -501,6 +514,13 @@ echo "           sudo tail -f /var/log/nginx/airtime-error.log"
 fi
 echo ""
 if [ "$SKIP_NGINX" = false ]; then
-echo "Dashboard URL: http://$(hostname -I | awk '{print $1}')/"
-echo ""
+    # Check if SSL certs exist to show correct URL
+    if [ -f "$PROJECT_DIR/airtime-server/ssl/cert.pem" ]; then
+        echo "Dashboard URL: https://$(hostname -I | awk '{print $1}')/"
+        echo "               (Accept browser warning for self-signed certificate)"
+    else
+        echo "Dashboard URL: http://$(hostname -I | awk '{print $1}')/"
+        echo "               To enable HTTPS: sudo ./airtime-server/ssl/setup-ssl.sh && sudo ./restart.sh"
+    fi
+    echo ""
 fi
