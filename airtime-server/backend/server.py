@@ -7,6 +7,8 @@ from pydantic import BaseModel
 import re
 import db
 import crons
+import threading
+import time
 
 app = FastAPI()
 
@@ -658,9 +660,6 @@ async def apply_update():
     """
     import os
 
-    import threading
-    import time
-    
     def run_update_sequence(base_dir, script_path):
         """Background thread to safely run update sequence"""
         log_file = "/tmp/airtime-update.log"
