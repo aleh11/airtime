@@ -674,8 +674,8 @@ if __name__ == "__main__":
 
     # Check for SSL certificates
     base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    ssl_cert = os.path.join(base_dir, "ssl", "cert.pem")
-    ssl_key = os.path.join(base_dir, "ssl", "key.pem")
+    ssl_cert = os.path.join(base_dir, "airtime-server", "ssl", "cert.pem")
+    ssl_key = os.path.join(base_dir, "airtime-server", "ssl", "key.pem")
 
     if os.path.exists(ssl_cert) and os.path.exists(ssl_key):
         print(f"[STARTUP] SSL certificates found - starting HTTPS server on port 8000")

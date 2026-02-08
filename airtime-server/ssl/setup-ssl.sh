@@ -10,7 +10,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m'
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-SSL_DIR="$SCRIPT_DIR/ssl"
+SSL_DIR="$SCRIPT_DIR"
 CERT_FILE="$SSL_DIR/cert.pem"
 KEY_FILE="$SSL_DIR/key.pem"
 
@@ -114,13 +114,4 @@ echo ""
 echo "=========================================="
 echo -e "${GREEN}  SSL Setup Complete!${NC}"
 echo "=========================================="
-echo ""
-echo "Next steps:"
-echo "  1. Deploy to Pi: git push && ssh time@time.local 'cd airtime && git pull && sudo ./setup-ssl.sh'"
-echo "  2. Restart services: sudo ./restart.sh"
-echo "  3. Access via: https://time.local or https://192.168.7.12"
-echo "  4. Accept browser warning (one-time)"
-echo ""
-echo "Note: The private key is NOT committed to git (.gitignore)"
-echo "      You must run this script on each machine (dev + Pi)"
 echo ""
