@@ -2,10 +2,9 @@ import React, { useState } from 'react';
 import { Card } from './Card';
 import { CronJob, CronJobInput, ServiceType, RadioConfig, SystemStatus } from '../types';
 import { api } from '../services/api';
-import { Trash2, Plus, Clock, RefreshCw, X, Edit2, Zap, Globe } from 'lucide-react';
+import { Trash2, Plus, Clock, RefreshCw, X, Edit2, Zap } from 'lucide-react';
 import { ConfirmModal, ModalType } from './ConfirmModal';
 
-// Duration options for dropdowns (Removed 6 hr)
 const DURATION_OPTIONS = [
     { label: '10 min', value: 10 },
     { label: '20 min', value: 20 },
@@ -25,7 +24,6 @@ interface ScheduleWidgetProps {
 
 export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, radioConfig, status }) => {
     const [isAdding, setIsAdding] = useState(false);
-    const [isEditing, setIsEditing] = useState(false);
     const [editingJobId, setEditingJobId] = useState<string | null>(null);
     const [newJob, setNewJob] = useState<Partial<CronJobInput>>({
         frequency: 'daily',
@@ -35,11 +33,9 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
     const [selectedService, setSelectedService] = useState('DCF77');
     const [duration, setDuration] = useState(10);
 
-    // Sort State
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
     const [sortColumn, setSortColumn] = useState<string>('time');
 
-    // Sort Logic
     const sortedJobs = [...jobs].sort((a, b) => {
         let valA: any = '';
         let valB: any = '';
@@ -67,12 +63,7 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
         }
 
         if (valA === valB) return 0;
-
-        if (sortDirection === 'asc') {
-            return valA > valB ? 1 : -1;
-        } else {
-            return valA < valB ? 1 : -1;
-        }
+        return sortDirection === 'asc' ? (valA > valB ? 1 : -1) : (valA < valB ? 1 : -1);
     });
 
     const toggleSort = (column: string) => {
@@ -85,7 +76,7 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
     };
 
     const SortIcon = ({ column }: { column: string }) => {
-        if (sortColumn !== column) return <div className="ml-1 w-2" />; // Spacer
+        if (sortColumn !== column) return <div className="ml-1 w-2" />;
         return (
             <div className="flex flex-col text-[8px] leading-[8px] ml-1">
                 <span className={sortDirection === 'asc' ? 'text-cyan-400' : 'text-slate-600'}>▲</span>
@@ -94,7 +85,6 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
         );
     };
 
-    // Modal State
     const [modalConfig, setModalConfig] = useState<{
         isOpen: boolean;
         title: string;
@@ -119,7 +109,6 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
                     onUpdate();
                 } catch (e) {
                     console.error(e);
-                    // Optionally show error alert here if needed
                 }
             }
         });
@@ -127,7 +116,6 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
 
     const handleToggle = async (job: CronJob) => {
         try {
-            // Invert enabled state but preserve everything else
             const updatedJob: CronJobInput = {
                 id: job.id,
                 time: job.friendly_time,
@@ -143,30 +131,20 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
     };
 
     const handleEdit = (job: CronJob) => {
-        // Parse existing job data
         setSelectedService(job.radio_details.service);
         setDuration(parseInt(job.radio_details.duration));
-
         setNewJob({
             time: job.friendly_time,
             frequency: job.friendly_freq,
             enabled: job.enabled
         });
-
-        // Enter edit mode
         setEditingJobId(job.id);
-        setIsEditing(true);
         setIsAdding(false);
     };
 
     const handleSave = async (id?: string) => {
-        const jobData = id ? newJob : newJob;
+        if (!newJob.time || !newJob.frequency) return;
 
-        if (!jobData.time || !jobData.frequency) return;
-
-        // Construct command string 
-        // Apply Global Offset Logic:
-        // Read global offset from radioConfig (minutes)
         const globalOffset = radioConfig?.default_offset || 0;
 
         let command = `/usr/bin/txtempus -s ${selectedService} -r ${duration}`;
@@ -176,8 +154,8 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
 
         const jobInput: CronJobInput = {
             id: id || `job-${Date.now()}`,
-            time: jobData.time || "12:00",
-            frequency: jobData.frequency || "daily",
+            time: newJob.time || "12:00",
+            frequency: newJob.frequency || "daily",
             command: command,
             enabled: true
         };
@@ -185,12 +163,9 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
         try {
             await api.addOrUpdateCron(jobInput);
 
-            // Reset state
             setIsAdding(false);
             setEditingJobId(null);
-            setIsEditing(false);
 
-            // Reset form defaults for "Add New"
             if (!id) {
                 setNewJob({
                     frequency: 'daily',
@@ -213,40 +188,25 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
         }
     };
 
-    // Helper to check if a job is currently active
     const isJobActive = (job: CronJob): boolean => {
         if (!status?.services.txtempus_running) return false;
 
-        // 1. Check Duration Match
         const currentDuration = status.services.txtempus_duration;
         const jobDuration = parseInt(job.radio_details.duration);
         if (currentDuration !== jobDuration) return false;
 
-        // 2. Check Service Match (Optional but good)
-        // If the user wants to strictly match service too:
         if (status.services.txtempus_service && job.radio_details.service !== status.services.txtempus_service) {
             return false;
         }
 
-        // 3. Time Match (Start time within 1 min of job time)
-        // txtempus_started_at is usually ISO string or similar.
-        // We will construct date objects to compare HH:MM
         if (!status.services.txtempus_started_at) return false;
 
         try {
             const startDate = new Date(status.services.txtempus_started_at);
-            const startHours = startDate.getHours();
-            const startMinutes = startDate.getMinutes();
-
+            const startTotal = startDate.getHours() * 60 + startDate.getMinutes();
             const [jobHours, jobMinutes] = job.friendly_time.split(':').map(Number);
-
-            // Calculate total minutes from start of day to handle wrap-around simplisticly or direct compare
-            const startTotal = startHours * 60 + startMinutes;
             const jobTotal = jobHours * 60 + jobMinutes;
-
-            const diff = Math.abs(startTotal - jobTotal);
-            // Allow 1 minute variance
-            return diff <= 1;
+            return Math.abs(startTotal - jobTotal) <= 1;
         } catch (e) {
             return false;
         }
@@ -263,7 +223,6 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
                             if (isAdding) {
                                 setIsAdding(false);
                             } else {
-                                // Reset form for adding
                                 setNewJob({
                                     frequency: 'daily',
                                     time: '12:00',
@@ -271,7 +230,7 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
                                 });
                                 setSelectedService('DCF77');
                                 setDuration(10);
-                                setEditingJobId(null); // Cancel any inline edits
+                                setEditingJobId(null);
                                 setIsAdding(true);
                             }
                         }}
@@ -282,7 +241,6 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
                 }
             >
                 <div className="overflow-x-auto">
-                    {/* Desktop Table View */}
                     <table className="hidden md:table w-full text-left border-collapse">
                         <thead>
                             <tr className="text-xs font-bold text-slate-500 uppercase border-b border-slate-700">
@@ -335,7 +293,6 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
                                 </tr>
                             )}
 
-                            {/* New Job Form Row (Desktop) */}
                             {isAdding && (
                                 <tr className="border-b border-slate-600 bg-cyan-900/20">
                                     <td className="py-3 pl-4">
@@ -389,15 +346,12 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
                             {sortedJobs.map((job) => {
                                 const isEditingThis = editingJobId === job.id;
                                 const isActive = isJobActive(job);
-
-                                // Display Logic
                                 const durationValue = parseInt(job.radio_details.duration);
                                 const durationLabel = DURATION_OPTIONS.find(opt => opt.value === durationValue)?.label || `${durationValue}m`;
 
                                 if (isEditingThis) {
                                     return (
                                         <tr key={job.id} className="border-b border-slate-600 bg-slate-700/50">
-                                            {/* Edit Mode Rows */}
                                             <td className="py-3 pl-4">
                                                 <input
                                                     type="time"
@@ -519,7 +473,6 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
                         </tbody>
                     </table>
 
-                    {/* Mobile List View (Cards) */}
                     <div className="md:hidden space-y-3">
                         {isAdding && (
                             <div className="bg-slate-800/50 border border-cyan-500/30 rounded-lg p-4 animate-fade-in">
@@ -591,7 +544,6 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
                             const durationLabel = DURATION_OPTIONS.find(opt => opt.value === durationValue)?.label || `${durationValue}m`;
 
                             if (isEditingThis) {
-                                // Mobile Edit Mode Card
                                 return (
                                     <div key={job.id} className="bg-slate-800 border border-cyan-500/30 rounded-lg p-4 animate-fade-in">
                                         <div className="space-y-3">

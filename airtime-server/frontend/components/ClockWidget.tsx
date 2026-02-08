@@ -1,11 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Card } from './Card';
 import { SystemStatus } from '../types';
-import { Radio, RadioTower } from 'lucide-react';
+import { RadioTower } from 'lucide-react';
 
-/**
- * Format seconds into human-readable "time ago" string
- */
 const formatTimeAgo = (seconds: number): string => {
     if (seconds < 0) return '--';
     if (seconds < 60) return `${Math.floor(seconds)}s ago`;
@@ -24,28 +21,23 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({ status }) => {
     const [initDone, setInitDone] = useState(false);
     const [countdown, setCountdown] = useState<number>(0);
 
-    // 1. Sync Logic
     useEffect(() => {
         if (status?.system_time) {
             const serverDate = new Date(status.system_time);
             const localDate = new Date();
-            const diff = serverDate.getTime() - localDate.getTime();
-            setServerOffset(diff);
+            setServerOffset(serverDate.getTime() - localDate.getTime());
             if (!initDone) setInitDone(true);
         }
     }, [status]);
 
-    // 2. High frequency tick
     useEffect(() => {
         const intervalId = setInterval(() => {
-            const nowLocal = new Date().getTime();
-            setDisplayTime(new Date(nowLocal + serverOffset));
+            setDisplayTime(new Date(new Date().getTime() + serverOffset));
             setCountdown(prev => Math.max(0, prev - 1));
         }, 1000);
         return () => clearInterval(intervalId);
     }, [serverOffset]);
 
-    // Sync countdown
     useEffect(() => {
         if (status?.services.txtempus_remaining_seconds) {
             setCountdown(status.services.txtempus_remaining_seconds);
@@ -72,12 +64,9 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({ status }) => {
 
     const isTransmitting = status?.services.txtempus_running;
     const serviceName = status?.services.txtempus_service || 'Unknown';
-    const ntpLastRx = status?.ntp_status.last_rx_seconds;
 
     return (
         <Card className="h-full flex flex-col justify-between relative overflow-hidden group">
-
-
             <div className="flex justify-between items-start mb-3 z-10">
                 <div>
                     <div className="text-4xl md:text-5xl font-mono font-bold text-slate-50 tracking-tight leading-none mb-1">
@@ -88,11 +77,8 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({ status }) => {
                     </div>
                 </div>
 
-
-                {/* ON AIR Indicator */}
                 {isTransmitting && (
                     <div className="flex items-center gap-6 animate-fade-in pr-4 pt-2">
-                        {/* Glowing Border + Text */}
                         <div className="relative px-2 py-1 md:px-4 md:py-1.5 hidden md:block">
                             <div className="absolute inset-0 border-2 border-cyan-500/50 rounded blur-sm animate-pulse"></div>
                             <div className="absolute inset-0 border border-cyan-500/80 rounded"></div>
@@ -101,7 +87,6 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({ status }) => {
                             </span>
                         </div>
 
-                        {/* Radio Icon Pulsing */}
                         <div className="relative">
                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75 duration-1000"></span>
                             <img
@@ -114,7 +99,6 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({ status }) => {
                 )}
             </div>
 
-            {/* Footer Area */}
             <div className="pt-3 border-t border-slate-800 z-10 min-h-[50px] flex items-center">
                 {isTransmitting ? (
                     <div className="w-full flex items-center justify-between animate-slide-up">
@@ -141,6 +125,6 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({ status }) => {
                     </div>
                 )}
             </div>
-        </Card >
+        </Card>
     );
 };

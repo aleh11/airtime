@@ -1,10 +1,8 @@
-
 import React from 'react';
 import { SystemMetrics, SystemStatus } from '../types';
 import { Card } from './Card';
-import { Activity, Thermometer, Cpu, CircuitBoard, Clock, Globe, Radio } from 'lucide-react';
+import { Thermometer, Cpu, CircuitBoard, Clock, Globe, Radio } from 'lucide-react';
 
-// Helper for time ago
 const formatTimeAgo = (seconds: number): string => {
     if (seconds < 0) return '--';
     if (seconds < 60) return `${Math.floor(seconds)}s ago`;
@@ -21,7 +19,7 @@ interface Props {
 export function PerformanceWidget({ metrics, status }: Props) {
     if (!metrics) {
         return (
-            <Card title="System Performance" icon={Activity}>
+            <Card title="System Performance">
                 <div className="h-32 flex items-center justify-center text-slate-600 animate-pulse">
                     Loading...
                 </div>
@@ -36,7 +34,6 @@ export function PerformanceWidget({ metrics, status }: Props) {
         return `${days}d ${hours}h ${minutes}m`;
     };
 
-    // Helper for Top Row (Progress Bars)
     const TopStat = ({
         icon: Icon,
         label,
@@ -70,7 +67,6 @@ export function PerformanceWidget({ metrics, status }: Props) {
         </div>
     );
 
-    // Temp Color Logic
     const getTempColor = (temp: number) => {
         if (temp < 50) return "text-emerald-400";
         if (temp < 70) return "text-orange-400";
@@ -80,8 +76,6 @@ export function PerformanceWidget({ metrics, status }: Props) {
     return (
         <Card title="System Statistics" className="h-full">
             <div className="space-y-6">
-
-                {/* Top Row: CPU & RAM */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <TopStat
                         icon={Cpu}
@@ -101,10 +95,7 @@ export function PerformanceWidget({ metrics, status }: Props) {
                     />
                 </div>
 
-                {/* Bottom Row: Stats (Temp, NTP, Ping, Uptime) - 4 Columns */}
                 <div className="grid grid-cols-4 gap-4">
-
-                    {/* 1. Temp (Far Left) */}
                     <div className="flex flex-col gap-1.5 items-start">
                         <div className="flex items-center gap-1.5 text-slate-400 font-medium text-xs uppercase text-nowrap">
                             <Thermometer size={14} /> TEMP
@@ -114,7 +105,6 @@ export function PerformanceWidget({ metrics, status }: Props) {
                         </div>
                     </div>
 
-                    {/* 2. NTP Sync (Moved from ClockWidget) */}
                     <div className="flex flex-col gap-1.5 items-center">
                         <div className="flex items-center gap-1.5 text-slate-400 font-medium text-xs uppercase text-nowrap">
                             <Radio size={14} /> NTP SYNC
@@ -126,7 +116,6 @@ export function PerformanceWidget({ metrics, status }: Props) {
                         </div>
                     </div>
 
-                    {/* 3. Internet/Ping (Moved from ClockWidget) */}
                     <div className="flex flex-col gap-1.5 items-center">
                         <div className="flex items-center gap-1.5 text-slate-400 font-medium text-xs uppercase text-nowrap">
                             <Globe size={14} /> PING
@@ -138,7 +127,6 @@ export function PerformanceWidget({ metrics, status }: Props) {
                         </div>
                     </div>
 
-                    {/* 4. Uptime (Far Right) */}
                     <div className="flex flex-col gap-1.5 items-end text-right">
                         <div className="flex items-center gap-1.5 text-slate-400 font-medium text-xs uppercase text-nowrap">
                             <Clock size={14} /> UPTIME
@@ -147,7 +135,6 @@ export function PerformanceWidget({ metrics, status }: Props) {
                             {formatUptime(metrics.uptime)}
                         </div>
                     </div>
-
                 </div>
             </div>
         </Card>

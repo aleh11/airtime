@@ -1,22 +1,25 @@
 from datetime import datetime
 import subprocess
 import json
+import os
+import threading
+import time
+import re
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, field_validator, Field
 from typing import Literal
-import re
+import psutil
+
 import db
 import crons
-import threading
-import time
 
 app = FastAPI()
 
-# Add CORS middleware for React dev server
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # React dev server
+    allow_origins=["http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -24,14 +27,13 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def startup_event():
-    """Run cron sync on server startup"""
     try:
         print("[STARTUP] Syncing system crontab with database...")
         crons.sync()
     except Exception as e:
         print(f"[STARTUP] Error syncing crons: {e}")
 
-# --- Pydantic Models ---
+
 class CronJobInput(BaseModel):
     id: str = Field(min_length=1, max_length=64)
     command: str = Field(max_length=512)
@@ -42,10 +44,10 @@ class CronJobInput(BaseModel):
     @field_validator('id')
     @classmethod
     def validate_id(cls, v: str) -> str:
-        """Validate job ID contains only safe characters."""
         if not re.match(r'^[a-zA-Z0-9_-]+$', v):
             raise ValueError("ID must contain only alphanumeric characters, dash, or underscore")
         return v
+
 
 class TransmitRequest(BaseModel):
     service: str
@@ -54,7 +56,6 @@ class TransmitRequest(BaseModel):
     @field_validator('service')
     @classmethod
     def validate_service_field(cls, v: str) -> str:
-        """Pre-validate service name before handler validation."""
         if len(v) > 20:
             raise ValueError("Service name too long (max 20 characters)")
         return v.upper()
@@ -62,10 +63,10 @@ class TransmitRequest(BaseModel):
     @field_validator('duration')
     @classmethod
     def validate_duration_field(cls, v: int) -> int:
-        """Validate duration bounds."""
         if not isinstance(v, int) or v < 1 or v > 720:
             raise ValueError("Duration must be 1-720 minutes")
         return v
+
 
 class RadioConfigInput(BaseModel):
     default_service: str
@@ -76,7 +77,6 @@ class RadioConfigInput(BaseModel):
     @field_validator('default_service')
     @classmethod
     def validate_service_field(cls, v: str) -> str:
-        """Pre-validate service name."""
         if len(v) > 20:
             raise ValueError("Service name too long (max 20 characters)")
         return v.upper()
@@ -84,7 +84,6 @@ class RadioConfigInput(BaseModel):
     @field_validator('default_duration_minutes')
     @classmethod
     def validate_duration_field(cls, v: int) -> int:
-        """Validate duration bounds."""
         if not isinstance(v, int) or v < 1 or v > 720:
             raise ValueError("Duration must be 1-720 minutes")
         return v
@@ -92,19 +91,17 @@ class RadioConfigInput(BaseModel):
     @field_validator('default_offset')
     @classmethod
     def validate_offset_field(cls, v: int) -> int:
-        """Validate offset bounds."""
         if not isinstance(v, int) or v < -720 or v > 720:
             raise ValueError("Offset must be -720 to +720 minutes")
         return v
 
-# --- Helpers ---
+
 def friendly_to_cron(time_str: str, freq: str) -> str:
     """Converts '14:30' + 'daily' -> '30 14 * * *'"""
     try:
         hour, minute = time_str.split(":")
         hour_int, minute_int = int(hour), int(minute)
 
-        # CRITICAL: Add bounds checking
         if not (0 <= hour_int <= 23):
             raise HTTPException(status_code=400, detail="Hour must be 0-23")
         if not (0 <= minute_int <= 59):
@@ -141,13 +138,10 @@ def cron_to_friendly(schedule_str: str):
 
 
 def parse_txtempus_command(cmd: str):
-    """
-    Extracts Service, Duration, and Offset from the raw command string.
-    Example: '/usr/bin/txtempus -s DCF77 -r 255 -o 10'
-    """
+    """Extracts Service, Duration, and Offset from a txtempus command string."""
     details = {
         "is_txtempus": False,
-        "service": "DCF77",  # Default
+        "service": "DCF77",
         "duration": "10",
         "offset": "0"
     }
@@ -155,43 +149,21 @@ def parse_txtempus_command(cmd: str):
     if "txtempus" in cmd:
         details["is_txtempus"] = True
 
-        # Regex to find flags
-        # -s (Service)
         m_svc = re.search(r'-s\s+(\w+)', cmd)
         if m_svc: details['service'] = m_svc.group(1)
 
-        # -r (Duration/Runtime)
         m_dur = re.search(r'-r\s+(\d+)', cmd)
         if m_dur: details['duration'] = m_dur.group(1)
 
-        # -z (Offset in minutes - txtempus time zone offset)
         m_off = re.search(r'-z\s+([+-]?\d+)', cmd)
-        if m_off:
-            # Store in minutes (matches txtempus -z flag and API)
-            details['offset'] = m_off.group(1)
+        if m_off: details['offset'] = m_off.group(1)
 
     return details
 
 
-# --- Input Validation Functions ---
-
 def validate_service(service: str) -> str:
-    """
-    Validate and sanitize service name against available services.
-
-    Args:
-        service: Service name to validate
-
-    Returns:
-        Validated service name
-
-    Raises:
-        HTTPException: If service is not in available_services list
-    """
-    # Get available services from database
     available_json = db.get_setting("radio_config", "available_services", '["DCF77","WWVB","MSF","JJY40","JJY60"]')
 
-    # Parse if it's a string, otherwise use as-is (get_category returns parsed values)
     if isinstance(available_json, str):
         available = json.loads(available_json)
     else:
@@ -206,18 +178,6 @@ def validate_service(service: str) -> str:
 
 
 def validate_duration(duration: int) -> int:
-    """
-    Validate broadcast duration.
-    
-    Args:
-        duration: Duration in minutes
-
-    Returns:
-        Validated duration
-
-    Raises:
-        HTTPException: If duration is out of bounds
-    """
     if not isinstance(duration, int) or duration < 1 or duration > 720:
         raise HTTPException(
             status_code=400,
@@ -227,19 +187,6 @@ def validate_duration(duration: int) -> int:
 
 
 def validate_offset(offset: int) -> int:
-    """
-    Validate time offset parameter for broadcast synchronization.
-
-    Args:
-        offset: Time offset in minutes (matches txtempus -z flag)
-
-    Returns:
-        Validated offset in minutes
-
-    Raises:
-        HTTPException: If offset is out of reasonable bounds
-    """
-    # Allow up to +/- 12 hours (720 minutes)
     if not isinstance(offset, int) or offset < -720 or offset > 720:
         raise HTTPException(
             status_code=400,
@@ -249,18 +196,6 @@ def validate_offset(offset: int) -> int:
 
 
 def validate_txtempus_command(command: str) -> dict:
-    """
-    Validate a full txtempus command string by parsing and validating its components.
-
-    Args:
-        command: Full txtempus command string
-
-    Returns:
-        Dict with validated service, duration, and offset
-
-    Raises:
-        HTTPException: If any component is invalid
-    """
     parsed = parse_txtempus_command(command)
 
     if not parsed["is_txtempus"]:
@@ -269,54 +204,27 @@ def validate_txtempus_command(command: str) -> dict:
             detail="Command must be a valid txtempus command"
         )
 
-    # Validate each extracted component
-    service = validate_service(parsed["service"])
-    duration = validate_duration(int(parsed["duration"]))
-    offset = validate_offset(int(parsed["offset"]))
-
     return {
-        "service": service,
-        "duration": duration,
-        "offset": offset
+        "service": validate_service(parsed["service"]),
+        "duration": validate_duration(int(parsed["duration"])),
+        "offset": validate_offset(int(parsed["offset"]))
     }
 
 
 def update_all_cron_offsets(new_offset: int, offset_enabled: bool) -> int:
-    """
-    Update all txtempus cron jobs with new offset settings.
-
-    This function rebuilds all txtempus commands in cron jobs to either:
-    - Add the new offset if enabled and non-zero
-    - Remove the offset if disabled or zero
-
-    Args:
-        new_offset: New offset value in minutes
-        offset_enabled: Whether offset should be applied
-
-    Returns:
-        Number of cron jobs updated
-    """
     jobs = db.get_cron_jobs()
     updated_count = 0
 
     for job in jobs:
-        # Only update txtempus commands
         if not job.get("radio_details", {}).get("is_txtempus"):
             continue
 
-        # Parse current command
         details = job["radio_details"]
-        service = details["service"]
-        duration = details["duration"]
+        cmd = f'/usr/bin/txtempus -s {details["service"]} -r {details["duration"]}'
 
-        # Rebuild command with new offset settings
-        cmd = f'/usr/bin/txtempus -s {service} -r {duration}'
-
-        # Add offset if enabled and non-zero
         if offset_enabled and new_offset != 0:
             cmd += f' -z {new_offset}'
 
-        # Update the job in database
         db.add_or_update_cron_job(
             job_id=job["id"],
             command=cmd,
@@ -330,25 +238,34 @@ def update_all_cron_offsets(new_offset: int, offset_enabled: bool) -> int:
     return updated_count
 
 
-# --- Routes ---
+def get_git_commit():
+    try:
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        cmd = ['sudo', '-u', 'time', 'git', '-C', base_dir, 'rev-parse', '--short', 'HEAD']
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=1)
+        if result.returncode == 0:
+            return result.stdout.strip()
+        return "unknown"
+    except:
+        return "unknown"
+
+
+def get_cpu_temp():
+    try:
+        with open("/sys/class/thermal/thermal_zone0/temp", "r") as f:
+            return round(float(f.read()) / 1000.0, 1)
+    except:
+        return 0.0
+
 
 @app.get("/api/status")
 async def get_status():
-    """Get current system status from database"""
-    
-    # Get basic running state
     is_running = bool(db.get_status_value("services", "txtempus_running", False))
-    
-    # Get extended details if available
     details = db.get_status_value("services", "txtempus_details", {})
-    
-    # Calculate remaining time if running
+
     remaining_seconds = 0
     if is_running and isinstance(details, dict) and details.get("started_at") and details.get("duration"):
         try:
-            # Parse ps lstart format: "Mon Jan 26 17:00:00 2026"
-            # Note: ps lstart does not include time zone, but is local system time
-            # We assume system time is correct
             start_dt = datetime.strptime(details["started_at"], "%a %b %d %H:%M:%S %Y")
             duration_min = int(details["duration"])
             end_dt = start_dt.timestamp() + (duration_min * 60)
@@ -382,49 +299,22 @@ async def get_status():
         "git_commit": get_git_commit()
     }
 
-def get_git_commit():
-    """Get current short git commit hash"""
-    try:
-        # Resolve absolute path to project root
-        import os
-        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        
-        # Use git rev-parse for speed
-        # Run as user 'time' to match environment
-        cmd = ['sudo', '-u', 'time', 'git', '-C', base_dir, 'rev-parse', '--short', 'HEAD']
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=1)
-        
-        if result.returncode == 0:
-            return result.stdout.strip()
-        return "unknown"
-    except:
-        return "unknown"
+
 @app.get("/api/crons")
 async def get_crons():
-    """Get all cron jobs with friendly schedule and command parsing"""
-    # db.get_cron_jobs() now returns jobs with friendly_time, friendly_freq, and radio_details
     return db.get_cron_jobs()
 
 
 @app.post("/api/crons")
 async def add_or_update_cron(job: CronJobInput):
-    """
-    Add or update a cron job with validation.
-
-    Validates txtempus command parameters before saving to database.
-    """
-    # SECURITY: Parse and validate components first
     validated = validate_txtempus_command(job.command)
 
-    # Reconstruct the command string securely from validated components
-    # This strips any malicious suffixes or shell injections from job.command
     safe_command = f"/usr/bin/txtempus -s {validated['service']} -r {validated['duration']}"
     if validated['offset'] != 0:
         safe_command += f" -z {validated['offset']}"
 
     cron_schedule = friendly_to_cron(job.time, job.frequency)
 
-    # Use direct database API with the sanitized command
     db.add_or_update_cron_job(
         job_id=job.id,
         command=safe_command,
@@ -442,11 +332,7 @@ async def add_or_update_cron(job: CronJobInput):
 
 @app.delete("/api/crons/{job_id}")
 async def delete_cron(job_id: str):
-    """Delete a cron job by ID"""
-    # Use direct database API
-    deleted = db.delete_cron_job(job_id)
-
-    if not deleted:
+    if not db.delete_cron_job(job_id):
         raise HTTPException(status_code=404, detail="Job not found")
 
     crons.sync()
@@ -455,10 +341,8 @@ async def delete_cron(job_id: str):
 
 @app.get("/api/settings/radio")
 async def get_radio_config():
-    """Get radio configuration settings"""
     config = db.get_category("radio_config")
 
-    # Define defaults
     defaults = {
         "default_service": "DCF77",
         "default_duration_minutes": 10,
@@ -467,19 +351,15 @@ async def get_radio_config():
         "available_services": ["DCF77", "WWVB", "MSF", "JJY40", "JJY60"]
     }
 
-    # Merge with defaults (database values take precedence)
     for key, default_value in defaults.items():
         if key not in config:
             config[key] = default_value
-        # Parse JSON string for available_services if needed
         elif key == "available_services" and isinstance(config[key], str):
             config[key] = json.loads(config[key])
         elif key == "default_offset_enabled":
-            # Ensure boolean
              if isinstance(config[key], str):
                 config[key] = config[key].lower() == "true"
 
-    # Ensure numeric types
     if "default_duration_minutes" in config:
         config["default_duration_minutes"] = int(config["default_duration_minutes"])
     if "default_offset" in config:
@@ -490,27 +370,17 @@ async def get_radio_config():
 
 @app.post("/api/settings/radio")
 async def update_radio_config(conf: RadioConfigInput):
-    """
-    Update radio configuration defaults.
-
-    Validates service name, duration, and offset before saving.
-    Automatically updates all existing cron jobs with new offset settings.
-    """
-    # SECURITY: Validate inputs
     service = validate_service(conf.default_service)
     duration = validate_duration(conf.default_duration_minutes)
     offset = validate_offset(conf.default_offset)
 
-    # Use direct database API
     db.set_setting("radio_config", "default_service", service)
     db.set_setting("radio_config", "default_duration_minutes", str(duration))
     db.set_setting("radio_config", "default_offset", str(offset))
     db.set_setting("radio_config", "default_offset_enabled", str(conf.default_offset_enabled).lower())
 
-    # Update all existing cron jobs with new offset settings
     updated_count = update_all_cron_offsets(offset, conf.default_offset_enabled)
 
-    # Sync to system crontab if any jobs were updated
     if updated_count > 0:
         try:
             crons.sync()
@@ -526,96 +396,59 @@ async def update_radio_config(conf: RadioConfigInput):
 
 @app.post("/api/control/stealth")
 async def toggle_stealth():
-    """Toggle LED stealth mode"""
-    # Get current state (get_setting returns boolean if value is "true"/"false")
     current = bool(db.get_setting("app_config", "stealth_mode", False))
-
-    # Toggle
     new_value = "true" if not current else "false"
     db.set_setting("app_config", "stealth_mode", new_value)
-
     return {"stealth_mode": new_value == "true"}
 
 
 @app.post("/api/control/transmit")
 async def manual_transmit(req: TransmitRequest):
-    """
-    Start a manual broadcast transmission.
-
-    Validates service name and duration before executing subprocess.
-    Prevents command injection by whitelisting service names.
-    """
-    # SECURITY: Validate inputs before subprocess call
     service = validate_service(req.service)
     duration = validate_duration(req.duration)
 
-    # Get default offset from settings
     offset = int(db.get_setting("radio_config", "default_offset", "0"))
     offset_enabled = str(db.get_setting("radio_config", "default_offset_enabled", "true")).lower() == "true"
 
-    # 1. Kill any existing instance
     subprocess.run(['sudo', 'pkill', 'txtempus'])
 
-    # 2. Start new instance with validated parameters
     cmd = ['sudo', '/usr/bin/txtempus', '-s', service, '-r', str(duration)]
-
-    # Add offset if non-zero AND enabled
     if offset != 0 and offset_enabled:
         cmd.extend(['-z', str(offset)])
 
     subprocess.Popen(cmd)
-
     return {"status": "started", "service": service, "duration": duration}
 
 
 @app.post("/api/control/stop")
 async def stop_transmit():
-    """Stop any running broadcast"""
     subprocess.run(['sudo', 'pkill', 'txtempus'])
     return {"status": "stopped"}
 
 
 @app.post("/api/control/restart")
 async def restart_server():
-    """Execute the restart script to reboot services"""
-    import os
-    
-    # Resolve absolute path to restart script (two levels up from this file: backend -> airtime-server -> root)
     base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     script_path = os.path.join(base_dir, 'restart.sh')
-    
+
     if not os.path.exists(script_path):
         raise HTTPException(status_code=500, detail="Restart script not found")
-        
-    # Run in background so we don't block
+
     subprocess.Popen(['sudo', script_path])
     return {"status": "restarting"}
 
 
 @app.post("/api/control/restart-pi")
 async def restart_pi():
-    """Reboot the entire Raspberry Pi"""
-    # Run in background so we don't block
     subprocess.Popen(['sudo', 'reboot'])
     return {"status": "rebooting"}
 
 
 @app.get("/api/system/check-updates")
 async def check_updates():
-    """
-    Check if there are updates available from git remote.
-    Compares local HEAD with origin/master.
-    """
-    import os
-
-    # Resolve absolute path to project root
     base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
     try:
-        # IMPORTANT: Run git commands as user 'time' (not root) to use correct SSH keys
-        # Service runs as root, but git repo and SSH keys are owned by user 'time'
-
-        # Fetch latest from origin (doesn't modify working directory)
         fetch_result = subprocess.run(
             ['sudo', '-u', 'time', '/usr/bin/git', 'fetch', 'origin'],
             cwd=base_dir,
@@ -624,7 +457,6 @@ async def check_updates():
             timeout=10
         )
 
-        # Log fetch result for debugging
         print(f"[UPDATE CHECK] git fetch returncode: {fetch_result.returncode}")
         if fetch_result.returncode != 0:
             print(f"[UPDATE CHECK] git fetch stderr: {fetch_result.stderr}")
@@ -632,7 +464,6 @@ async def check_updates():
         else:
             print(f"[UPDATE CHECK] git fetch successful")
 
-        # Get local commit hash
         local_result = subprocess.run(
             ['sudo', '-u', 'time', '/usr/bin/git', 'rev-parse', 'HEAD'],
             cwd=base_dir,
@@ -642,7 +473,6 @@ async def check_updates():
         )
         local_commit = local_result.stdout.strip()
 
-        # Get remote commit hash
         remote_result = subprocess.run(
             ['sudo', '-u', 'time', '/usr/bin/git', 'rev-parse', 'origin/master'],
             cwd=base_dir,
@@ -652,16 +482,10 @@ async def check_updates():
         )
         remote_commit = remote_result.stdout.strip()
 
-        # Get short commit hashes for display
-        local_short = local_commit[:7] if local_commit else "unknown"
-        remote_short = remote_commit[:7] if remote_commit else "unknown"
-
-        updates_available = local_commit != remote_commit
-
         return {
-            "updates_available": updates_available,
-            "local_commit": local_short,
-            "remote_commit": remote_short
+            "updates_available": local_commit != remote_commit,
+            "local_commit": local_commit[:7] if local_commit else "unknown",
+            "remote_commit": remote_commit[:7] if remote_commit else "unknown"
         }
 
     except subprocess.TimeoutExpired:
@@ -673,16 +497,9 @@ async def check_updates():
 
 @app.post("/api/system/apply-update")
 async def apply_update():
-    """
-    Apply available updates by running git pull and restarting services.
-    This will restart the server, causing a brief disconnect.
-    """
-    import os
-
     def run_update_sequence(base_dir, script_path):
-        """Background thread to safely run update sequence"""
         log_file = "/tmp/airtime-update.log"
-        
+
         def log(msg):
             with open(log_file, "a") as f:
                 f.write(f"[UPDATE] {msg}\n")
@@ -694,20 +511,18 @@ async def apply_update():
                 f.write(f"[UPDATE] Starting update at {time.ctime()}\n")
 
             log(f"Target Dir: {base_dir}")
-            
-            # 1. Git Pull (User: time)
+
             log("Running git pull...")
-            # We use list args to avoid shell injection
             cmd_env = os.environ.copy()
             cmd_env["HOME"] = "/home/time"
-            
+
             result = subprocess.run(
                 ['sudo', '-u', 'time', '/usr/bin/git', '-C', base_dir, 'pull'],
                 capture_output=True,
                 text=True,
                 env=cmd_env
             )
-            
+
             if result.returncode == 0:
                 log("Git pull successful")
                 log(result.stdout)
@@ -716,27 +531,24 @@ async def apply_update():
                 log(result.stderr)
                 return
 
-            # 2. Restart Service (Root)
             log("Running restart script...")
-            # Direct execution of script path, no shell=True
             restart_res = subprocess.run(
                 ['sudo', script_path],
                 capture_output=True,
                 text=True
             )
-            
+
             if restart_res.returncode == 0:
                 log("Restart script executed successfully")
             else:
                 log(f"ERROR: Restart script failed (code {restart_res.returncode})")
                 log(restart_res.stderr)
-                
+
             log("Update sequence complete")
 
         except Exception as e:
             log(f"EXCEPTION: {str(e)}")
 
-    # Resolve absolute paths
     base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     script_path = os.path.join(base_dir, 'restart.sh')
 
@@ -744,7 +556,6 @@ async def apply_update():
         print(f"[APPLY UPDATE] ERROR: Restart script not found at {script_path}")
         raise HTTPException(status_code=500, detail="Restart script not found")
 
-    # Start update in background thread
     t = threading.Thread(target=run_update_sequence, args=(base_dir, script_path))
     t.start()
 
@@ -754,41 +565,27 @@ async def apply_update():
     }
 
 
-# --- System Metrics ---
-
-import psutil
-import os
-import time
-
-def get_cpu_temp():
-    """Get CPU temperature (Raspberry Pi specific)"""
-    try:
-        with open("/sys/class/thermal/thermal_zone0/temp", "r") as f:
-            return round(float(f.read()) / 1000.0, 1)
-    except:
-        return 0.0
-
 @app.get("/api/system/metrics")
 async def get_system_metrics():
-    """Get real-time system performance metrics"""
+    mem = psutil.virtual_memory()
+    disk = psutil.disk_usage('/')
     return {
         "cpu": {
-            "percent": psutil.cpu_percent(interval=None), # Non-blocking
+            "percent": psutil.cpu_percent(interval=None),
             "per_core": psutil.cpu_percent(interval=None, percpu=True),
             "load_avg": os.getloadavg()
         },
         "memory": {
-            "total": psutil.virtual_memory().total,
-            "available": psutil.virtual_memory().available,
-            "percent": psutil.virtual_memory().percent,
+            "total": mem.total,
+            "available": mem.available,
+            "percent": mem.percent,
             "swap_percent": psutil.swap_memory().percent
         },
         "disk": {
-            "total": psutil.disk_usage('/').total,
-            "used": psutil.disk_usage('/').used,
-            "percent": psutil.disk_usage('/').percent
+            "total": disk.total,
+            "used": disk.used,
+            "percent": disk.percent
         },
-        # "network" removed per user request
         "temperature": get_cpu_temp(),
         "uptime": time.time() - psutil.boot_time()
     }

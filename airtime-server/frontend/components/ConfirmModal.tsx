@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, AlertTriangle, Info, CheckCircle, AlertCircle } from 'lucide-react';
+import { X, AlertTriangle, Info, CheckCircle } from 'lucide-react';
 
 export type ModalType = 'danger' | 'warning' | 'info' | 'success';
 
@@ -50,10 +50,9 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
                 className="bg-slate-800 rounded-2xl max-w-sm w-full border border-slate-700 shadow-2xl overflow-hidden scale-100 animate-scale-up"
                 onClick={(e) => e.stopPropagation()}
             >
-                {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b border-slate-700 bg-slate-800/50">
                     <div className="flex items-center gap-3">
-                        <div className={`p-2 rounded-full bg-slate-700/50`}>
+                        <div className="p-2 rounded-full bg-slate-700/50">
                             {getIcon()}
                         </div>
                         <h3 className="text-lg font-bold text-slate-100">{title}</h3>
@@ -63,14 +62,12 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
                     </button>
                 </div>
 
-                {/* Content */}
                 <div className="p-6">
                     <p className="text-slate-300 text-sm leading-relaxed">
                         {message}
                     </p>
                 </div>
 
-                {/* Actions */}
                 <div className="p-4 border-t border-slate-700 flex gap-3 bg-slate-900/30">
                     {onConfirm ? (
                         <>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card } from './Card';
-import { RadioConfig, TransmitRequest, RadioConfigInput } from '../types';
-import { Play, Check, Zap, Settings, X, Square, RotateCw, Clock, RefreshCw, Loader2 } from 'lucide-react';
+import { RadioConfig, RadioConfigInput } from '../types';
+import { Play, Zap, X, Square, RotateCw, Clock, RefreshCw, Loader2 } from 'lucide-react';
 import { api } from '../services/api';
 import { ConfirmModal, ModalType } from './ConfirmModal';
 
@@ -20,7 +20,6 @@ interface ControlWidgetProps {
     onBroadcastStart: () => void;
     onCheckUpdates: () => void;
     isTransmitting?: boolean;
-    // New props from extended status
     activeService?: string | null;
     activeDuration?: number | null;
     remainingSeconds?: number;
@@ -35,35 +34,28 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
     activeDuration,
     remainingSeconds = 0
 }) => {
-    // Current UI Selection (also mirrors backend config)
     const [selectedService, setSelectedService] = useState<string>('DCF77');
     const [duration, setDuration] = useState<number>(10);
 
-    // Global Offset State
     const [offsetHours, setOffsetHours] = useState<number>(0);
     const [offsetMinutes, setOffsetMinutes] = useState<number>(0);
-    const [offsetSign, setOffsetSign] = useState<number>(1); // 1 for Ahead, -1 for Behind
+    const [offsetSign, setOffsetSign] = useState<number>(1);
     const [offsetEnabled, setOffsetEnabled] = useState<boolean>(false);
     const [showOffsetModal, setShowOffsetModal] = useState<boolean>(false);
     const [offsetSaving, setOffsetSaving] = useState<boolean>(false);
 
-    // Filtered internal state for the modal inputs
     const [modalHours, setModalHours] = useState<string>('0');
     const [modalMinutes, setModalMinutes] = useState<string>('00');
 
-    // UI State
     const [stealthMode, setStealthMode] = useState<boolean>(false);
     const [loading, setLoading] = useState<boolean>(false);
     const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-    // Countdown State
     const [countdown, setCountdown] = useState<number>(0);
 
-    // Restart state
     const [isRestarting, setIsRestarting] = useState<boolean>(false);
     const [restartType, setRestartType] = useState<'server' | 'pi' | null>(null);
 
-    // Modal State
     const [modalConfig, setModalConfig] = useState<{
         isOpen: boolean;
         title: string;
@@ -76,7 +68,6 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
 
     const closeModal = () => setModalConfig(prev => ({ ...prev, isOpen: false }));
 
-    // Initial load from config
     useEffect(() => {
         if (radioConfig) {
             setSelectedService(radioConfig.default_service);
@@ -85,16 +76,14 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
             const totalMins = radioConfig.default_offset || 0;
             const h = Math.trunc(Math.abs(totalMins) / 60);
             const m = Math.abs(totalMins) % 60;
-            const sign = totalMins >= 0 ? 1 : -1;
 
             setOffsetHours(h);
             setOffsetMinutes(m);
-            setOffsetSign(sign);
+            setOffsetSign(totalMins >= 0 ? 1 : -1);
             setOffsetEnabled(radioConfig.default_offset_enabled ?? false);
         }
     }, [radioConfig]);
 
-    // Update modal inputs when opening
     useEffect(() => {
         if (showOffsetModal) {
             setModalHours(offsetHours.toString());
@@ -102,7 +91,6 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
         }
     }, [showOffsetModal, offsetHours, offsetMinutes]);
 
-    // Countdown Timer logic
     useEffect(() => {
         if (isTransmitting && remainingSeconds > 0) {
             setCountdown(remainingSeconds);
@@ -115,7 +103,6 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
         }
     }, [isTransmitting, remainingSeconds]);
 
-    // ... formatCountdown ...
     const formatCountdown = (secs: number) => {
         const h = Math.floor(secs / 3600);
         const m = Math.floor((secs % 3600) / 60);
@@ -124,7 +111,6 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
         return `${m}:${s.toString().padStart(2, '0')}`;
     };
 
-    // Auto-update backend config when dropdowns change
     const updateConfig = async (service: string, dur: number) => {
         setSelectedService(service);
         setDuration(dur);
@@ -153,20 +139,15 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
                 default_service: selectedService,
                 default_duration_minutes: duration,
                 default_offset: totalMinutes,
-                default_offset_enabled: true // Auto-enable when saving new value
+                default_offset_enabled: true
             };
             await api.updateRadioConfig(config);
 
-            // Update local state
             setOffsetHours(h);
             setOffsetMinutes(m);
             setOffsetEnabled(true);
-
             setShowOffsetModal(false);
-            // setSuccessMsg(`Global Offset set to ${totalMinutes > 0 ? '+' : ''}${totalMinutes}m`);
-            // setTimeout(() => setSuccessMsg(null), 3000);
 
-            // Trigger refresh so app gets new config
             onBroadcastStart();
         } catch (e) {
             console.error(e);
@@ -182,9 +163,8 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
     };
 
     const handleOffsetToggle = async (e: React.MouseEvent) => {
-        e.stopPropagation(); // Prevent opening modal
+        e.stopPropagation();
 
-        // Block toggle if transmitting
         if (isTransmitting) {
             setModalConfig({
                 isOpen: true,
@@ -195,9 +175,8 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
             return;
         }
 
-        const totalMinutes = (offsetHours * 60 + offsetMinutes);
+        const totalMinutes = offsetHours * 60 + offsetMinutes;
 
-        // If enabling but value is 0, open modal instead of just enabling "0 offset" which does nothing
         if (!offsetEnabled && totalMinutes === 0) {
             setShowOffsetModal(true);
             return;
@@ -215,12 +194,11 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
             await api.updateRadioConfig(config);
         } catch (e) {
             console.error(e);
-            setOffsetEnabled(!newState); // Revert on error
+            setOffsetEnabled(!newState);
         }
     };
 
     const validateHours = (val: string) => {
-        // limit 0-11
         const num = parseInt(val);
         if (isNaN(num)) return setModalHours('');
         if (num < 0) return setModalHours('0');
@@ -229,12 +207,11 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
     };
 
     const validateMinutes = (val: string) => {
-        // limit 0-59
         const num = parseInt(val);
         if (isNaN(num)) return setModalMinutes('');
         if (num < 0) return setModalMinutes('00');
         if (num > 59) return setModalMinutes('59');
-        setModalMinutes(num.toString().padStart(2, '0')); // Keep leading zero for UX
+        setModalMinutes(num.toString().padStart(2, '0'));
     };
 
     const isNonZeroOffset = (parseInt(modalHours) > 0 || parseInt(modalMinutes) > 0);
@@ -253,15 +230,8 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
         setLoading(true);
         setSuccessMsg(null);
         try {
-            const req: TransmitRequest = {
-                service: selectedService,
-                duration: duration
-            };
-            await api.transmit(req);
-            // const durationLabel = DURATION_OPTIONS.find(opt => opt.value === duration)?.label || `${duration}m`;
-            // setSuccessMsg(`Broadcasting ${selectedService} for ${durationLabel}`);
+            await api.transmit({ service: selectedService, duration });
             onBroadcastStart();
-            // setTimeout(() => setSuccessMsg(null), 3000);
         } catch (error) {
             console.error(error);
         } finally {
@@ -351,7 +321,6 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
                         setSuccessMsg('Pi rebooted successfully');
                         setTimeout(() => setSuccessMsg(null), 3000);
                     } else {
-                        // Usually expected for Pi reboot to take longer or require refresh
                         setModalConfig({
                             isOpen: true,
                             title: 'Rebooting',
@@ -373,18 +342,13 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
         });
     };
 
-    // Derived state for offset display
     const totalStoredMinutes = offsetHours * 60 + offsetMinutes;
     const isStoredNonZero = totalStoredMinutes > 0;
-    const canToggle = isStoredNonZero;
-    const appliedMinutes = (totalStoredMinutes * offsetSign);
 
     return (
         <>
             <Card title="Broadcast Control" className="h-full">
                 <div className="space-y-1 -mt-2">
-
-                    {/* Broadcast Form */}
                     <div className="space-y-1 pb-1">
                         <div className="flex gap-2 items-end mb-2">
                             <div className="flex-1 space-y-1">
@@ -414,7 +378,6 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
                                     ))}
                                 </select>
                             </div>
-                            {/* Removed settings button from default place */}
                         </div>
 
                         {isTransmitting ? (
@@ -439,23 +402,13 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
                                 {loading ? 'STARTING...' : 'BROADCAST NOW'}
                             </button>
                         )}
-
-                        {/* Success Message Removed per user request */}
-                        {/* {successMsg && (
-                            <div className="flex items-center gap-2 text-xs text-emerald-400 bg-emerald-500/10 p-2 rounded justify-center animate-fade-in">
-                                <Check size={12} /> {successMsg}
-                            </div>
-                        )} */}
                     </div>
 
-                    {/* divider */}
                     <div className="border-t border-slate-800/50 my-2"></div>
 
-                    {/* System Control Section */}
                     <div className="space-y-2">
                         <h3 className="text-slate-100 font-semibold text-lg">System Control</h3>
 
-                        {/* System LEDs / Stealth */}
                         <div className="flex items-center justify-between p-2 bg-slate-800/50 rounded-lg border border-slate-700/50">
                             <div className="flex items-center gap-2.5">
                                 <div className={`p-1.5 rounded-full ${!stealthMode ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-700 text-slate-400'}`}>
@@ -472,7 +425,6 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
                             </button>
                         </div>
 
-                        {/* Global Offset */}
                         <div
                             onClick={() => {
                                 if (isTransmitting) {
@@ -510,7 +462,6 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
                             </button>
                         </div>
 
-                        {/* Restart Buttons */}
                         <div className="grid grid-cols-3 gap-2 pt-1">
                             <button
                                 onClick={handleRestart}
@@ -541,7 +492,6 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
                 </div>
             </Card>
 
-            {/* Global Offset Modal */}
             {showOffsetModal && (
                 <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={() => setShowOffsetModal(false)}>
                     <div className="bg-slate-800 rounded-2xl max-w-xs w-full border border-slate-700 shadow-2xl" onClick={(e) => e.stopPropagation()}>
@@ -624,7 +574,6 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
                 </div>
             )}
 
-            {/* Restart Loading Modal */}
             {isRestarting && (
                 <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 backdrop-blur-sm">
                     <div className="bg-slate-800 rounded-2xl p-8 max-w-sm w-full border border-slate-700 shadow-2xl text-center">
@@ -664,9 +613,3 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
         </>
     );
 };
-
-const ActivityIcon = ({ className }: { className?: string }) => (
-    <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-    </svg>
-);

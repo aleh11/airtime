@@ -17,7 +17,6 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Update system state
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [updateInfo, setUpdateInfo] = useState<{ local: string; remote: string } | null>(null);
   const [showUpdateBanner, setShowUpdateBanner] = useState(false);
@@ -25,7 +24,6 @@ function App() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateBannerType, setUpdateBannerType] = useState<'available' | 'up-to-date' | null>(null);
 
-  // Initial Data Load
   const fetchData = useCallback(async () => {
     setError(null);
     try {
@@ -43,7 +41,6 @@ function App() {
     }
   }, []);
 
-  // Poll for status every 5 seconds
   useEffect(() => {
     fetchData();
 
@@ -51,19 +48,16 @@ function App() {
       try {
         const statusData = await api.getStatus();
         setStatus(statusData);
-        // Clear error if we successfully reconnect
         setError((prev) => (prev && prev.includes("status") ? null : prev));
       } catch (e) {
         console.error("Status poll failed", e);
       }
     };
 
-    pollStatus(); // Immediate first call
+    pollStatus();
 
-    // Poll status every 5s
     const statusInterval = setInterval(pollStatus, 5000);
 
-    // Poll metrics every 2s
     const metricsInterval = setInterval(async () => {
       try {
         const m = await api.getSystemMetrics();
@@ -79,12 +73,9 @@ function App() {
     };
   }, [fetchData]);
 
-  // Manual Update Check
   const checkForUpdates = async (manual: boolean = false) => {
     try {
-      console.log('[DEBUG] Checking for updates...');
       const updateData = await api.checkUpdates();
-      console.log('[DEBUG] Update check result:', updateData);
 
       setUpdateInfo({
         local: updateData.local_commit,
@@ -95,15 +86,12 @@ function App() {
         setUpdateAvailable(true);
         setUpdateBannerType('available');
         setShowUpdateBanner(true);
-        console.log('[DEBUG] Update available - showing banner');
       } else if (manual) {
         setUpdateAvailable(false);
         setUpdateBannerType('up-to-date');
         setShowUpdateBanner(true);
 
-        // Auto dismiss "up to date" after 5 seconds
         setTimeout(() => {
-          // Only dismiss if it's still 'up-to-date' (don't hide if it became 'available' in the meantime? unlikely)
           setUpdateBannerType(prev => {
             if (prev === 'up-to-date') {
               setShowUpdateBanner(false);
@@ -121,85 +109,42 @@ function App() {
     }
   };
 
-  // Debug: Monitor showUpdateModal state changes
-  useEffect(() => {
-    console.log('[DEBUG] showUpdateModal state changed to:', showUpdateModal);
-  }, [showUpdateModal]);
-
-  // Handle update confirmation
   const handleUpdateClick = () => {
-    console.log('[DEBUG] Update Now clicked - opening modal');
-    console.log('[DEBUG] Current showUpdateModal state:', showUpdateModal);
     setShowUpdateModal(true);
-    console.log('[DEBUG] setShowUpdateModal(true) called');
   };
 
   const handleUpdateConfirm = async () => {
-    console.log('[DEBUG] Update confirmed - starting update process');
     setIsUpdating(true);
-    setShowUpdateModal(false); // Close confirmation modal immediately
+    setShowUpdateModal(false);
 
     try {
-      console.log('[DEBUG] Calling api.applyUpdate()');
       await api.applyUpdate();
-      console.log('[DEBUG] api.applyUpdate() successful');
 
-      // Phase 1: Wait for Git Update to reflect in status
-      // We poll until the system reports the new commit hash, OR the server goes down (restart started)
-      console.log('[DEBUG] Polling for git commit update...');
       const targetCommit = updateInfo?.remote;
-
-      let updateApplied = false;
       let attempts = 0;
-      const maxGitAttempts = 30; // 60 seconds max for git pull
+      const maxGitAttempts = 30;
 
       while (attempts < maxGitAttempts) {
         try {
           const s = await api.getStatus();
-          // Check if commit matches
-          if (s.git_commit && targetCommit && s.git_commit.startsWith(targetCommit)) {
-            console.log('[DEBUG] Git commit match confirmed!');
-            updateApplied = true;
-            break;
-          }
-          // Also check if commit matches the *other* way (in case target is short/long)
-          if (s.git_commit && targetCommit && targetCommit.startsWith(s.git_commit)) {
-            console.log('[DEBUG] Git commit match confirmed (short)!');
-            updateApplied = true;
+          if (s.git_commit && targetCommit && (s.git_commit.startsWith(targetCommit) || targetCommit.startsWith(s.git_commit))) {
             break;
           }
         } catch (e) {
-          // If server goes down, it means restart likely started
-          console.log('[DEBUG] Server went down during polling - assuming update applied and restart started');
-          updateApplied = true;
           break;
         }
         await new Promise(r => setTimeout(r, 2000));
         attempts++;
       }
 
-      if (!updateApplied) {
-        console.warn('[DEBUG] Update polling timed out, but proceeding to restart check anyway');
-      }
-
-      // Phase 2: Restart Polling
-      // Now we just wait for the server to come back ONLINE
-      console.log('[DEBUG] Starting reconnection polling');
-
-      // We reuse the isUpdating state but could update UI text if we had a state for "step"
-      // For now, "Restarting Server..." covers both perfectly.
-
       const pollUntilOnline = async (): Promise<boolean> => {
-        const maxAttempts = 60; // 60 seconds
+        const maxAttempts = 60;
         let attempts = 0;
-
         while (attempts < maxAttempts) {
           try {
             await api.getStatus();
-            console.log('[DEBUG] Server back online!');
             return true;
           } catch (e) {
-            console.log(`[DEBUG] Server still down, attempt ${attempts + 1}/${maxAttempts}`);
             await new Promise(resolve => setTimeout(resolve, 1000));
             attempts++;
           }
@@ -207,25 +152,16 @@ function App() {
         return false;
       };
 
-      const online = await pollUntilOnline();
-
-      if (online) {
-        console.log('[DEBUG] Update successful, reloading page');
-        window.location.reload();
-      } else {
-        console.log('[DEBUG] Timeout - forcing reload anyway');
-        window.location.reload();
-      }
-
+      await pollUntilOnline();
+      window.location.reload();
     } catch (e) {
-      console.error("[DEBUG] Update failed:", e);
+      console.error("Update failed:", e);
       setIsUpdating(false);
       alert('Update failed. Please check the logs and try again.');
     }
   };
 
   const handleBroadcastStart = () => {
-    // Refresh status immediately to show "TX ACTIVE"
     setTimeout(async () => {
       try {
         const s = await api.getStatus();
@@ -249,7 +185,6 @@ function App() {
     );
   }
 
-  // Error State Display
   if (error && !status && !radioConfig) {
     return (
       <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4">
@@ -280,7 +215,6 @@ function App() {
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-200 p-4 md:p-8 font-sans selection:bg-cyan-500/30">
-      {/* Update Banner */}
       {showUpdateBanner && updateInfo && updateBannerType && (
         <UpdateBanner
           type={updateBannerType}
@@ -291,8 +225,6 @@ function App() {
         />
       )}
 
-      {/* Update Confirmation Modal */}
-      {console.log('[DEBUG] Rendering ConfirmModal with showUpdateModal =', showUpdateModal)}
       <ConfirmModal
         isOpen={showUpdateModal}
         title="Update Available"
@@ -308,7 +240,6 @@ Continue with update?`}
         confirmText="Update Now"
       />
 
-      {/* Update in Progress Loading Overlay */}
       {isUpdating && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[70] backdrop-blur-sm">
           <div className="bg-slate-800 rounded-2xl p-8 max-w-sm w-full border border-slate-700 shadow-2xl text-center">
@@ -334,8 +265,6 @@ Continue with update?`}
       )}
 
       <div className="max-w-5xl mx-auto space-y-4">
-
-        {/* Header */}
         <header className="flex items-center justify-between py-2 mb-2">
           <div className="flex items-center gap-3">
             <img src="/airtime-logo.png" alt="Airtime Logo" className="w-14 h-14 object-contain" />
@@ -355,27 +284,10 @@ Continue with update?`}
           </div>
         </header>
 
-        {/* Dashboard Grid */}
         <main className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-
-          {/* Clock - Mobile Order 1, Desktop Left */}
           <div className="order-1 lg:col-span-7">
             <ClockWidget status={status} />
           </div>
-
-          {/* Control - Mobile Order 2, Desktop Right (Spans 2 rows roughly) */}
-          {/* Note: In a flat grid, if we want Control to be on the right and span the height of Clock+Perf, 
-              we need to handle the rows carefully or go back to a different strategy. 
-              However, CSS Grid flow dense or simple column spans works if height aligns. 
-              But ensuring Control is to the right of Clock AND Performance is tricky with just col-spans in a single flatted grid if rows aren't fixed.
-              
-              actually, simpler approach: 
-              Mobile: Flex-col with order.
-              Desktop: Grid with 2 columns.
-              
-              Let's try:
-              flex flex-col lg:grid lg:grid-cols-12
-          */}
 
           <div className="order-2 lg:col-span-5 lg:row-span-2 h-full">
             <ControlWidget
@@ -389,12 +301,10 @@ Continue with update?`}
             />
           </div>
 
-          {/* Performance - Mobile Order 3, Desktop Left (under Clock) */}
           <div className="order-3 lg:col-span-7">
             <PerformanceWidget metrics={metrics} status={status} />
           </div>
 
-          {/* Schedule - Mobile Order 4, Desktop Bottom */}
           <div className="order-4 lg:col-span-12">
             <ScheduleWidget
               jobs={crons}
@@ -403,10 +313,7 @@ Continue with update?`}
               status={status}
             />
           </div>
-
         </main>
-
-
 
         <footer className="text-center text-xs text-slate-600 pt-12 pb-4">
           Airtime Control Dashboard • Build: {status?.git_commit || 'unknown'}

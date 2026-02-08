@@ -4,13 +4,11 @@
 
 set -e
 
-# Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
-# Check if running as root
 if [[ $EUID -ne 0 ]]; then
    echo -e "${RED}Error: This script must be run as root${NC}"
    echo "Usage: sudo ./restart"
@@ -22,7 +20,6 @@ echo "  AirTime Service Reboot"
 echo "=========================================="
 echo ""
 
-# Function to restart or start a service
 restart_service() {
     local service=$1
 
@@ -34,7 +31,6 @@ restart_service() {
         systemctl start $service
     fi
 
-    # Check if it's running now
     sleep 1
     if systemctl is-active --quiet $service; then
         echo -e "${GREEN}✓${NC} $service is running"
@@ -44,17 +40,14 @@ restart_service() {
     fi
 }
 
-# Restart backend server
 restart_service airtime-server
 
 echo ""
 
-# Restart hardware monitor
 restart_service airtime-status
 
 echo ""
 
-# Restart nginx (if it exists)
 if systemctl list-unit-files | grep -q nginx.service; then
     restart_service nginx
 else

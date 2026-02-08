@@ -1,5 +1,3 @@
-// API Response Types
-
 export interface InternetStatus {
     ping_ms: number;
     connected: boolean;
@@ -42,8 +40,6 @@ export interface SystemMetrics {
         used: number;
         percent: number;
     };
-    // network removed
-
     temperature: number;
     uptime: number;
 }
@@ -53,8 +49,8 @@ export interface SystemStatus {
     ntp_status: NtpStatus;
     services: ServicesStatus;
     app_config: AppConfig;
-    system_time: string; // ISO 8601
-    git_commit?: string; // Short SHA
+    system_time: string;
+    git_commit?: string;
 }
 
 export interface RadioDetails {
@@ -79,18 +75,16 @@ export interface RadioConfig {
     default_service: string;
     available_services: string[];
     default_duration_minutes: number;
-    default_offset?: number; // Offset in seconds (-60 to 60)
+    default_offset?: number;
     default_offset_enabled?: boolean;
     timezone_offset_minutes?: number;
 }
 
-// Request Types
-
 export interface CronJobInput {
     id: string;
     command: string;
-    time: string; // HH:MM
-    frequency: string; // daily, weekly, monthly
+    time: string;
+    frequency: string;
     enabled: boolean;
 }
 
@@ -104,7 +98,7 @@ export interface RadioConfigInput {
     default_duration_minutes: number;
     default_offset: number;
     default_offset_enabled?: boolean;
-} // Offset in seconds (-60 to 60)
+}
 
 export enum ServiceType {
     DCF77 = "DCF77",

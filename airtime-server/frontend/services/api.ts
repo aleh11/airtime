@@ -1,5 +1,6 @@
 import {
     SystemStatus,
+    SystemMetrics,
     CronJob,
     CronJobInput,
     RadioConfig,
@@ -7,9 +8,6 @@ import {
     TransmitRequest
 } from '../types';
 
-// CONFIGURATION
-// Using relative URLs - Vite proxy will route /api requests to localhost:8000 during development
-// In production, configure your web server to proxy /api to the backend
 const API_BASE = '';
 
 const handleResponse = async <T,>(response: Response): Promise<T> => {
@@ -24,13 +22,11 @@ const headers = {
 };
 
 export const api = {
-    // Status
     getStatus: async (): Promise<SystemStatus> => {
         const res = await fetch(`${API_BASE}/api/status`);
         return handleResponse<SystemStatus>(res);
     },
 
-    // Crons
     getCrons: async (): Promise<CronJob[]> => {
         const res = await fetch(`${API_BASE}/api/crons`);
         return handleResponse<CronJob[]>(res);
@@ -52,7 +48,6 @@ export const api = {
         return handleResponse<{ status: string }>(res);
     },
 
-    // Settings
     getRadioConfig: async (): Promise<RadioConfig> => {
         const res = await fetch(`${API_BASE}/api/settings/radio`);
         return handleResponse<RadioConfig>(res);
@@ -67,7 +62,6 @@ export const api = {
         return handleResponse<{ status: string }>(res);
     },
 
-    // Controls
     toggleStealth: async (): Promise<{ stealth_mode: boolean }> => {
         const res = await fetch(`${API_BASE}/api/control/stealth`, {
             method: 'POST',
@@ -105,13 +99,11 @@ export const api = {
         return handleResponse<{ status: string }>(res);
     },
 
-    // System Metrics
-    getSystemMetrics: async (): Promise<import('../types').SystemMetrics> => {
+    getSystemMetrics: async (): Promise<SystemMetrics> => {
         const res = await fetch(`${API_BASE}/api/system/metrics`);
-        return handleResponse<import('../types').SystemMetrics>(res);
+        return handleResponse<SystemMetrics>(res);
     },
 
-    // Update System
     checkUpdates: async (): Promise<{ updates_available: boolean; local_commit: string; remote_commit: string }> => {
         const res = await fetch(`${API_BASE}/api/system/check-updates`);
         return handleResponse<{ updates_available: boolean; local_commit: string; remote_commit: string }>(res);
