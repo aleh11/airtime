@@ -394,7 +394,8 @@ if [ "$SKIP_NGINX" = false ]; then
     fi
 
     echo -e "${YELLOW}Installing nginx config...${NC}"
-    sed "s|root /home/time/airtime/frontend/dist;|root $PROJECT_DIR/airtime-server/frontend/dist;|g" "$PROJECT_DIR/airtime-server/nginx.conf" > /etc/nginx/sites-available/airtime
+    # Replace all hardcoded paths with actual project directory
+    sed "s|/home/time/airtime|$PROJECT_DIR|g" "$PROJECT_DIR/airtime-server/nginx.conf" > /etc/nginx/sites-available/airtime
 
     if [ -f /etc/nginx/sites-enabled/airtime ]; then
         echo -e "${GREEN}✓${NC} Nginx site already enabled"
