@@ -340,7 +340,7 @@ Continue with update?`}
           <div className="flex items-center gap-3">
             <img src="/airtime-logo.png" alt="Airtime Logo" className="w-14 h-14 object-contain" />
             <div>
-              <h1 className="text-xl font-bold tracking-tight text-white">Airtime</h1>
+              <h1 className="text-xl font-bold tracking-tight text-white">AirTime</h1>
               <p className="text-xs text-slate-500 font-mono">LOCAL TIME-SIGNAL TRANSMITTER</p>
             </div>
           </div>
