@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Card } from './Card';
 import { CronJob, CronJobInput, ServiceType, RadioConfig, SystemStatus } from '../types';
 import { api } from '../services/api';
-import { Trash2, Plus, Clock, RefreshCw, X, Edit2, Zap } from 'lucide-react';
+import { Trash2, Plus, Clock, RefreshCw, X, Zap } from 'lucide-react';
 import { ConfirmModal, ModalType } from './ConfirmModal';
 
 const DURATION_OPTIONS = [
@@ -35,6 +35,36 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
 
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
     const [sortColumn, setSortColumn] = useState<string>('time');
+
+    const editingRowRef = useRef<HTMLTableRowElement | null>(null);
+    const editingCardRef = useRef<HTMLDivElement | null>(null);
+
+    const cancelEdit = useCallback(() => {
+        setEditingJobId(null);
+    }, []);
+
+    useEffect(() => {
+        if (!editingJobId) return;
+
+        const handleClickOutside = (e: MouseEvent) => {
+            const target = e.target as Node;
+            const isInsideEdit =
+                (editingRowRef.current?.contains(target)) ||
+                (editingCardRef.current?.contains(target));
+            if (!isInsideEdit) cancelEdit();
+        };
+
+        const handleEscape = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') cancelEdit();
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        document.addEventListener('keydown', handleEscape);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('keydown', handleEscape);
+        };
+    }, [editingJobId, cancelEdit]);
 
     const sortedJobs = [...jobs].sort((a, b) => {
         let valA: any = '';
@@ -351,7 +381,7 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
 
                                 if (isEditingThis) {
                                     return (
-                                        <tr key={job.id} className="border-b border-slate-600 bg-slate-700/50">
+                                        <tr key={job.id} ref={editingRowRef} className="border-b border-slate-600 bg-slate-700/50">
                                             <td className="py-3 pl-4">
                                                 <input
                                                     type="time"
@@ -409,10 +439,11 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
                                 return (
                                     <tr
                                         key={job.id}
+                                        onClick={() => !isActive && handleEdit(job)}
                                         className={`
                                         border-b border-slate-800 hover:bg-slate-700/20 transition-all duration-300 group
                                         ${!job.enabled ? 'opacity-50' : ''}
-                                        ${isActive ? 'bg-emerald-500/10' : ''}
+                                        ${isActive ? 'bg-emerald-500/10' : 'cursor-pointer'}
                                     `}
                                     >
                                         <td className={`py-4 pl-4 font-mono font-bold text-slate-200 ${isActive ? 'border-l-2 border-emerald-500' : 'border-l-2 border-transparent'}`}>
@@ -437,7 +468,7 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
                                         <td className="py-4 text-slate-400 font-mono text-xs">
                                             {durationLabel}
                                         </td>
-                                        <td className="py-4 text-center">
+                                        <td className="py-4 text-center" onClick={e => e.stopPropagation()}>
                                             <button
                                                 onClick={() => handleToggle(job)}
                                                 className={`w-8 h-4 rounded-full p-0.5 transition-colors duration-200 ease-in-out relative inline-flex items-center ${job.enabled ? 'bg-emerald-500/80' : 'bg-slate-600'}`}
@@ -445,26 +476,18 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
                                                 <div className={`bg-white w-3 h-3 rounded-full shadow transform transition-transform duration-200 ${job.enabled ? 'translate-x-4' : 'translate-x-0'}`} />
                                             </button>
                                         </td>
-                                        <td className="py-4 text-right pr-4">
+                                        <td className="py-4 text-right pr-4" onClick={e => e.stopPropagation()}>
                                             {isActive ? (
                                                 <div className="flex items-center justify-end gap-2 text-emerald-400 text-xs font-bold">
                                                     LIVE <Zap size={12} fill="currentColor" />
                                                 </div>
                                             ) : (
-                                                <div className="flex items-center justify-end gap-2">
-                                                    <button
-                                                        onClick={() => handleEdit(job)}
-                                                        className="p-1.5 rounded hover:bg-cyan-500/20 text-slate-600 hover:text-cyan-400 transition-colors opacity-0 group-hover:opacity-100"
-                                                    >
-                                                        <Edit2 size={14} />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDelete(job.id)}
-                                                        className="p-1.5 rounded hover:bg-red-500/20 text-slate-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
-                                                    >
-                                                        <Trash2 size={14} />
-                                                    </button>
-                                                </div>
+                                                <button
+                                                    onClick={() => handleDelete(job.id)}
+                                                    className="p-1.5 rounded hover:bg-red-500/20 text-slate-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
                                             )}
                                         </td>
                                     </tr>
@@ -545,7 +568,7 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
 
                             if (isEditingThis) {
                                 return (
-                                    <div key={job.id} className="bg-slate-800 border border-cyan-500/30 rounded-lg p-4 animate-fade-in">
+                                    <div key={job.id} ref={editingCardRef} className="bg-slate-800 border border-cyan-500/30 rounded-lg p-4 animate-fade-in">
                                         <div className="space-y-3">
                                             <div className="flex justify-between items-center mb-2">
                                                 <span className="text-xs font-bold text-cyan-400 uppercase">Editing Job</span>
@@ -610,7 +633,11 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
                             }
 
                             return (
-                                <div key={job.id} className={`p-4 rounded-lg border ${isActive ? 'bg-emerald-900/10 border-emerald-500/50' : 'bg-slate-800/50 border-slate-700'} ${!job.enabled ? 'opacity-60' : ''}`}>
+                                <div
+                                    key={job.id}
+                                    onClick={() => !isActive && handleEdit(job)}
+                                    className={`p-4 rounded-lg border ${isActive ? 'bg-emerald-900/10 border-emerald-500/50' : 'bg-slate-800/50 border-slate-700'} ${!job.enabled ? 'opacity-60' : ''} ${!isActive ? 'cursor-pointer' : ''}`}
+                                >
                                     <div className="flex justify-between items-start mb-3">
                                         <div className="flex items-center gap-2">
                                             <Clock size={16} className={isActive ? "text-emerald-400" : "text-slate-500"} />
@@ -619,7 +646,7 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
                                             </span>
                                         </div>
                                         <button
-                                            onClick={() => handleToggle(job)}
+                                            onClick={(e) => { e.stopPropagation(); handleToggle(job); }}
                                             className={`w-10 h-5 rounded-full p-0.5 transition-colors duration-200 ease-in-out relative inline-flex items-center ${job.enabled ? 'bg-emerald-500' : 'bg-slate-600'}`}
                                         >
                                             <div className={`bg-white w-4 h-4 rounded-full shadow transform transition-transform duration-200 ${job.enabled ? 'translate-x-5' : 'translate-x-0'}`} />
@@ -641,26 +668,18 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
                                         </div>
                                     </div>
 
-                                    <div className="flex justify-end gap-2 border-t border-slate-700/50 pt-3">
+                                    <div className="flex justify-end gap-2 border-t border-slate-700/50 pt-3" onClick={e => e.stopPropagation()}>
                                         {isActive ? (
                                             <div className="w-full flex items-center justify-center gap-2 text-emerald-400 font-bold text-sm bg-emerald-500/10 py-1.5 rounded">
                                                 <Zap size={14} fill="currentColor" /> LIVE BROADCAST
                                             </div>
                                         ) : (
-                                            <>
-                                                <button
-                                                    onClick={() => handleEdit(job)}
-                                                    className="flex-1 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs font-bold rounded flex items-center justify-center gap-2 transition-colors"
-                                                >
-                                                    <Edit2 size={12} /> EDIT
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDelete(job.id)}
-                                                    className="flex-1 py-1.5 bg-red-900/20 hover:bg-red-900/40 text-red-400 text-xs font-bold rounded flex items-center justify-center gap-2 transition-colors border border-red-900/30"
-                                                >
-                                                    <Trash2 size={12} /> DELETE
-                                                </button>
-                                            </>
+                                            <button
+                                                onClick={() => handleDelete(job.id)}
+                                                className="flex-1 py-1.5 bg-red-900/20 hover:bg-red-900/40 text-red-400 text-xs font-bold rounded flex items-center justify-center gap-2 transition-colors border border-red-900/30"
+                                            >
+                                                <Trash2 size={12} /> DELETE
+                                            </button>
                                         )}
                                     </div>
                                 </div>
