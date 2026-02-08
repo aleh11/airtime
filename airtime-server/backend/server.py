@@ -3,7 +3,8 @@ import subprocess
 import json
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator, Field
+from typing import Literal
 import re
 import db
 import crons
@@ -32,28 +33,83 @@ async def startup_event():
 
 # --- Pydantic Models ---
 class CronJobInput(BaseModel):
-    id: str
-    command: str  # Frontend will construct this full string
-    time: str  # "HH:MM"
-    frequency: str  # "daily", "weekly"
+    id: str = Field(min_length=1, max_length=64)
+    command: str = Field(max_length=512)
+    time: str = Field(pattern=r'^([0-1][0-9]|2[0-3]):[0-5][0-9]$')
+    frequency: Literal["daily", "weekly", "monthly"]
     enabled: bool = True
+
+    @field_validator('id')
+    @classmethod
+    def validate_id(cls, v: str) -> str:
+        """Validate job ID contains only safe characters."""
+        if not re.match(r'^[a-zA-Z0-9_-]+$', v):
+            raise ValueError("ID must contain only alphanumeric characters, dash, or underscore")
+        return v
 
 class TransmitRequest(BaseModel):
     service: str
     duration: int
 
+    @field_validator('service')
+    @classmethod
+    def validate_service_field(cls, v: str) -> str:
+        """Pre-validate service name before handler validation."""
+        if len(v) > 20:
+            raise ValueError("Service name too long (max 20 characters)")
+        return v.upper()
+
+    @field_validator('duration')
+    @classmethod
+    def validate_duration_field(cls, v: int) -> int:
+        """Validate duration bounds."""
+        if not isinstance(v, int) or v < 1 or v > 720:
+            raise ValueError("Duration must be 1-720 minutes")
+        return v
+
 class RadioConfigInput(BaseModel):
     default_service: str
     default_duration_minutes: int
-    default_offset: int = 0  # Offset in seconds (-60 to 60)
+    default_offset: int = 0
     default_offset_enabled: bool = False
+
+    @field_validator('default_service')
+    @classmethod
+    def validate_service_field(cls, v: str) -> str:
+        """Pre-validate service name."""
+        if len(v) > 20:
+            raise ValueError("Service name too long (max 20 characters)")
+        return v.upper()
+
+    @field_validator('default_duration_minutes')
+    @classmethod
+    def validate_duration_field(cls, v: int) -> int:
+        """Validate duration bounds."""
+        if not isinstance(v, int) or v < 1 or v > 720:
+            raise ValueError("Duration must be 1-720 minutes")
+        return v
+
+    @field_validator('default_offset')
+    @classmethod
+    def validate_offset_field(cls, v: int) -> int:
+        """Validate offset bounds."""
+        if not isinstance(v, int) or v < -720 or v > 720:
+            raise ValueError("Offset must be -720 to +720 minutes")
+        return v
 
 # --- Helpers ---
 def friendly_to_cron(time_str: str, freq: str) -> str:
     """Converts '14:30' + 'daily' -> '30 14 * * *'"""
     try:
         hour, minute = time_str.split(":")
-        int(hour), int(minute)
+        hour_int, minute_int = int(hour), int(minute)
+
+        # CRITICAL: Add bounds checking
+        if not (0 <= hour_int <= 23):
+            raise HTTPException(status_code=400, detail="Hour must be 0-23")
+        if not (0 <= minute_int <= 59):
+            raise HTTPException(status_code=400, detail="Minute must be 0-59")
+
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid time format. Use HH:MM")
 
@@ -465,43 +521,6 @@ async def update_radio_config(conf: RadioConfigInput):
     return {
         "status": "updated",
         "cron_jobs_updated": updated_count
-    }
-
-
-@app.get("/api/debug/crontab")
-async def debug_crontab():
-    """Debug endpoint to see system crontab vs database"""
-    from crontab import CronTab
-    import os
-    import getpass
-
-    # Get database jobs
-    db_jobs = db.get_cron_jobs()
-
-    # Check current user
-    current_user = getpass.getuser()
-    current_uid = os.getuid()
-
-    # Get system crontab - root's crontab (requires backend running as root)
-    try:
-        cron = CronTab(user='root')
-        system_jobs = []
-        for job in cron:
-            system_jobs.append({
-                "id": job.comment,
-                "command": job.command,
-                "schedule": str(job.slices),
-                "enabled": job.is_enabled()
-            })
-    except Exception as e:
-        system_jobs = {"error": str(e)}
-
-    return {
-        "process_user": current_user,
-        "process_uid": current_uid,
-        "database_jobs": db_jobs,
-        "system_crontab": system_jobs,
-        "sync_status": "Run POST /api/crons to trigger sync"
     }
 
 
