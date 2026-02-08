@@ -1,1 +1,7 @@
 .DS_Store
+
+# SSL Certificates (generated locally, not committed)
+ssl/*.pem
+ssl/*.key
+ssl/*.crt
+ssl/openssl.cnf

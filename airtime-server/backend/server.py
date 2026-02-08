@@ -6,11 +6,13 @@ import threading
 import time
 import re
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, field_validator, Field
 from typing import Literal
 import psutil
+import logging
+import logging.handlers
 
 import db
 import crons
@@ -32,6 +34,42 @@ async def startup_event():
         crons.sync()
     except Exception as e:
         print(f"[STARTUP] Error syncing crons: {e}")
+
+    # Setup audit logging
+    setup_audit_logging()
+
+
+def setup_audit_logging():
+    """Configure syslog handler for audit logs"""
+    global audit_logger
+    audit_logger = logging.getLogger("airtime.audit")
+    audit_logger.setLevel(logging.INFO)
+
+    # Syslog handler (goes to journalctl)
+    try:
+        syslog_handler = logging.handlers.SysLogHandler(address='/dev/log')
+        syslog_format = logging.Formatter('airtime-audit: %(message)s')
+        syslog_handler.setFormatter(syslog_format)
+        audit_logger.addHandler(syslog_handler)
+    except:
+        # If syslog not available (e.g., macOS dev environment), skip it
+        pass
+
+    # Also log to console for debugging
+    console_handler = logging.StreamHandler()
+    console_format = logging.Formatter('[AUDIT] %(message)s')
+    console_handler.setFormatter(console_format)
+    audit_logger.addHandler(console_handler)
+
+    print("[STARTUP] Audit logging initialized")
+
+
+def get_client_ip(request: Request) -> str:
+    """Extract real client IP from request"""
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
 
 
 class CronJobInput(BaseModel):
@@ -306,7 +344,7 @@ async def get_crons():
 
 
 @app.post("/api/crons")
-async def add_or_update_cron(job: CronJobInput):
+async def add_or_update_cron(job: CronJobInput, request: Request):
     validated = validate_txtempus_command(job.command)
 
     safe_command = f"/usr/bin/txtempus -s {validated['service']} -r {validated['duration']}"
@@ -314,6 +352,10 @@ async def add_or_update_cron(job: CronJobInput):
         safe_command += f" -z {validated['offset']}"
 
     cron_schedule = friendly_to_cron(job.time, job.frequency)
+
+    # Check if this is an update or create
+    existing_job = db.get_cron_jobs()
+    is_update = any(j.get('id') == job.id for j in existing_job)
 
     db.add_or_update_cron_job(
         job_id=job.id,
@@ -327,15 +369,25 @@ async def add_or_update_cron(job: CronJobInput):
     except Exception as e:
         print(f"Sync Error: {e}")
 
+    # Audit log
+    client_ip = get_client_ip(request)
+    action = "updated" if is_update else "created"
+    audit_logger.info(f"Cron job {action}: id={job.id}, time={job.time}, freq={job.frequency}, service={validated['service']}, duration={validated['duration']}min, enabled={job.enabled}, ip={client_ip}")
+
     return {"status": "success"}
 
 
 @app.delete("/api/crons/{job_id}")
-async def delete_cron(job_id: str):
+async def delete_cron(job_id: str, request: Request):
     if not db.delete_cron_job(job_id):
         raise HTTPException(status_code=404, detail="Job not found")
 
     crons.sync()
+
+    # Audit log
+    client_ip = get_client_ip(request)
+    audit_logger.info(f"Cron job deleted: id={job_id}, ip={client_ip}")
+
     return {"status": "deleted"}
 
 
@@ -369,7 +421,7 @@ async def get_radio_config():
 
 
 @app.post("/api/settings/radio")
-async def update_radio_config(conf: RadioConfigInput):
+async def update_radio_config(conf: RadioConfigInput, request: Request):
     service = validate_service(conf.default_service)
     duration = validate_duration(conf.default_duration_minutes)
     offset = validate_offset(conf.default_offset)
@@ -388,6 +440,10 @@ async def update_radio_config(conf: RadioConfigInput):
         except Exception as e:
             print(f"Cron sync error after offset update: {e}")
 
+    # Audit log
+    client_ip = get_client_ip(request)
+    audit_logger.info(f"Radio config updated: service={service}, duration={duration}min, offset={offset}min, offset_enabled={conf.default_offset_enabled}, cron_jobs_updated={updated_count}, ip={client_ip}")
+
     return {
         "status": "updated",
         "cron_jobs_updated": updated_count
@@ -403,7 +459,7 @@ async def toggle_stealth():
 
 
 @app.post("/api/control/transmit")
-async def manual_transmit(req: TransmitRequest):
+async def manual_transmit(req: TransmitRequest, request: Request):
     service = validate_service(req.service)
     duration = validate_duration(req.duration)
 
@@ -417,29 +473,47 @@ async def manual_transmit(req: TransmitRequest):
         cmd.extend(['-z', str(offset)])
 
     subprocess.Popen(cmd)
+
+    # Audit log
+    client_ip = get_client_ip(request)
+    audit_logger.info(f"Manual transmit started: service={service}, duration={duration}min, ip={client_ip}")
+
     return {"status": "started", "service": service, "duration": duration}
 
 
 @app.post("/api/control/stop")
-async def stop_transmit():
+async def stop_transmit(request: Request):
     subprocess.run(['sudo', 'pkill', 'txtempus'])
+
+    # Audit log
+    client_ip = get_client_ip(request)
+    audit_logger.info(f"Transmit stopped, ip={client_ip}")
+
     return {"status": "stopped"}
 
 
 @app.post("/api/control/restart")
-async def restart_server():
+async def restart_server(request: Request):
     base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     script_path = os.path.join(base_dir, 'restart.sh')
 
     if not os.path.exists(script_path):
         raise HTTPException(status_code=500, detail="Restart script not found")
 
+    # Audit log
+    client_ip = get_client_ip(request)
+    audit_logger.info(f"Server restart requested, ip={client_ip}")
+
     subprocess.Popen(['sudo', script_path])
     return {"status": "restarting"}
 
 
 @app.post("/api/control/restart-pi")
-async def restart_pi():
+async def restart_pi(request: Request):
+    # Audit log
+    client_ip = get_client_ip(request)
+    audit_logger.info(f"Pi reboot requested, ip={client_ip}")
+
     subprocess.Popen(['sudo', 'reboot'])
     return {"status": "rebooting"}
 
@@ -496,7 +570,11 @@ async def check_updates():
 
 
 @app.post("/api/system/apply-update")
-async def apply_update():
+async def apply_update(request: Request):
+    # Audit log
+    client_ip = get_client_ip(request)
+    audit_logger.info(f"Update started, ip={client_ip}")
+
     def run_update_sequence(base_dir, script_path):
         log_file = "/tmp/airtime-update.log"
 
@@ -593,4 +671,24 @@ async def get_system_metrics():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+    # Check for SSL certificates
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    ssl_cert = os.path.join(base_dir, "ssl", "cert.pem")
+    ssl_key = os.path.join(base_dir, "ssl", "key.pem")
+
+    if os.path.exists(ssl_cert) and os.path.exists(ssl_key):
+        print(f"[STARTUP] SSL certificates found - starting HTTPS server on port 8000")
+        print(f"[STARTUP]   Certificate: {ssl_cert}")
+        print(f"[STARTUP]   Private key: {ssl_key}")
+        uvicorn.run(
+            app,
+            host="0.0.0.0",
+            port=8000,
+            ssl_keyfile=ssl_key,
+            ssl_certfile=ssl_cert
+        )
+    else:
+        print(f"[STARTUP] SSL certificates not found - starting HTTP server on port 8000")
+        print(f"[STARTUP]   Run './setup-ssl.sh' to enable HTTPS")
+        uvicorn.run(app, host="0.0.0.0", port=8000)
