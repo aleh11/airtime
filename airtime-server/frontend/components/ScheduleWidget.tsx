@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Card } from './Card';
 import { CronJob, CronJobInput, ServiceType, RadioConfig, SystemStatus } from '../types';
 import { api } from '../services/api';
-import { Trash2, Plus, Clock, RefreshCw, X, Zap } from 'lucide-react';
+import { Trash2, Plus, Clock, RefreshCw, X, Edit2, Zap } from 'lucide-react';
 import { ConfirmModal, ModalType } from './ConfirmModal';
 
 const DURATION_OPTIONS = [
@@ -482,12 +482,20 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
                                                     LIVE <Zap size={12} fill="currentColor" />
                                                 </div>
                                             ) : (
-                                                <button
-                                                    onClick={() => handleDelete(job.id)}
-                                                    className="p-1.5 rounded hover:bg-red-500/20 text-slate-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
-                                                >
-                                                    <Trash2 size={14} />
-                                                </button>
+                                                <div className="flex items-center justify-end gap-2">
+                                                    <button
+                                                        onClick={() => handleEdit(job)}
+                                                        className="p-1.5 rounded hover:bg-cyan-500/20 text-slate-600 hover:text-cyan-400 transition-colors opacity-0 group-hover:opacity-100"
+                                                    >
+                                                        <Edit2 size={14} />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDelete(job.id)}
+                                                        className="p-1.5 rounded hover:bg-red-500/20 text-slate-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </div>
                                             )}
                                         </td>
                                     </tr>
@@ -674,12 +682,20 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
                                                 <Zap size={14} fill="currentColor" /> LIVE BROADCAST
                                             </div>
                                         ) : (
-                                            <button
-                                                onClick={() => handleDelete(job.id)}
-                                                className="flex-1 py-1.5 bg-red-900/20 hover:bg-red-900/40 text-red-400 text-xs font-bold rounded flex items-center justify-center gap-2 transition-colors border border-red-900/30"
-                                            >
-                                                <Trash2 size={12} /> DELETE
-                                            </button>
+                                            <>
+                                                <button
+                                                    onClick={() => handleEdit(job)}
+                                                    className="flex-1 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs font-bold rounded flex items-center justify-center gap-2 transition-colors"
+                                                >
+                                                    <Edit2 size={12} /> EDIT
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDelete(job.id)}
+                                                    className="flex-1 py-1.5 bg-red-900/20 hover:bg-red-900/40 text-red-400 text-xs font-bold rounded flex items-center justify-center gap-2 transition-colors border border-red-900/30"
+                                                >
+                                                    <Trash2 size={12} /> DELETE
+                                                </button>
+                                            </>
                                         )}
                                     </div>
                                 </div>
