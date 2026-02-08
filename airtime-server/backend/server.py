@@ -355,15 +355,21 @@ async def add_or_update_cron(job: CronJobInput):
 
     Validates txtempus command parameters before saving to database.
     """
-    # SECURITY: Validate the txtempus command before saving
-    validate_txtempus_command(job.command)
+    # SECURITY: Parse and validate components first
+    validated = validate_txtempus_command(job.command)
+
+    # Reconstruct the command string securely from validated components
+    # This strips any malicious suffixes or shell injections from job.command
+    safe_command = f"/usr/bin/txtempus -s {validated['service']} -r {validated['duration']}"
+    if validated['offset'] != 0:
+        safe_command += f" -z {validated['offset']}"
 
     cron_schedule = friendly_to_cron(job.time, job.frequency)
 
-    # Use direct database API
+    # Use direct database API with the sanitized command
     db.add_or_update_cron_job(
         job_id=job.id,
-        command=job.command,
+        command=safe_command,
         schedule=cron_schedule,
         enabled=job.enabled
     )
@@ -652,84 +658,82 @@ async def apply_update():
     """
     import os
 
+    import threading
+    import time
+    
+    def run_update_sequence(base_dir, script_path):
+        """Background thread to safely run update sequence"""
+        log_file = "/tmp/airtime-update.log"
+        
+        def log(msg):
+            with open(log_file, "a") as f:
+                f.write(f"[UPDATE] {msg}\n")
+            print(f"[UPDATE] {msg}")
+
+        try:
+            with open(log_file, "w") as f:
+                f.write(f"========================================\n")
+                f.write(f"[UPDATE] Starting update at {time.ctime()}\n")
+
+            log(f"Target Dir: {base_dir}")
+            
+            # 1. Git Pull (User: time)
+            log("Running git pull...")
+            # We use list args to avoid shell injection
+            cmd_env = os.environ.copy()
+            cmd_env["HOME"] = "/home/time"
+            
+            result = subprocess.run(
+                ['sudo', '-u', 'time', '/usr/bin/git', '-C', base_dir, 'pull'],
+                capture_output=True,
+                text=True,
+                env=cmd_env
+            )
+            
+            if result.returncode == 0:
+                log("Git pull successful")
+                log(result.stdout)
+            else:
+                log(f"ERROR: Git pull failed (code {result.returncode})")
+                log(result.stderr)
+                return
+
+            # 2. Restart Service (Root)
+            log("Running restart script...")
+            # Direct execution of script path, no shell=True
+            restart_res = subprocess.run(
+                ['sudo', script_path],
+                capture_output=True,
+                text=True
+            )
+            
+            if restart_res.returncode == 0:
+                log("Restart script executed successfully")
+            else:
+                log(f"ERROR: Restart script failed (code {restart_res.returncode})")
+                log(restart_res.stderr)
+                
+            log("Update sequence complete")
+
+        except Exception as e:
+            log(f"EXCEPTION: {str(e)}")
+
     # Resolve absolute paths
     base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     script_path = os.path.join(base_dir, 'restart.sh')
-
-    print(f"[APPLY UPDATE] Base dir: {base_dir}")
-    print(f"[APPLY UPDATE] Restart script: {script_path}")
 
     if not os.path.exists(script_path):
         print(f"[APPLY UPDATE] ERROR: Restart script not found at {script_path}")
         raise HTTPException(status_code=500, detail="Restart script not found")
 
-    # Check if restart script is executable
-    if not os.access(script_path, os.X_OK):
-        print(f"[APPLY UPDATE] ERROR: Restart script not executable")
-        raise HTTPException(status_code=500, detail="Restart script not executable")
+    # Start update in background thread
+    t = threading.Thread(target=run_update_sequence, args=(base_dir, script_path))
+    t.start()
 
-    try:
-        # Build the update command
-        # IMPORTANT: Run git commands as user 'time' to use correct SSH keys
-        # We explicitly set HOME to ensure git finds the user's config/keys
-        # We use git -C to ensure we operate in the correct directory
-        update_cmd = f"""
-        echo "========================================" >> /tmp/airtime-update.log
-        echo "[UPDATE] Starting update at $(date)" >> /tmp/airtime-update.log
-        
-        # Enable verbose exit on error
-        set -e
-        # Enable command printing
-        set -x
-        
-        # Diagnostic Info
-        echo "[UPDATE] Current User: $(whoami)" >> /tmp/airtime-update.log
-        echo "[UPDATE] Target Dir: {base_dir}" >> /tmp/airtime-update.log
-        
-        # Git Diagnostics
-        sudo -u time bash -c "export HOME=/home/time; /usr/bin/git -C {base_dir} remote -v" >> /tmp/airtime-update.log 2>&1
-        sudo -u time bash -c "export HOME=/home/time; /usr/bin/git -C {base_dir} status" >> /tmp/airtime-update.log 2>&1
-
-        # Git Pull
-        echo "[UPDATE] Running git pull..." >> /tmp/airtime-update.log
-        if sudo -u time bash -c "export HOME=/home/time; /usr/bin/git -C {base_dir} pull"; then
-            echo "[UPDATE] Git pull successful" >> /tmp/airtime-update.log
-        else
-            echo "[UPDATE] ERROR: Git pull failed with code $?" >> /tmp/airtime-update.log
-            exit 1
-        fi
-
-        echo "[UPDATE] Running restart script..." >> /tmp/airtime-update.log
-        if sudo {script_path}; then
-            echo "[UPDATE] Restart script executed" >> /tmp/airtime-update.log
-        else
-            echo "[UPDATE] ERROR: Restart script failed" >> /tmp/airtime-update.log
-            exit 1
-        fi
-        
-        echo "[UPDATE] Update sequence complete" >> /tmp/airtime-update.log 2>&1
-        """
-
-        print("[APPLY UPDATE] Starting update process in background")
-        print(f"[APPLY UPDATE] Command: {update_cmd[:100]}...")
-
-        subprocess.Popen(
-            ['bash', '-c', update_cmd],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
-        )
-
-        print("[APPLY UPDATE] Update process spawned successfully")
-        print("[APPLY UPDATE] Check /tmp/airtime-update.log on the Pi for progress")
-
-        return {
-            "status": "updating",
-            "message": "Update applied, services restarting..."
-        }
-
-    except Exception as e:
-        print(f"[APPLY UPDATE] ERROR: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to apply update: {str(e)}")
+    return {
+        "status": "updating",
+        "message": "Update started in background. Check /tmp/airtime-update.log for details."
+    }
 
 
 # --- System Metrics ---

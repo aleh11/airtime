@@ -1,6 +1,6 @@
-# [Airtime](https://airtime.diy/): Local Time-signal Transmitter
+# [AirTime](https://airtime.diy/): Local Time-signal Transmitter
 
-**[Airtime](https://airtime.diy/)** transmits precise time signals over radio frequencies (DCF77, WWVB, MSF, JJY40, JJY60) using the [txtempus](https://github.com/hzeller/txtempus) transmitter. The signal is transmitted through either a ferrite core antenna or a copper wire antenna, both of which require minimal effort to setup. Additionally, a user friendly dashboard is provided to control the system and monitor its status, allowing the addition of custom time offsets and transmission schedules.
+**[AirTime](https://airtime.diy/)** transmits precise time signals over radio frequencies (DCF77, WWVB, MSF, JJY40, JJY60) using the [txtempus](https://github.com/hzeller/txtempus) transmitter. The signal is transmitted through either a ferrite core antenna or a copper wire antenna, both of which require minimal effort to setup. Additionally, a user friendly dashboard is provided to control the system and monitor its status, allowing the addition of custom time offsets and transmission schedules.
 <table>
   <tr>
     <td>
@@ -72,7 +72,7 @@ After installation, your dashboard will be available at `http://pi-ip-address/`
 
 ## Using the Airtime UI
 
-The Airtime dashboard provides an easy way to interact with the Airtime pi, and allows full control over the transmitter.
+The Airtime dashboard provides an easy way to interact with the Airtime pi, and allows full control over the transmitter, there is a live dashboard available [here](https://airtime.ddns.net:8000).
 
 - **System Health**: Real-time monitoring of CPU, RAM, Temperature, and Internet connectivity.
 - **Precision Clock**: Displays the time as provided on the Airtime Pi.
@@ -101,4 +101,4 @@ The UI is also fully covered within the [full user guide](docs/Airtime3.pdf), so
 
 - [**Official website**](https://airtime.diy/)
 - [**txtempus repo**](https://github.com/hzeller/txtempus)
-- [**Contact us**](mailto:aless.montalto@gmail.com)
+- [**Live Dashboard**](https://airtime.ddns.net:8000)
