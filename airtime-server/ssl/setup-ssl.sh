@@ -52,16 +52,7 @@ fi
 echo ""
 echo -e "${YELLOW}Generating self-signed SSL certificate...${NC}"
 echo "  Valid for: 10 years"
-
-    # Linux
-IP_ADDR=$(hostname -I | awk '{print $1}')
-fi
-
-if [ -z "$IP_ADDR" ]; then
-    IP_ADDR="127.0.0.1"
-fi
-
-echo "  Hostnames: time.local, localhost, 127.0.0.1, $IP_ADDR"
+echo "  Hostnames: time.local, localhost, 127.0.0.1, 192.168.7.12"
 echo ""
 
 # Create OpenSSL config for SAN (Subject Alternative Names)
@@ -89,7 +80,7 @@ subjectAltName = @alt_names
 DNS.1 = time.local
 DNS.2 = localhost
 IP.1  = 127.0.0.1
-IP.2  = $IP_ADDR
+IP.2  = 192.168.7.12
 EOF
 
 # Generate the certificate

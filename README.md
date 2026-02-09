@@ -72,7 +72,7 @@ After installation, your dashboard will be available at `http://pi-ip-address/`
 
 ## Using the Airtime UI
 
-The Airtime dashboard provides an easy way to interact with the Airtime pi, and allows full control over the transmitter, there is a live dashboard available [here](https://airtime.ddns.net:8000).
+The Airtime dashboard provides an easy way to interact with the Airtime pi, and allows full control over the transmitter, there is a live dashboard available [here](https://airtime.ddns.net:8443).
 
 - **System Health**: Real-time monitoring of CPU, RAM, Temperature, and Internet connectivity.
 - **Precision Clock**: Displays the time as provided on the Airtime Pi.
@@ -101,4 +101,4 @@ The UI is also fully covered within the [full user guide](docs/Airtime3.pdf), so
 
 - [**Official website**](https://airtime.diy/)
 - [**txtempus repo**](https://github.com/hzeller/txtempus)
-- [**Live Dashboard**](https://airtime.ddns.net:8000)
+- [**Live Dashboard**](https://airtime.ddns.net:8443)
