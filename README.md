@@ -57,15 +57,12 @@ The `install.sh` does the following:
 - Sets up system service files so the system automatically starts on boot.
 
 **Services created:**
-
-| Service | Description | Port |
-|---------|-------------|------|
-| `airtime-server` | FastAPI REST API | 8000 |
-| `airtime-status` | GPIO/LED/Button control | - |
-| `nginx` | Frontend + API proxy | 80 |
+- `airtime-server`: FastAPI REST API
+- `airtime-status`: GPIO/LED/Button control
+- `nginx`: Frontend + API proxy
 
 
-After installation, your dashboard will be available at `http://pi-ip-address/`
+After installation, your dashboard will be available at `https://pi-ip-address:8443`
 #### Additional scripts
 - `restart.sh` - Restarts all services
 - `status.sh` - Displays status of all services
