@@ -347,9 +347,14 @@ async def get_crons():
 async def add_or_update_cron(job: CronJobInput, request: Request):
     validated = validate_txtempus_command(job.command)
 
+    # Always use the current global offset from DB, not whatever the frontend sent.
+    # This prevents stale-offset bugs when the user updates the offset and immediately adds a new job.
+    global_offset = int(db.get_setting("radio_config", "default_offset", "0"))
+    global_offset_enabled = str(db.get_setting("radio_config", "default_offset_enabled", "false")).lower() == "true"
+
     safe_command = f"/usr/bin/txtempus -s {validated['service']} -r {validated['duration']}"
-    if validated['offset'] != 0:
-        safe_command += f" -z {validated['offset']}"
+    if global_offset_enabled and global_offset != 0:
+        safe_command += f" -z {global_offset}"
 
     cron_schedule = friendly_to_cron(job.time, job.frequency)
 
