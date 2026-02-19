@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card } from './Card';
 import { RadioConfig, RadioConfigInput } from '../types';
-import { Play, Zap, X, Square, RotateCw, Clock, RefreshCw, Loader2, FlaskConical } from 'lucide-react';
+import { Play, Zap, X, Square, RotateCw, Clock, RefreshCw, Loader2, FlaskConical, HelpCircle } from 'lucide-react';
 import { api } from '../services/api';
 import { ConfirmModal, ModalType } from './ConfirmModal';
 
@@ -444,7 +444,13 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
                                 <div className="p-1.5 rounded-full bg-slate-700 text-violet-400">
                                     <FlaskConical size={14} />
                                 </div>
-                                <div className="text-sm font-medium text-slate-200">Time Tester</div>
+                                <div className="relative flex items-center gap-1.5 group cursor-help">
+                                    <div className="text-sm font-medium text-slate-200">Sync Time Check</div>
+                                    <HelpCircle size={14} className="text-slate-500 hover:text-slate-300 transition-colors" />
+                                    <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-64 p-2 bg-slate-900 text-xs text-slate-300 rounded shadow-xl border border-slate-700 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                                        Disables all scheduled broadcasts to continuously transmit a fixed 00:00 time signal. Useful for verifying radio hardware and syncing clocks from scratch.
+                                    </div>
+                                </div>
                             </div>
                             <button
                                 disabled={timeTesterLoading}
@@ -486,7 +492,13 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
                                 <div className="p-1.5 rounded-full bg-slate-700 text-slate-400">
                                     <FlaskConical size={14} />
                                 </div>
-                                <div className="text-sm font-medium text-slate-200">Time Tester</div>
+                                <div className="relative flex items-center gap-1.5 group cursor-help" onClick={(e) => e.stopPropagation()}>
+                                    <div className="text-sm font-medium text-slate-200">Sync Time Check</div>
+                                    <HelpCircle size={14} className="text-slate-500 hover:text-slate-300 transition-colors" />
+                                    <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-64 p-2 bg-slate-900 text-xs text-slate-300 rounded shadow-xl border border-slate-700 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                                        Disables all scheduled broadcasts to continuously transmit a fixed 00:00 time signal. Useful for verifying radio hardware and syncing clocks from scratch.
+                                    </div>
+                                </div>
                             </div>
                             <button className="w-8 h-4 rounded-full p-0.5 bg-slate-600 relative inline-flex items-center pointer-events-none">
                                 <div className="bg-white w-3 h-3 rounded-full shadow transform translate-x-0" />

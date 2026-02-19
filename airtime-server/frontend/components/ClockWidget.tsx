@@ -133,7 +133,7 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({ status, timeTesterEnab
                                 <div className="text-2xl font-bold text-slate-200 flex items-center gap-2">
                                     {serviceName}
                                     {timeTesterEnabled && (
-                                        <span className="text-[10px] font-bold text-violet-400 border border-violet-500/50 bg-violet-500/10 px-1.5 py-0.5 rounded tracking-widest uppercase mt-1">
+                                        <span className="text-[9px] font-bold text-violet-400 border border-violet-500/50 bg-violet-500/10 px-1 py-0 rounded-sm tracking-widest uppercase mt-0.5 ml-1">
                                             Testing
                                         </span>
                                     )}

@@ -653,8 +653,14 @@ async def check_updates():
         )
         local_commit = local_result.stdout.strip()
 
+        branch_result = subprocess.run(
+            ['sudo', '-u', 'time', '/usr/bin/git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+            cwd=base_dir, capture_output=True, text=True, timeout=5
+        )
+        current_branch = branch_result.stdout.strip() or "master"
+
         remote_result = subprocess.run(
-            ['sudo', '-u', 'time', '/usr/bin/git', 'rev-parse', 'origin/master'],
+            ['sudo', '-u', 'time', '/usr/bin/git', 'rev-parse', f'origin/{current_branch}'],
             cwd=base_dir,
             capture_output=True,
             text=True,
@@ -665,7 +671,8 @@ async def check_updates():
         return {
             "updates_available": local_commit != remote_commit,
             "local_commit": local_commit[:7] if local_commit else "unknown",
-            "remote_commit": remote_commit[:7] if remote_commit else "unknown"
+            "remote_commit": remote_commit[:7] if remote_commit else "unknown",
+            "branch": current_branch
         }
 
     except subprocess.TimeoutExpired:
