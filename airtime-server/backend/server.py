@@ -535,7 +535,12 @@ def enable_time_tester(service: str, duration_hours: int):
     # Fixed time 00:00, specified service
     # Duration converted to minutes
     duration_minutes = duration_hours * 60
-    cmd = ['sudo', '/usr/bin/txtempus', '-s', service, '-t', '00:00', '-r', str(duration_minutes)]
+    
+    # Construct time string YYYY-MM-DD 00:00
+    # txtempus requires full date-time format
+    start_time_str = time.strftime("%Y-%m-%d 00:00")
+    
+    cmd = ['sudo', '/usr/bin/txtempus', '-s', service, '-t', start_time_str, '-r', str(duration_minutes)]
     
     subprocess.Popen(cmd)
 
