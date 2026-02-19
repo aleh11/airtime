@@ -412,6 +412,7 @@ Continue with update?`}
               onUpdate={refreshCrons}
               radioConfig={radioConfig}
               status={status}
+              timeTesterEnabled={timeTesterEnabled}
             />
           </div>
         </main>

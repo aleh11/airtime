@@ -20,9 +20,10 @@ interface ScheduleWidgetProps {
     onUpdate: () => void;
     radioConfig: RadioConfig | null;
     status: SystemStatus | null;
+    timeTesterEnabled?: boolean;
 }
 
-export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, radioConfig, status }) => {
+export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, radioConfig, status, timeTesterEnabled }) => {
     const [isAdding, setIsAdding] = useState(false);
     const [editingJobId, setEditingJobId] = useState<string | null>(null);
     const [newJob, setNewJob] = useState<Partial<CronJobInput>>({
@@ -250,6 +251,7 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
                 action={
                     <button
                         onClick={() => {
+                            if (timeTesterEnabled) return;
                             if (isAdding) {
                                 setIsAdding(false);
                             } else {
@@ -264,7 +266,8 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
                                 setIsAdding(true);
                             }
                         }}
-                        className="p-2 bg-slate-700 hover:bg-slate-600 rounded-full text-slate-200 transition-colors"
+                        className={`p-2 rounded-full transition-colors ${timeTesterEnabled ? 'bg-slate-800 text-slate-600 cursor-not-allowed' : 'bg-slate-700 hover:bg-slate-600 text-slate-200'}`}
+                        disabled={timeTesterEnabled}
                     >
                         {isAdding ? <X size={16} /> : <Plus size={16} />}
                     </button>
@@ -439,11 +442,11 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
                                 return (
                                     <tr
                                         key={job.id}
-                                        onClick={() => !isActive && handleEdit(job)}
+                                        onClick={() => !isActive && !timeTesterEnabled && handleEdit(job)}
                                         className={`
-                                        border-b border-slate-800 hover:bg-slate-700/20 transition-all duration-300 group
-                                        ${!job.enabled ? 'opacity-50' : ''}
-                                        ${isActive ? 'bg-emerald-500/10' : 'cursor-pointer'}
+                                        border-b border-slate-800 transition-all duration-300 group
+                                        ${(!job.enabled || timeTesterEnabled) ? 'opacity-50' : ''}
+                                        ${isActive ? 'bg-emerald-500/10' : (timeTesterEnabled ? 'cursor-not-allowed bg-slate-800/20' : 'cursor-pointer hover:bg-slate-700/20')}
                                     `}
                                     >
                                         <td className={`py-4 pl-4 font-mono font-bold text-slate-200 ${isActive ? 'border-l-2 border-emerald-500' : 'border-l-2 border-transparent'}`}>
@@ -470,10 +473,10 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
                                         </td>
                                         <td className="py-4 text-center" onClick={e => e.stopPropagation()}>
                                             <button
-                                                onClick={() => handleToggle(job)}
-                                                className={`w-8 h-4 rounded-full p-0.5 transition-colors duration-200 ease-in-out relative inline-flex items-center ${job.enabled ? 'bg-emerald-500/80' : 'bg-slate-600'}`}
+                                                onClick={() => !timeTesterEnabled && handleToggle(job)}
+                                                className={`w-8 h-4 rounded-full p-0.5 transition-colors duration-200 ease-in-out relative inline-flex items-center ${(job.enabled && !timeTesterEnabled) ? 'bg-emerald-500/80' : 'bg-slate-600'} ${timeTesterEnabled ? 'cursor-not-allowed' : ''}`}
                                             >
-                                                <div className={`bg-white w-3 h-3 rounded-full shadow transform transition-transform duration-200 ${job.enabled ? 'translate-x-4' : 'translate-x-0'}`} />
+                                                <div className={`bg-white w-3 h-3 rounded-full shadow transform transition-transform duration-200 ${(job.enabled && !timeTesterEnabled) ? 'translate-x-4' : 'translate-x-0'}`} />
                                             </button>
                                         </td>
                                         <td className="py-4 text-right pr-4" onClick={e => e.stopPropagation()}>
@@ -643,8 +646,8 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
                             return (
                                 <div
                                     key={job.id}
-                                    onClick={() => !isActive && handleEdit(job)}
-                                    className={`p-4 rounded-lg border ${isActive ? 'bg-emerald-900/10 border-emerald-500/50' : 'bg-slate-800/50 border-slate-700'} ${!job.enabled ? 'opacity-60' : ''} ${!isActive ? 'cursor-pointer' : ''}`}
+                                    onClick={() => !isActive && !timeTesterEnabled && handleEdit(job)}
+                                    className={`p-4 rounded-lg border ${isActive ? 'bg-emerald-900/10 border-emerald-500/50' : 'bg-slate-800/50 border-slate-700'} ${(!job.enabled || timeTesterEnabled) ? 'opacity-60' : ''} ${(!isActive && !timeTesterEnabled) ? 'cursor-pointer' : ''}`}
                                 >
                                     <div className="flex justify-between items-start mb-3">
                                         <div className="flex items-center gap-2">
@@ -654,10 +657,10 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
                                             </span>
                                         </div>
                                         <button
-                                            onClick={(e) => { e.stopPropagation(); handleToggle(job); }}
-                                            className={`w-10 h-5 rounded-full p-0.5 transition-colors duration-200 ease-in-out relative inline-flex items-center ${job.enabled ? 'bg-emerald-500' : 'bg-slate-600'}`}
+                                            onClick={(e) => { e.stopPropagation(); if (!timeTesterEnabled) handleToggle(job); }}
+                                            className={`w-10 h-5 rounded-full p-0.5 transition-colors duration-200 ease-in-out relative inline-flex items-center ${(job.enabled && !timeTesterEnabled) ? 'bg-emerald-500' : 'bg-slate-600'} ${timeTesterEnabled ? 'cursor-not-allowed' : ''}`}
                                         >
-                                            <div className={`bg-white w-4 h-4 rounded-full shadow transform transition-transform duration-200 ${job.enabled ? 'translate-x-5' : 'translate-x-0'}`} />
+                                            <div className={`bg-white w-4 h-4 rounded-full shadow transform transition-transform duration-200 ${(job.enabled && !timeTesterEnabled) ? 'translate-x-5' : 'translate-x-0'}`} />
                                         </button>
                                     </div>
 

@@ -444,10 +444,7 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
                                 <div className="p-1.5 rounded-full bg-slate-700 text-violet-400">
                                     <FlaskConical size={14} />
                                 </div>
-                                <div>
-                                    <div className="text-sm font-medium text-slate-200">Time Tester</div>
-                                    <div className="text-[10px] text-violet-400 font-mono">Fixed 00:00 · {timeTesterDuration}h · {timeTesterService} · crons paused</div>
-                                </div>
+                                <div className="text-sm font-medium text-slate-200">Time Tester</div>
                             </div>
                             <button
                                 disabled={timeTesterLoading}
