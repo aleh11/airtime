@@ -288,6 +288,10 @@ def get_git_commit():
         return "unknown"
 
 
+def get_git_branch():
+    return "experimental"
+
+
 def get_cpu_temp():
     try:
         with open("/sys/class/thermal/thermal_zone0/temp", "r") as f:
@@ -334,7 +338,8 @@ async def get_status():
         "app_config": {
             "stealth_mode": bool(db.get_setting("app_config", "stealth_mode", False))
         },
-        "git_commit": get_git_commit()
+        "git_commit": get_git_commit(),
+        "git_branch": get_git_branch()
     }
 
 
@@ -645,6 +650,118 @@ async def apply_update(request: Request):
     return {
         "status": "updating",
         "message": "Update started in background. Check /tmp/airtime-update.log for details."
+    }
+
+
+class BranchSwitchRequest(BaseModel):
+    branch: str
+
+
+@app.post("/api/system/switch-branch")
+async def switch_branch(req: BranchSwitchRequest, request: Request):
+    target_branch = req.branch
+    if target_branch not in ["master", "experimental"]:
+        raise HTTPException(status_code=400, detail="Invalid branch")
+
+    # Audit log
+    client_ip = get_client_ip(request)
+    audit_logger.info(f"Branch switch requested: target={target_branch}, ip={client_ip}")
+
+    def run_switch_sequence(base_dir, script_path, branch):
+        log_file = "/tmp/airtime-switch.log"
+
+        def log(msg):
+            with open(log_file, "a") as f:
+                f.write(f"[SWITCH] {msg}\n")
+            print(f"[SWITCH] {msg}")
+
+        try:
+            with open(log_file, "w") as f:
+                f.write(f"========================================\n")
+                f.write(f"[SWITCH] Starting branch switch to {branch} at {time.ctime()}\n")
+
+            log(f"Target Dir: {base_dir}")
+
+            log("Fetching origin...")
+            cmd_env = os.environ.copy()
+            cmd_env["HOME"] = "/home/time"
+
+            fetch_res = subprocess.run(
+                ['sudo', '-u', 'time', '/usr/bin/git', '-C', base_dir, 'fetch', 'origin'],
+                capture_output=True,
+                text=True,
+                env=cmd_env
+            )
+            
+            if fetch_res.returncode != 0:
+                 log(f"WARNING: Git fetch failed (code {fetch_res.returncode})")
+                 log(fetch_res.stderr)
+            
+            log(f"Checking out {branch}...")
+            checkout_res = subprocess.run(
+                ['sudo', '-u', 'time', '/usr/bin/git', '-C', base_dir, 'checkout', branch],
+                capture_output=True,
+                text=True,
+                env=cmd_env
+            )
+
+            if checkout_res.returncode != 0:
+                log(f"ERROR: Git checkout failed (code {checkout_res.returncode})")
+                log(checkout_res.stderr)
+                return
+
+            log(f"Pulling latest {branch}...")
+            pull_res = subprocess.run(
+                ['sudo', '-u', 'time', '/usr/bin/git', '-C', base_dir, 'pull', 'origin', branch],
+                capture_output=True,
+                text=True,
+                env=cmd_env
+            )
+            
+            if pull_res.returncode != 0:
+                 log(f"WARNING: Git pull failed (code {pull_res.returncode})")
+                 log(pull_res.stderr)
+
+            # Rebuild frontend if possible (dev env only) - production uses committed dist/
+            if os.path.exists(os.path.join(base_dir, "airtime-server", "frontend", "node_modules")):
+                 log("Rebuilding frontend (dev env detected)...")
+                 # This might fail if npm is not in path for root/time user, but we try
+                 subprocess.run(
+                     ['npm', 'run', 'build'],
+                     cwd=os.path.join(base_dir, "airtime-server", "frontend"),
+                     capture_output=True
+                 )
+
+            log("Running restart script...")
+            restart_res = subprocess.run(
+                ['sudo', script_path],
+                capture_output=True,
+                text=True
+            )
+
+            if restart_res.returncode == 0:
+                log("Restart script executed successfully")
+            else:
+                log(f"ERROR: Restart script failed (code {restart_res.returncode})")
+                log(restart_res.stderr)
+
+            log("Switch sequence complete")
+
+        except Exception as e:
+            log(f"EXCEPTION: {str(e)}")
+
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    script_path = os.path.join(base_dir, 'restart.sh')
+
+    if not os.path.exists(script_path):
+        raise HTTPException(status_code=500, detail="Restart script not found")
+
+    t = threading.Thread(target=run_switch_sequence, args=(base_dir, script_path, target_branch))
+    t.start()
+
+    return {
+        "status": "switching",
+        "message": f"Switching to {target_branch} in background."
     }
 
 

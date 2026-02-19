@@ -51,6 +51,7 @@ export interface SystemStatus {
     app_config: AppConfig;
     system_time: string;
     git_commit?: string;
+    git_branch?: string;
 }
 
 export interface RadioDetails {

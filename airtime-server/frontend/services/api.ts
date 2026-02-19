@@ -115,4 +115,13 @@ export const api = {
         });
         return handleResponse<{ status: string; message: string }>(res);
     },
+
+    switchBranch: async (branch: string): Promise<{ status: string; message: string }> => {
+        const res = await fetch(`${API_BASE}/api/system/switch-branch`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ branch }),
+        });
+        return handleResponse<{ status: string; message: string }>(res);
+    },
 };

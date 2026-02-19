@@ -7,7 +7,7 @@ import { ScheduleWidget } from './components/ScheduleWidget';
 import { PerformanceWidget } from './components/PerformanceWidget';
 import UpdateBanner from './components/UpdateBanner';
 import { ConfirmModal } from './components/ConfirmModal';
-import { RadioTower, Github, AlertTriangle, RefreshCw, RotateCw } from 'lucide-react';
+import { RadioTower, Github, AlertTriangle, RefreshCw, RotateCw, FlaskConical } from 'lucide-react';
 
 function App() {
   const [status, setStatus] = useState<SystemStatus | null>(null);
@@ -23,6 +23,8 @@ function App() {
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateBannerType, setUpdateBannerType] = useState<'available' | 'up-to-date' | null>(null);
+  const [showExperimentalModal, setShowExperimentalModal] = useState(false);
+  const [isSwitchingBranch, setIsSwitchingBranch] = useState(false);
 
   const fetchData = useCallback(async () => {
     setError(null);
@@ -177,6 +179,47 @@ function App() {
     } catch (e) { console.error(e); }
   };
 
+  const handleExperimentalClick = () => {
+    setShowExperimentalModal(true);
+  };
+
+  const handleExperimentalConfirm = async () => {
+    setIsSwitchingBranch(true);
+    setShowExperimentalModal(false);
+
+    try {
+      const currentBranch = status?.git_branch || 'master';
+      const targetBranch = currentBranch === 'experimental' ? 'master' : 'experimental';
+
+      await api.switchBranch(targetBranch);
+
+      // Wait for restart
+      await new Promise(r => setTimeout(r, 15000));
+
+      const pollUntilOnline = async (): Promise<boolean> => {
+        const maxAttempts = 60;
+        let attempts = 0;
+        while (attempts < maxAttempts) {
+          try {
+            await api.getStatus();
+            return true;
+          } catch (e) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            attempts++;
+          }
+        }
+        return false;
+      };
+
+      await pollUntilOnline();
+      window.location.reload();
+    } catch (e) {
+      console.error("Branch switch failed:", e);
+      setIsSwitchingBranch(false);
+      alert('Branch switch failed. Please check the logs.');
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center text-slate-500 animate-pulse">
@@ -264,6 +307,42 @@ Continue with update?`}
         </div>
       )}
 
+      {isSwitchingBranch && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[70] backdrop-blur-sm">
+          <div className="bg-slate-800 rounded-2xl p-8 max-w-sm w-full border border-slate-700 shadow-2xl text-center">
+            <div className="mb-6">
+              <FlaskConical size={48} className="mx-auto animate-bounce text-purple-400" />
+            </div>
+            <h3 className="text-xl font-bold text-white mb-3">
+              Switching Branch...
+            </h3>
+            <p className="text-sm text-slate-400 mb-6">
+              Switching to {status?.git_branch === 'experimental' ? 'master' : 'experimental'} branch. The system will restart shortly.
+            </p>
+            <div className="flex items-center justify-center gap-2 text-xs text-slate-500">
+              <div className="animate-pulse">Please wait</div>
+              <div className="flex gap-1">
+                <div className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                <div className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                <div className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ConfirmModal
+        isOpen={showExperimentalModal}
+        title={status?.git_branch === 'experimental' ? 'Disable Experimental Features?' : 'Enable Experimental Features?'}
+        message={status?.git_branch === 'experimental'
+          ? "This will switch the system back to the stable 'master' branch. The system will restart."
+          : "This will switch the system to the 'experimental' branch. New features may be unstable. The system will restart."}
+        type={status?.git_branch === 'experimental' ? 'warning' : 'info'}
+        onConfirm={handleExperimentalConfirm}
+        onClose={() => setShowExperimentalModal(false)}
+        confirmText={status?.git_branch === 'experimental' ? 'Disable & Restart' : 'Enable & Restart'}
+      />
+
       <div className="max-w-5xl mx-auto space-y-4">
         <header className="flex items-center justify-between py-2 mb-2">
           <div className="flex items-center gap-3">
@@ -281,6 +360,16 @@ Continue with update?`}
             <a href="https://github.com/aleh11/airtime" target="_blank" rel="noreferrer" className="text-slate-500 hover:text-slate-300 transition-colors">
               <Github size={20} />
             </a>
+            <button
+              onClick={handleExperimentalClick}
+              className={`transition-colors p-1 rounded-md ${status?.git_branch === 'experimental'
+                  ? 'text-purple-400 border border-purple-500/50 bg-purple-500/10 hover:bg-purple-500/20'
+                  : 'text-slate-600 hover:text-slate-400'
+                }`}
+              title={status?.git_branch === 'experimental' ? "Experimental Features Enabled" : "Enable Experimental Features"}
+            >
+              <FlaskConical size={20} />
+            </button>
           </div>
         </header>
 
