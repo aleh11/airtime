@@ -363,12 +363,16 @@ Continue with update?`}
             <button
               onClick={handleExperimentalClick}
               className={`transition-colors p-1 rounded-md ${status?.git_branch === 'experimental'
-                  ? 'text-purple-400 border border-purple-500/50 bg-purple-500/10 hover:bg-purple-500/20'
-                  : 'text-slate-600 hover:text-slate-400'
+                ? 'text-purple-400 ring-1 ring-purple-500/50 bg-purple-500/10 hover:bg-purple-500/20'
+                : 'text-slate-500 hover:text-slate-300'
                 }`}
               title={status?.git_branch === 'experimental' ? "Experimental Features Enabled" : "Enable Experimental Features"}
             >
-              <FlaskConical size={20} />
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2" />
+                <path d="M8.5 2h7" />
+                <path d="M7 16h10" />
+              </svg>
             </button>
           </div>
         </header>
