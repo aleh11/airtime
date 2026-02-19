@@ -311,10 +311,10 @@ Continue with update?`}
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[70] backdrop-blur-sm">
           <div className="bg-slate-800 rounded-2xl p-8 max-w-sm w-full border border-slate-700 shadow-2xl text-center">
             <div className="mb-6">
-              <FlaskConical size={48} className="mx-auto animate-bounce text-purple-400" />
+              <RotateCw size={48} className="mx-auto animate-spin text-purple-400" />
             </div>
             <h3 className="text-xl font-bold text-white mb-3">
-              Switching Branch...
+              Restarting Server...
             </h3>
             <p className="text-sm text-slate-400 mb-6">
               Switching to {status?.git_branch === 'experimental' ? 'master' : 'experimental'} branch. The system will restart shortly.
@@ -363,8 +363,8 @@ Continue with update?`}
             <button
               onClick={handleExperimentalClick}
               className={`transition-colors p-1 rounded-md ${status?.git_branch === 'experimental'
-                  ? 'text-purple-400 border border-purple-500/50 bg-purple-500/10 hover:bg-purple-500/20'
-                  : 'text-slate-600 hover:text-slate-400'
+                ? 'text-purple-400 border border-purple-500/50 bg-purple-500/10 hover:bg-purple-500/20'
+                : 'text-slate-600 hover:text-slate-400'
                 }`}
               title={status?.git_branch === 'experimental' ? "Experimental Features Enabled" : "Enable Experimental Features"}
             >
