@@ -289,7 +289,15 @@ def get_git_commit():
 
 
 def get_git_branch():
-    return "experimental"
+    try:
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        cmd = ['sudo', '-u', 'time', 'git', '-C', base_dir, 'rev-parse', '--abbrev-ref', 'HEAD']
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=1)
+        if result.returncode == 0:
+            return result.stdout.strip()
+        return "unknown"
+    except:
+        return "unknown"
 
 
 def get_cpu_temp():

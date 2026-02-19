@@ -363,7 +363,7 @@ Continue with update?`}
             <button
               onClick={handleExperimentalClick}
               className={`transition-colors p-1 rounded-md ${status?.git_branch === 'experimental'
-                ? 'text-purple-400 ring-1 ring-purple-500/50 bg-purple-500/10 hover:bg-purple-500/20'
+                ? 'text-purple-400 bg-purple-500/10 hover:bg-purple-500/20'
                 : 'text-slate-500 hover:text-slate-300'
                 }`}
               title={status?.git_branch === 'experimental' ? "Experimental Features Enabled" : "Enable Experimental Features"}
