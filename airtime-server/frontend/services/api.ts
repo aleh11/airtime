@@ -124,4 +124,18 @@ export const api = {
         });
         return handleResponse<{ status: string; message: string }>(res);
     },
+
+    getTimeTester: async (): Promise<{ enabled: boolean; service: string }> => {
+        const res = await fetch(`${API_BASE}/api/control/time-tester`);
+        return handleResponse<{ enabled: boolean; service: string }>(res);
+    },
+
+    setTimeTester: async (enabled: boolean, service: string, duration_hours: number = 12): Promise<{ enabled: boolean; affected_jobs: number }> => {
+        const res = await fetch(`${API_BASE}/api/control/time-tester`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ enabled, service, duration_hours }),
+        });
+        return handleResponse<{ enabled: boolean; affected_jobs: number }>(res);
+    },
 };

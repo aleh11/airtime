@@ -13,9 +13,10 @@ const formatTimeAgo = (seconds: number): string => {
 
 interface ClockWidgetProps {
     status: SystemStatus | null;
+    timeTesterEnabled?: boolean;
 }
 
-export const ClockWidget: React.FC<ClockWidgetProps> = ({ status }) => {
+export const ClockWidget: React.FC<ClockWidgetProps> = ({ status, timeTesterEnabled = false }) => {
     const [displayTime, setDisplayTime] = useState<Date>(new Date());
     const [serverOffset, setServerOffset] = useState<number>(0);
     const [initDone, setInitDone] = useState(false);
@@ -65,6 +66,27 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({ status }) => {
     const isTransmitting = status?.services.txtempus_running;
     const serviceName = status?.services.txtempus_service || 'Unknown';
 
+    // colour tokens — cyan normally, violet in test mode
+    const c = timeTesterEnabled ? {
+        border: 'border-violet-500/50',
+        borderSolid: 'border-violet-500/80',
+        text: 'text-violet-500',
+        glow: 'drop-shadow-[0_0_12px_rgba(139,92,246,0.9)]',
+        ping: 'bg-violet-400',
+        logoGlow: 'drop-shadow-[0_0_15px_rgba(139,92,246,0.7)]',
+        iconBg: 'bg-violet-500/10 text-violet-400',
+        countdown: 'text-violet-400',
+    } : {
+        border: 'border-cyan-500/50',
+        borderSolid: 'border-cyan-500/80',
+        text: 'text-cyan-500',
+        glow: 'drop-shadow-[0_0_12px_rgba(6,182,212,0.9)]',
+        ping: 'bg-cyan-400',
+        logoGlow: 'drop-shadow-[0_0_15px_rgba(6,182,212,0.7)]',
+        iconBg: 'bg-cyan-500/10 text-cyan-400',
+        countdown: 'text-cyan-400',
+    };
+
     return (
         <Card className="h-full flex flex-col justify-between relative overflow-hidden group">
             <div className="flex justify-between items-start mb-3 z-10">
@@ -80,19 +102,19 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({ status }) => {
                 {isTransmitting && (
                     <div className="flex items-center gap-6 animate-fade-in pr-4 pt-2">
                         <div className="relative px-2 py-1 md:px-4 md:py-1.5 hidden md:block">
-                            <div className="absolute inset-0 border-2 border-cyan-500/50 rounded blur-sm animate-pulse"></div>
-                            <div className="absolute inset-0 border border-cyan-500/80 rounded"></div>
-                            <span className="font-black text-cyan-500 tracking-widest text-xs md:text-2xl relative z-10 drop-shadow-[0_0_12px_rgba(6,182,212,0.9)]">
+                            <div className={`absolute inset-0 border-2 ${c.border} rounded blur-sm animate-pulse`}></div>
+                            <div className={`absolute inset-0 border ${c.borderSolid} rounded`}></div>
+                            <span className={`font-black ${c.text} tracking-widest text-xs md:text-2xl relative z-10 ${c.glow}`}>
                                 ON AIR
                             </span>
                         </div>
 
                         <div className="relative">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75 duration-1000"></span>
+                            <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${c.ping} opacity-75 duration-1000`}></span>
                             <img
                                 src="/airtime-logo.png"
                                 alt="Broadcasting"
-                                className="w-12 h-12 relative z-10 drop-shadow-[0_0_15px_rgba(6,182,212,0.7)] object-contain"
+                                className={`w-12 h-12 relative z-10 ${c.logoGlow} object-contain`}
                             />
                         </div>
                     </div>
@@ -103,7 +125,7 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({ status }) => {
                 {isTransmitting ? (
                     <div className="w-full flex items-center justify-between animate-slide-up">
                         <div className="flex items-center gap-2">
-                            <div className="p-2 rounded bg-cyan-500/10 text-cyan-400">
+                            <div className={`p-2 rounded ${c.iconBg}`}>
                                 <RadioTower size={32} />
                             </div>
                             <div>
@@ -114,7 +136,7 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({ status }) => {
 
                         <div className="text-right">
                             <div className="text-[12px] text-slate-400 font-bold uppercase tracking-wider">Remaining</div>
-                            <div className="text-3xl font-mono font-bold text-cyan-400 leading-none mt-0.5 drop-shadow-md">
+                            <div className={`text-3xl font-mono font-bold ${c.countdown} leading-none mt-0.5 drop-shadow-md`}>
                                 {formatCountdown(countdown)}
                             </div>
                         </div>

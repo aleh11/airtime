@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card } from './Card';
 import { RadioConfig, RadioConfigInput } from '../types';
-import { Play, Zap, X, Square, RotateCw, Clock, RefreshCw, Loader2 } from 'lucide-react';
+import { Play, Zap, X, Square, RotateCw, Clock, RefreshCw, Loader2, FlaskConical } from 'lucide-react';
 import { api } from '../services/api';
 import { ConfirmModal, ModalType } from './ConfirmModal';
 
@@ -23,6 +23,7 @@ interface ControlWidgetProps {
     activeService?: string | null;
     activeDuration?: number | null;
     remainingSeconds?: number;
+    onTimeTesterChange?: (enabled: boolean, service: string) => void;
 }
 
 export const ControlWidget: React.FC<ControlWidgetProps> = ({
@@ -32,7 +33,8 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
     isTransmitting = false,
     activeService,
     activeDuration,
-    remainingSeconds = 0
+    remainingSeconds = 0,
+    onTimeTesterChange
 }) => {
     const [selectedService, setSelectedService] = useState<string>('DCF77');
     const [duration, setDuration] = useState<number>(10);
@@ -50,6 +52,12 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
     const [stealthMode, setStealthMode] = useState<boolean>(false);
     const [loading, setLoading] = useState<boolean>(false);
     const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+    const [timeTesterEnabled, setTimeTesterEnabled] = useState<boolean>(false);
+    const [timeTesterService, setTimeTesterService] = useState<string>('DCF77');
+    const [timeTesterDuration, setTimeTesterDuration] = useState<12 | 24>(12);
+    const [timeTesterLoading, setTimeTesterLoading] = useState<boolean>(false);
+    const [showTimeTesterModal, setShowTimeTesterModal] = useState<boolean>(false);
 
     const [countdown, setCountdown] = useState<number>(0);
 
@@ -83,6 +91,24 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
             setOffsetEnabled(radioConfig.default_offset_enabled ?? false);
         }
     }, [radioConfig]);
+
+    // Load time tester state on mount
+    useEffect(() => {
+        api.getTimeTester().then(res => {
+            setTimeTesterEnabled(res.enabled);
+            if (res.service) {
+                setTimeTesterService(res.service);
+                onTimeTesterChange?.(res.enabled, res.service);
+            }
+        }).catch(() => { });
+    }, []);
+
+    // Keep timeTesterService in sync with selected service when tester is off
+    useEffect(() => {
+        if (!timeTesterEnabled) {
+            setTimeTesterService(selectedService);
+        }
+    }, [selectedService, timeTesterEnabled]);
 
     useEffect(() => {
         if (showOffsetModal) {
@@ -220,7 +246,14 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
         if (isTransmitting) {
             setLoading(true);
             try {
-                await api.stopTransmit();
+                // If time tester is active, use its stop path (re-enables crons)
+                if (timeTesterEnabled) {
+                    await api.setTimeTester(false, timeTesterService);
+                    setTimeTesterEnabled(false);
+                    onTimeTesterChange?.(false, timeTesterService);
+                } else {
+                    await api.stopTransmit();
+                }
                 onBroadcastStart();
             } catch (e) { console.error(e); }
             finally { setLoading(false); }
@@ -404,6 +437,66 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
                         )}
                     </div>
 
+                    {/* TIME TESTER — between BROADCAST NOW and System Control */}
+                    {timeTesterEnabled ? (
+                        <div className="flex items-center justify-between p-2 bg-slate-800/50 rounded-lg border border-slate-700/50">
+                            <div className="flex items-center gap-2.5">
+                                <div className="p-1.5 rounded-full bg-slate-700 text-violet-400">
+                                    <FlaskConical size={14} />
+                                </div>
+                                <div>
+                                    <div className="text-sm font-medium text-slate-200">Time Tester</div>
+                                    <div className="text-[10px] text-violet-400 font-mono">Fixed 00:00 · {timeTesterDuration}h · {timeTesterService} · crons paused</div>
+                                </div>
+                            </div>
+                            <button
+                                disabled={timeTesterLoading}
+                                onClick={async () => {
+                                    setTimeTesterLoading(true);
+                                    try {
+                                        await api.setTimeTester(false, timeTesterService);
+                                        setTimeTesterEnabled(false);
+                                        onTimeTesterChange?.(false, timeTesterService);
+                                        onBroadcastStart();
+                                    } catch (e) {
+                                        console.error('Time tester error:', e);
+                                    } finally {
+                                        setTimeTesterLoading(false);
+                                    }
+                                }}
+                                className={`w-8 h-4 rounded-full p-0.5 transition-colors duration-200 ease-in-out relative inline-flex items-center ${timeTesterLoading ? 'opacity-50 cursor-not-allowed bg-violet-500/80' : 'bg-violet-500/80'}`}
+                            >
+                                <div className="bg-white w-3 h-3 rounded-full shadow transform translate-x-4" />
+                            </button>
+                        </div>
+                    ) : (
+                        <div
+                            className="flex items-center justify-between p-2 bg-slate-800/50 rounded-lg border border-slate-700/50 cursor-pointer hover:bg-slate-800 transition-colors"
+                            onClick={() => {
+                                if (isTransmitting) {
+                                    setModalConfig({
+                                        isOpen: true,
+                                        title: 'Broadcast Active',
+                                        message: 'Stop the current broadcast before starting a Time Tester session.',
+                                        type: 'warning'
+                                    });
+                                    return;
+                                }
+                                setShowTimeTesterModal(true);
+                            }}
+                        >
+                            <div className="flex items-center gap-2.5">
+                                <div className="p-1.5 rounded-full bg-slate-700 text-slate-400">
+                                    <FlaskConical size={14} />
+                                </div>
+                                <div className="text-sm font-medium text-slate-200">Time Tester</div>
+                            </div>
+                            <button className="w-8 h-4 rounded-full p-0.5 bg-slate-600 relative inline-flex items-center pointer-events-none">
+                                <div className="bg-white w-3 h-3 rounded-full shadow transform translate-x-0" />
+                            </button>
+                        </div>
+                    )}
+
                     <div className="border-t border-slate-800/50 my-2"></div>
 
                     <div className="space-y-2">
@@ -568,6 +661,97 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
                                 className="w-full py-3 rounded-lg font-bold text-sm bg-cyan-600 hover:bg-cyan-500 text-white shadow-lg shadow-cyan-500/20 disabled:opacity-50"
                             >
                                 {offsetSaving ? 'Saving...' : 'Apply Offset'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Time Tester Modal */}
+            {showTimeTesterModal && (
+                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={() => setShowTimeTesterModal(false)}>
+                    <div className="bg-slate-800 rounded-2xl max-w-xs w-full border border-slate-700 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-between p-4 border-b border-slate-700">
+                            <div className="flex items-center gap-2">
+                                <div className="p-1.5 rounded-full bg-violet-500/20 text-violet-400">
+                                    <FlaskConical size={16} />
+                                </div>
+                                <h3 className="text-base font-bold text-white">Time Tester</h3>
+                            </div>
+                            <button onClick={() => setShowTimeTesterModal(false)} className="p-2 hover:bg-slate-700 rounded-full text-slate-400">
+                                <X size={16} />
+                            </button>
+                        </div>
+
+                        <div className="px-5 py-3 bg-violet-500/10 border-b border-violet-500/20">
+                            <p className="text-[11px] text-violet-200/80 leading-relaxed">
+                                Broadcasts a <strong className="text-violet-300">fixed 00:00 time signal</strong> for testing clocks and devices.
+                                All scheduled cron jobs are paused for the duration and automatically restored when stopped.
+                            </p>
+                        </div>
+
+                        <div className="p-5 space-y-4">
+                            {/* Service picker */}
+                            <div>
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Service</label>
+                                <select
+                                    value={timeTesterService}
+                                    onChange={e => setTimeTesterService(e.target.value)}
+                                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 text-sm font-medium text-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent h-[40px]"
+                                >
+                                    {(radioConfig?.available_services ?? ['DCF77', 'WWVB', 'MSF', 'JJY40', 'JJY60']).map(svc => (
+                                        <option key={svc} value={svc}>{svc}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Duration picker */}
+                            <div>
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Duration</label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {([12, 24] as const).map(h => (
+                                        <button
+                                            key={h}
+                                            onClick={() => setTimeTesterDuration(h)}
+                                            className={`py-2.5 rounded-lg font-bold text-sm border-2 transition-all ${timeTesterDuration === h
+                                                ? 'border-violet-500 bg-violet-500/20 text-violet-300'
+                                                : 'border-slate-700 bg-slate-900 text-slate-400 hover:border-violet-500/50'
+                                                }`}
+                                        >
+                                            {h} hours
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="p-4 border-t border-slate-700 flex gap-3">
+                            <button
+                                onClick={() => setShowTimeTesterModal(false)}
+                                className="flex-1 py-2.5 rounded-lg font-bold text-sm bg-slate-700 hover:bg-slate-600 text-slate-200"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                disabled={timeTesterLoading}
+                                onClick={async () => {
+                                    setTimeTesterLoading(true);
+                                    try {
+                                        await api.setTimeTester(true, timeTesterService, timeTesterDuration);
+                                        setTimeTesterEnabled(true);
+                                        onTimeTesterChange?.(true, timeTesterService);
+                                        setShowTimeTesterModal(false);
+                                        onBroadcastStart();
+                                    } catch (e) {
+                                        console.error('Time tester error:', e);
+                                    } finally {
+                                        setTimeTesterLoading(false);
+                                    }
+                                }}
+                                className="flex-1 py-2.5 rounded-lg font-bold text-sm bg-violet-600 hover:bg-violet-500 text-white shadow-lg shadow-violet-900/20 disabled:opacity-50 flex items-center justify-center gap-2"
+                            >
+                                {timeTesterLoading ? <Loader2 className="animate-spin" size={16} /> : <FlaskConical size={16} />}
+                                Start
                             </button>
                         </div>
                     </div>

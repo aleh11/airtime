@@ -26,6 +26,9 @@ function App() {
   const [showExperimentalModal, setShowExperimentalModal] = useState(false);
   const [isSwitchingBranch, setIsSwitchingBranch] = useState(false);
 
+  const [timeTesterEnabled, setTimeTesterEnabled] = useState(false);
+  const [timeTesterService, setTimeTesterService] = useState('DCF77');
+
   const fetchData = useCallback(async () => {
     setError(null);
     try {
@@ -375,7 +378,10 @@ Continue with update?`}
 
         <main className="grid grid-cols-1 lg:grid-cols-12 gap-4">
           <div className="order-1 lg:col-span-7">
-            <ClockWidget status={status} />
+            <ClockWidget
+              status={status}
+              timeTesterEnabled={timeTesterEnabled}
+            />
           </div>
 
           <div className="order-2 lg:col-span-5 lg:row-span-2 h-full">
@@ -387,6 +393,12 @@ Continue with update?`}
               activeService={status?.services.txtempus_service}
               activeDuration={status?.services.txtempus_duration}
               remainingSeconds={status?.services.txtempus_remaining_seconds}
+              onTimeTesterChange={(enabled, service) => {
+                setTimeTesterEnabled(enabled);
+                if (service) setTimeTesterService(service);
+                // Immediately refresh cron list so ScheduleWidget shows updated enabled state
+                fetchData();
+              }}
             />
           </div>
 
