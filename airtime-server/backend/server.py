@@ -540,8 +540,8 @@ def enable_time_tester(service: str, duration_hours: int):
     subprocess.Popen(cmd)
 
     # 4. Update status in DB
-    db.set_status_value("services", "txtempus_running", True)
-    db.set_status_value("services", "txtempus_details", {
+    db.update_status("services", "txtempus_running", True)
+    db.update_status("services", "txtempus_details", {
         "service": service,
         "duration": duration_minutes,
         "started_at": time.ctime(),
@@ -558,8 +558,8 @@ def disable_time_tester():
     subprocess.run(['sudo', 'pkill', 'txtempus'])
 
     # 2. Update status
-    db.set_status_value("services", "txtempus_running", False)
-    db.set_status_value("services", "txtempus_details", {})
+    db.update_status("services", "txtempus_running", False)
+    db.update_status("services", "txtempus_details", {})
     
     # 3. Unset config flags
     db.set_setting("app_config", "time_tester_active", "false")
