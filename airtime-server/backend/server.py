@@ -577,6 +577,20 @@ def disable_time_tester():
 async def get_time_tester():
     enabled = str(db.get_setting("app_config", "time_tester_active", "false")).lower() == "true"
     service = db.get_setting("app_config", "time_tester_service", "DCF77")
+    
+    if enabled:
+        # Check if the process is actually running
+        # If it crashed or the system rebooted, systemStatus.py will have set txtempus_running to False
+        is_running = db.get_status_value("services", "txtempus_running", False)
+        if not is_running:
+            # Orphaned state detected. Clean it up immediately to restore crons and state.
+            audit_logger.warning("Time Tester state was orphaned (process not running). Cleaning up.")
+            try:
+                disable_time_tester()
+            except Exception as e:
+                print(f"Failed to cleanly disable orphaned Time Tester: {e}")
+            enabled = False
+
     return {"enabled": enabled, "service": service}
 
 
