@@ -106,6 +106,27 @@ class TransmitRequest(BaseModel):
         return v
 
 
+
+class TimeTesterRequest(BaseModel):
+    enabled: bool
+    service: str = "DCF77"
+    duration_hours: int = 12
+
+    @field_validator('service')
+    @classmethod
+    def validate_service_field(cls, v: str) -> str:
+        if len(v) > 20:
+            raise ValueError("Service name too long")
+        return v.upper()
+
+    @field_validator('duration_hours')
+    @classmethod
+    def validate_duration_field(cls, v: int) -> int:
+        if v not in [12, 24]:
+            raise ValueError("Duration must be 12 or 24 hours")
+        return v
+
+
 class RadioConfigInput(BaseModel):
     default_service: str
     default_duration_minutes: int
@@ -500,6 +521,76 @@ async def stop_transmit(request: Request):
     audit_logger.info(f"Transmit stopped, ip={client_ip}")
 
     return {"status": "stopped"}
+
+
+
+def enable_time_tester(service: str, duration_hours: int):
+    # 1. Stop any running txtempus
+    subprocess.run(['sudo', 'pkill', 'txtempus'])
+
+    # 2. Pause all crons
+    crons.pause_all_crons()
+
+    # 3. Start txtempus in background
+    # Fixed time 00:00, specified service
+    # Duration converted to minutes
+    duration_minutes = duration_hours * 60
+    cmd = ['sudo', '/usr/bin/txtempus', '-s', service, '-t', '00:00', '-r', str(duration_minutes)]
+    
+    subprocess.Popen(cmd)
+
+    # 4. Update status in DB
+    db.set_status_value("services", "txtempus_running", True)
+    db.set_status_value("services", "txtempus_details", {
+        "service": service,
+        "duration": duration_minutes,
+        "started_at": time.ctime(),
+        "is_tester": True
+    })
+    
+    # 5. Set config flags
+    db.set_setting("app_config", "time_tester_active", "true")
+    db.set_setting("app_config", "time_tester_service", service)
+
+
+def disable_time_tester():
+    # 1. Stop txtempus
+    subprocess.run(['sudo', 'pkill', 'txtempus'])
+
+    # 2. Update status
+    db.set_status_value("services", "txtempus_running", False)
+    db.set_status_value("services", "txtempus_details", {})
+    
+    # 3. Unset config flags
+    db.set_setting("app_config", "time_tester_active", "false")
+
+    # 4. Resume crons (re-apply from DB)
+    crons.resume_all_crons()
+
+
+@app.get("/api/control/time-tester")
+async def get_time_tester():
+    enabled = str(db.get_setting("app_config", "time_tester_active", "false")).lower() == "true"
+    service = db.get_setting("app_config", "time_tester_service", "DCF77")
+    return {"enabled": enabled, "service": service}
+
+
+@app.post("/api/control/time-tester")
+async def set_time_tester_endpoint(req: TimeTesterRequest, request: Request):
+    if req.enabled:
+        validate_service(req.service)
+        enable_time_tester(req.service, req.duration_hours)
+        action = "started"
+    else:
+        disable_time_tester()
+        action = "stopped"
+
+    # Audit log
+    client_ip = get_client_ip(request)
+    audit_logger.info(f"Time Tester {action}: service={req.service}, duration={req.duration_hours}h, ip={client_ip}")
+
+    # Return status
+    return {"enabled": req.enabled, "affected_jobs": len(db.get_cron_jobs())}
 
 
 @app.post("/api/control/restart")

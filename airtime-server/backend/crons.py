@@ -89,6 +89,21 @@ def sync():
         print("Already in sync.")
 
 
+def pause_all_crons():
+    """Disables all cron jobs in system crontab without touching DB"""
+    cron = CronTab(user='root')
+    for job in cron:
+        job.enable(False)
+    cron.write()
+    print("All system crons paused (Time Tester active)")
+
+
+def resume_all_crons():
+    """Resyncs system cronta from DB (effectively resuming enabled jobs)"""
+    sync()
+    print("All system crons resumed (Time Tester stopped)")
+
+
 if __name__ == '__main__':
     sync()
     list_cron_tasks()
