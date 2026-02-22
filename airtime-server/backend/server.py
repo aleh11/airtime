@@ -532,13 +532,13 @@ def enable_time_tester(service: str, duration_hours: int):
     crons.pause_all_crons()
 
     # 3. Start txtempus in background
-    # Fixed time 00:00, specified service
+    # Fixed time 12:00, specified service
     # Duration converted to minutes
     duration_minutes = duration_hours * 60
     
-    # Construct time string YYYY-MM-DD 00:00
+    # Construct time string YYYY-MM-DD 12:00
     # txtempus requires full date-time format
-    start_time_str = time.strftime("%Y-%m-%d 00:00")
+    start_time_str = time.strftime("%Y-%m-%d 12:00")
     
     cmd = ['sudo', '/usr/bin/txtempus', '-s', service, '-t', start_time_str, '-r', str(duration_minutes)]
     

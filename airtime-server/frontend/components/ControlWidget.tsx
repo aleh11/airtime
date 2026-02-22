@@ -448,7 +448,7 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
                                     <div className="text-sm font-medium text-slate-200">Sync Time Check</div>
                                     <HelpCircle size={14} className="text-slate-500 hover:text-slate-300 transition-colors" />
                                     <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-64 p-2 bg-slate-900 text-xs text-slate-300 rounded shadow-xl border border-slate-700 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
-                                        Disables all scheduled broadcasts to continuously transmit a fixed 00:00 time signal. Useful for verifying radio hardware and syncing clocks from scratch.
+                                        Disables all scheduled broadcasts to continuously transmit a fixed 12:00 time signal. Useful for verifying radio hardware and syncing clocks from scratch.
                                     </div>
                                 </div>
                             </div>
@@ -496,7 +496,7 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
                                     <div className="text-sm font-medium text-slate-200">Sync Time Check</div>
                                     <HelpCircle size={14} className="text-slate-500 hover:text-slate-300 transition-colors" />
                                     <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-64 p-2 bg-slate-900 text-xs text-slate-300 rounded shadow-xl border border-slate-700 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
-                                        Disables all scheduled broadcasts to continuously transmit a fixed 00:00 time signal. Useful for verifying radio hardware and syncing clocks from scratch.
+                                        Disables all scheduled broadcasts to continuously transmit a fixed 12:00 time signal. Useful for verifying radio hardware and syncing clocks from scratch.
                                     </div>
                                 </div>
                             </div>
@@ -694,7 +694,7 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
 
                         <div className="px-5 py-3 bg-violet-500/10 border-b border-violet-500/20">
                             <p className="text-[11px] text-violet-200/80 leading-relaxed">
-                                Broadcasts a <strong className="text-violet-300">fixed 00:00 time signal</strong> for testing clocks and devices.
+                                Broadcasts a <strong className="text-violet-300">fixed 12:00 time signal</strong> for testing clocks and devices.
                                 All scheduled cron jobs are paused for the duration and automatically restored when stopped.
                             </p>
                         </div>
