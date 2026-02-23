@@ -613,61 +613,130 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
                         {/* Radio Options */}
                         <div className="p-4 space-y-2">
                             {/* Time Now */}
-                            <button
-                                onClick={() => setTimeMode('time_now')}
-                                className={`w-full flex items-start gap-3 p-3.5 rounded-xl border-2 text-left transition-all ${timeMode === 'time_now'
-                                        ? 'border-cyan-500 bg-cyan-500/10'
-                                        : 'border-slate-700 bg-slate-900/50 hover:border-slate-600'
-                                    }`}
-                            >
-                                <div className={`mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${timeMode === 'time_now' ? 'border-cyan-400' : 'border-slate-600'
-                                    }`}>
-                                    {timeMode === 'time_now' && <div className="w-2 h-2 rounded-full bg-cyan-400" />}
-                                </div>
-                                <div>
-                                    <div className={`text-sm font-semibold transition-colors ${timeMode === 'time_now' ? 'text-cyan-300' : 'text-slate-200'
-                                        }`}>Time Now</div>
-                                    <div className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">Broadcasts using the current system clock.</div>
-                                </div>
-                            </button>
+                            <div className={`overflow-hidden rounded-xl border-2 transition-all ${timeMode === 'time_now' ? 'border-cyan-500 bg-cyan-500/10' : 'border-slate-700 bg-slate-900/50 hover:border-slate-600'}`}>
+                                <button onClick={() => setTimeMode('time_now')} className="w-full flex items-start gap-3 p-3.5 text-left transition-colors">
+                                    <div className={`mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${timeMode === 'time_now' ? 'border-cyan-400' : 'border-slate-600'}`}>
+                                        {timeMode === 'time_now' && <div className="w-2 h-2 rounded-full bg-cyan-400" />}
+                                    </div>
+                                    <div>
+                                        <div className={`text-sm font-semibold transition-colors ${timeMode === 'time_now' ? 'text-cyan-300' : 'text-slate-200'}`}>Time Now</div>
+                                        <div className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">Broadcasts using the current system clock.</div>
+                                    </div>
+                                </button>
+                            </div>
 
                             {/* Time Now with Offset */}
-                            <button
-                                onClick={() => setTimeMode('time_now_with_offset')}
-                                className={`w-full flex items-start gap-3 p-3.5 rounded-xl border-2 text-left transition-all ${timeMode === 'time_now_with_offset'
-                                        ? 'border-cyan-500 bg-cyan-500/10'
-                                        : 'border-slate-700 bg-slate-900/50 hover:border-slate-600'
-                                    }`}
-                            >
-                                <div className={`mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${timeMode === 'time_now_with_offset' ? 'border-cyan-400' : 'border-slate-600'
-                                    }`}>
-                                    {timeMode === 'time_now_with_offset' && <div className="w-2 h-2 rounded-full bg-cyan-400" />}
-                                </div>
-                                <div>
-                                    <div className={`text-sm font-semibold transition-colors ${timeMode === 'time_now_with_offset' ? 'text-cyan-300' : 'text-slate-200'
-                                        }`}>Time Now with Offset</div>
-                                    <div className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">Applies a global time offset to the current clock before broadcasting.</div>
-                                </div>
-                            </button>
+                            <div className={`overflow-hidden rounded-xl border-2 transition-all ${timeMode === 'time_now_with_offset' ? 'border-cyan-500 bg-cyan-500/10' : 'border-slate-700 bg-slate-900/50 hover:border-slate-600'}`}>
+                                <button onClick={() => setTimeMode('time_now_with_offset')} className="w-full flex items-start gap-3 p-3.5 text-left transition-colors">
+                                    <div className={`mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${timeMode === 'time_now_with_offset' ? 'border-cyan-400' : 'border-slate-600'}`}>
+                                        {timeMode === 'time_now_with_offset' && <div className="w-2 h-2 rounded-full bg-cyan-400" />}
+                                    </div>
+                                    <div>
+                                        <div className={`text-sm font-semibold transition-colors ${timeMode === 'time_now_with_offset' ? 'text-cyan-300' : 'text-slate-200'}`}>Time Now with Offset</div>
+                                        <div className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">Applies a global time offset to the current clock before broadcasting.</div>
+                                    </div>
+                                </button>
+
+                                {timeMode === 'time_now_with_offset' && (
+                                    <div className="p-4 bg-black/20 border-t border-cyan-500/30 animate-fade-in">
+                                        <div className="flex flex-col items-center">
+                                            <div className="flex items-end gap-2 mb-4">
+                                                <div className="text-center">
+                                                    <label className="text-[10px] text-slate-400 font-bold uppercase block mb-1">Hours</label>
+                                                    <input
+                                                        type="number"
+                                                        value={modalHours}
+                                                        onChange={e => validateHours(e.target.value)}
+                                                        className="w-16 bg-slate-900/80 border border-slate-600 rounded-lg p-2 text-xl font-mono text-center text-white focus:ring-2 focus:ring-cyan-500 outline-none"
+                                                        placeholder="0"
+                                                    />
+                                                </div>
+                                                <div className="text-xl text-slate-600 font-bold pb-2">:</div>
+                                                <div className="text-center">
+                                                    <label className="text-[10px] text-slate-400 font-bold uppercase block mb-1">Mins</label>
+                                                    <input
+                                                        type="number"
+                                                        value={modalMinutes}
+                                                        onChange={e => validateMinutes(e.target.value)}
+                                                        className="w-16 bg-slate-900/80 border border-slate-600 rounded-lg p-2 text-xl font-mono text-center text-white focus:ring-2 focus:ring-cyan-500 outline-none"
+                                                        placeholder="00"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div className="flex w-full gap-2 relative z-10">
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); setOffsetSign(-1); }}
+                                                    className={`flex-1 py-2.5 rounded-lg font-bold text-[10px] uppercase tracking-wide border transition-all ${offsetSign === -1
+                                                        ? 'border-orange-500 bg-orange-500/20 text-orange-400 shadow-[inset_0_0_12px_rgba(249,115,22,0.2)]'
+                                                        : 'border-slate-600 bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-300'
+                                                        }`}
+                                                >
+                                                    Behind (-)
+                                                </button>
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); setOffsetSign(1); }}
+                                                    className={`flex-1 py-2.5 rounded-lg font-bold text-[10px] uppercase tracking-wide border transition-all ${offsetSign === 1
+                                                        ? 'border-emerald-500 bg-emerald-500/20 text-emerald-400 shadow-[inset_0_0_12px_rgba(16,185,129,0.2)]'
+                                                        : 'border-slate-600 bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-300'
+                                                        }`}
+                                                >
+                                                    Ahead (+)
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
 
                             {/* Fixed Time */}
-                            <button
-                                onClick={() => setTimeMode('fixed_time')}
-                                className={`w-full flex items-start gap-3 p-3.5 rounded-xl border-2 text-left transition-all ${timeMode === 'fixed_time'
-                                        ? 'border-violet-500 bg-violet-500/10'
-                                        : 'border-slate-700 bg-slate-900/50 hover:border-slate-600'
-                                    }`}
-                            >
-                                <div className={`mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${timeMode === 'fixed_time' ? 'border-violet-400' : 'border-slate-600'
-                                    }`}>
-                                    {timeMode === 'fixed_time' && <div className="w-2 h-2 rounded-full bg-violet-400" />}
-                                </div>
-                                <div>
-                                    <div className={`text-sm font-semibold transition-colors ${timeMode === 'fixed_time' ? 'text-violet-300' : 'text-slate-200'
-                                        }`}>Fixed Time</div>
-                                    <div className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">Transmits a fixed 12:00 signal. Useful for verifying hardware and syncing clocks from scratch.</div>
-                                </div>
-                            </button>
+                            <div className={`overflow-hidden rounded-xl border-2 transition-all ${timeMode === 'fixed_time' ? 'border-violet-500 bg-violet-500/10' : 'border-slate-700 bg-slate-900/50 hover:border-slate-600'}`}>
+                                <button onClick={() => setTimeMode('fixed_time')} className="w-full flex items-start gap-3 p-3.5 text-left transition-colors">
+                                    <div className={`mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${timeMode === 'fixed_time' ? 'border-violet-400' : 'border-slate-600'}`}>
+                                        {timeMode === 'fixed_time' && <div className="w-2 h-2 rounded-full bg-violet-400" />}
+                                    </div>
+                                    <div>
+                                        <div className={`text-sm font-semibold transition-colors ${timeMode === 'fixed_time' ? 'text-violet-300' : 'text-slate-200'}`}>Fixed Time</div>
+                                        <div className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">Transmits a fixed 12:00 signal. Useful for verifying hardware and syncing clocks from scratch.</div>
+                                    </div>
+                                </button>
+
+                                {timeMode === 'fixed_time' && (
+                                    <div className="p-4 bg-black/20 border-t border-violet-500/30 animate-fade-in relative z-10">
+                                        <div className="space-y-4">
+                                            <div>
+                                                <label className="text-[10px] font-bold text-violet-300/70 uppercase tracking-wider block mb-1.5">Service</label>
+                                                <select
+                                                    value={timeTesterService}
+                                                    onChange={e => setTimeTesterService(e.target.value)}
+                                                    className="w-full bg-slate-900/80 border border-slate-700 rounded-lg px-3 text-sm font-medium text-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent h-[36px]"
+                                                >
+                                                    {(radioConfig?.available_services ?? ['DCF77', 'WWVB', 'MSF', 'JJY40', 'JJY60']).map(svc => (
+                                                        <option key={svc} value={svc}>{svc}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] font-bold text-violet-300/70 uppercase tracking-wider block mb-1.5">Duration</label>
+                                                <div className="grid grid-cols-2 gap-2 relative z-10">
+                                                    {([12, 24] as const).map(h => (
+                                                        <button
+                                                            key={h}
+                                                            onClick={(e) => { e.stopPropagation(); setTimeTesterDuration(h); }}
+                                                            className={`py-2 rounded-lg font-bold text-[11px] border transition-all ${timeTesterDuration === h
+                                                                ? 'border-violet-500 bg-violet-500/30 text-violet-200 shadow-[inset_0_0_10px_rgba(139,92,246,0.3)]'
+                                                                : 'border-slate-600 bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-300'
+                                                                }`}
+                                                        >
+                                                            {h} hours
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
                         {/* Footer */}
