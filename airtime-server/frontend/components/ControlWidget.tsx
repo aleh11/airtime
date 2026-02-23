@@ -156,74 +156,48 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
         }
     };
 
-    const handleSaveOffset = async () => {
+    const handleTimeSettingsSave = async () => {
         setOffsetSaving(true);
         try {
-            const h = parseInt(modalHours) || 0;
-            const m = parseInt(modalMinutes) || 0;
-            const totalAbsMinutes = (h * 60) + m;
-            const totalMinutes = totalAbsMinutes * offsetSign;
+            if (timeMode === 'time_now_with_offset') {
+                const h = parseInt(modalHours) || 0;
+                const m = parseInt(modalMinutes) || 0;
+                const totalAbsMinutes = (h * 60) + m;
+                const totalMinutes = totalAbsMinutes * offsetSign;
 
-            const config: RadioConfigInput = {
-                default_service: selectedService,
-                default_duration_minutes: duration,
-                default_offset: totalMinutes,
-                default_offset_enabled: true
-            };
-            await api.updateRadioConfig(config);
+                const config: RadioConfigInput = {
+                    default_service: selectedService,
+                    default_duration_minutes: duration,
+                    default_offset: totalMinutes,
+                    default_offset_enabled: true
+                };
+                await api.updateRadioConfig(config);
 
-            setOffsetHours(h);
-            setOffsetMinutes(m);
-            setOffsetEnabled(true);
-            setShowOffsetModal(false);
+                setOffsetHours(h);
+                setOffsetMinutes(m);
+                setOffsetEnabled(true);
+            } else {
+                const config: RadioConfigInput = {
+                    default_service: selectedService,
+                    default_duration_minutes: duration,
+                    default_offset: (offsetHours * 60 + offsetMinutes) * offsetSign,
+                    default_offset_enabled: false
+                };
+                await api.updateRadioConfig(config);
+                setOffsetEnabled(false);
+            }
 
-            onBroadcastStart();
+            setShowTimeSettingsModal(false);
         } catch (e) {
             console.error(e);
             setModalConfig({
                 isOpen: true,
                 title: 'Error',
-                message: 'Failed to save offset settings.',
+                message: 'Failed to save time settings.',
                 type: 'danger'
             });
         } finally {
             setOffsetSaving(false);
-        }
-    };
-
-    const handleOffsetToggle = async (e: React.MouseEvent) => {
-        e.stopPropagation();
-
-        if (isTransmitting) {
-            setModalConfig({
-                isOpen: true,
-                title: 'Broadcast Active',
-                message: 'Cannot change offset settings while antenna is broadcasting. Please stop the broadcast first.',
-                type: 'warning'
-            });
-            return;
-        }
-
-        const totalMinutes = offsetHours * 60 + offsetMinutes;
-
-        if (!offsetEnabled && totalMinutes === 0) {
-            setShowOffsetModal(true);
-            return;
-        }
-
-        const newState = !offsetEnabled;
-        setOffsetEnabled(newState);
-        try {
-            const config: RadioConfigInput = {
-                default_service: selectedService,
-                default_duration_minutes: duration,
-                default_offset: (offsetHours * 60 + offsetMinutes) * offsetSign,
-                default_offset_enabled: newState
-            };
-            await api.updateRadioConfig(config);
-        } catch (e) {
-            console.error(e);
-            setOffsetEnabled(!newState);
         }
     };
 
@@ -471,11 +445,17 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
                                 <div className="p-1.5 rounded-full bg-slate-700 text-cyan-400">
                                     <Clock size={14} />
                                 </div>
-                                <div className="text-sm font-medium text-slate-200">
+                                <div className="text-sm font-medium text-slate-200 flex items-center gap-2">
                                     Time Settings
-                                    <span className="ml-2 text-[10px] font-mono text-slate-500 uppercase">
-                                        {timeMode === 'time_now' ? 'Now' : timeMode === 'time_now_with_offset' ? 'Offset' : 'Fixed'}
-                                    </span>
+                                    {offsetEnabled && (offsetHours > 0 || offsetMinutes > 0) ? (
+                                        <span className="text-[10px] font-mono font-bold text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded border border-green-500/30">
+                                            {offsetSign > 0 ? '+' : '-'}{offsetHours ? `${offsetHours}h ` : ''}{offsetMinutes}m
+                                        </span>
+                                    ) : (
+                                        <span className="text-[10px] font-mono text-slate-500 uppercase">
+                                            {timeMode === 'time_now' ? 'Now' : timeMode === 'time_now_with_offset' ? 'Offset' : 'Fixed'}
+                                        </span>
+                                    )}
                                 </div>
                             </div>
                             <Settings size={13} className="text-slate-500" />
@@ -511,87 +491,6 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
                 </div>
             </Card>
 
-            {showOffsetModal && (
-                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={() => setShowOffsetModal(false)}>
-                    <div className="bg-slate-800 rounded-2xl max-w-xs w-full border border-slate-700 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-between p-4 border-b border-slate-700">
-                            <h3 className="text-base font-bold text-white">Global Time Offset</h3>
-                            <button onClick={() => setShowOffsetModal(false)} className="p-2 hover:bg-slate-700 rounded-full text-slate-400">
-                                <X size={16} />
-                            </button>
-                        </div>
-
-                        <div className="px-6 py-4 bg-yellow-500/10 border-b border-yellow-500/20">
-                            <p className="text-[11px] text-yellow-200/90 leading-relaxed text-center">
-                                <strong className="text-yellow-400">WARNING:</strong> Modifying this will apply the offset to <span className="underline decoration-yellow-500/50">EVERYTHING</span> (Scheduled Crons, Manual Broadcasts, and UI Button events).
-                            </p>
-                        </div>
-
-                        <div className="p-6 flex flex-col items-center">
-                            <div className="flex items-end gap-2 mb-6">
-                                <div className="text-center">
-                                    <label className="text-[10px] text-slate-400 font-bold uppercase block mb-1">Hours</label>
-                                    <input
-                                        type="number"
-                                        value={modalHours}
-                                        onChange={e => validateHours(e.target.value)}
-                                        className="w-20 bg-slate-900 border border-slate-600 rounded-lg p-3 text-2xl font-mono text-center text-white focus:ring-2 focus:ring-cyan-500 outline-none"
-                                        placeholder="0"
-                                    />
-                                </div>
-                                <div className="text-2xl text-slate-600 font-bold pb-3">:</div>
-                                <div className="text-center">
-                                    <label className="text-[10px] text-slate-400 font-bold uppercase block mb-1">Mins</label>
-                                    <input
-                                        type="number"
-                                        value={modalMinutes}
-                                        onChange={e => validateMinutes(e.target.value)}
-                                        className="w-20 bg-slate-900 border border-slate-600 rounded-lg p-3 text-2xl font-mono text-center text-white focus:ring-2 focus:ring-cyan-500 outline-none"
-                                        placeholder="00"
-                                    />
-                                </div>
-                            </div>
-
-                            {isNonZeroOffset ? (
-                                <div className="flex w-full gap-2 mb-2 animate-fade-in">
-                                    <button
-                                        onClick={() => setOffsetSign(-1)}
-                                        className={`flex-1 py-2 rounded-lg font-bold text-xs uppercase tracking-wide border-2 transition-all ${offsetSign === -1
-                                            ? 'border-orange-500 bg-orange-500 text-white shadow-lg shadow-orange-500/20'
-                                            : 'border-slate-700 bg-slate-800 text-slate-500 hover:border-orange-500/50'
-                                            }`}
-                                    >
-                                        Behind (-)
-                                    </button>
-                                    <button
-                                        onClick={() => setOffsetSign(1)}
-                                        className={`flex-1 py-2 rounded-lg font-bold text-xs uppercase tracking-wide border-2 transition-all ${offsetSign === 1
-                                            ? 'border-emerald-500 bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
-                                            : 'border-slate-700 bg-slate-800 text-slate-500 hover:border-emerald-500/50'
-                                            }`}
-                                    >
-                                        Ahead (+)
-                                    </button>
-                                </div>
-                            ) : (
-                                <div className="text-xs text-slate-500 h-[36px] flex items-center justify-center italic">
-                                    No offset applied
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="p-4 border-t border-slate-700 flex gap-3">
-                            <button
-                                onClick={handleSaveOffset}
-                                disabled={offsetSaving}
-                                className="w-full py-3 rounded-lg font-bold text-sm bg-cyan-600 hover:bg-cyan-500 text-white shadow-lg shadow-cyan-500/20 disabled:opacity-50"
-                            >
-                                {offsetSaving ? 'Saving...' : 'Apply Offset'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             {/* Time Settings Modal */}
             {showTimeSettingsModal && (
@@ -742,10 +641,11 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
                         {/* Footer */}
                         <div className="p-4 border-t border-slate-700">
                             <button
-                                onClick={() => setShowTimeSettingsModal(false)}
-                                className="w-full py-2.5 rounded-lg font-bold text-sm bg-slate-700 hover:bg-slate-600 text-slate-200 transition-colors"
+                                onClick={handleTimeSettingsSave}
+                                disabled={offsetSaving}
+                                className={`w-full py-2.5 rounded-lg font-bold text-sm transition-colors ${offsetSaving ? 'bg-slate-700 text-slate-500 cursor-not-allowed' : 'bg-slate-700 hover:bg-slate-600 text-slate-200'}`}
                             >
-                                Done
+                                {offsetSaving ? 'Saving...' : 'Done'}
                             </button>
                         </div>
                     </div>
