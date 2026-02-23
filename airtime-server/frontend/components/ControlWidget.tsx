@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card } from './Card';
 import { RadioConfig, RadioConfigInput } from '../types';
-import { Play, Zap, X, Square, RotateCw, Clock, RefreshCw, Loader2, FlaskConical, HelpCircle } from 'lucide-react';
+import { Play, Zap, X, Square, RotateCw, Clock, RefreshCw, Loader2, FlaskConical, HelpCircle, Settings } from 'lucide-react';
 import { api } from '../services/api';
 import { ConfirmModal, ModalType } from './ConfirmModal';
 
@@ -58,6 +58,9 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
     const [timeTesterDuration, setTimeTesterDuration] = useState<12 | 24>(12);
     const [timeTesterLoading, setTimeTesterLoading] = useState<boolean>(false);
     const [showTimeTesterModal, setShowTimeTesterModal] = useState<boolean>(false);
+
+    const [showTimeSettingsModal, setShowTimeSettingsModal] = useState<boolean>(false);
+    const [timeMode, setTimeMode] = useState<'time_now' | 'time_now_with_offset' | 'fixed_time'>('time_now');
 
     const [countdown, setCountdown] = useState<number>(0);
 
@@ -437,74 +440,7 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
                         )}
                     </div>
 
-                    {/* TIME TESTER — between BROADCAST NOW and System Control */}
-                    {timeTesterEnabled ? (
-                        <div className="flex items-center justify-between p-2 bg-slate-800/50 rounded-lg border border-slate-700/50">
-                            <div className="flex items-center gap-2.5">
-                                <div className="p-1.5 rounded-full bg-slate-700 text-violet-400">
-                                    <FlaskConical size={14} />
-                                </div>
-                                <div className="relative flex items-center gap-1.5 group cursor-help">
-                                    <div className="text-sm font-medium text-slate-200">Sync Time Check</div>
-                                    <HelpCircle size={14} className="text-slate-500 hover:text-slate-300 transition-colors" />
-                                    <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-64 p-2 bg-slate-900 text-xs text-slate-300 rounded shadow-xl border border-slate-700 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
-                                        Disables all scheduled broadcasts to continuously transmit a fixed 12:00 time signal. Useful for verifying radio hardware and syncing clocks from scratch.
-                                    </div>
-                                </div>
-                            </div>
-                            <button
-                                disabled={timeTesterLoading}
-                                onClick={async () => {
-                                    setTimeTesterLoading(true);
-                                    try {
-                                        await api.setTimeTester(false, timeTesterService);
-                                        setTimeTesterEnabled(false);
-                                        onTimeTesterChange?.(false, timeTesterService);
-                                        onBroadcastStart();
-                                    } catch (e) {
-                                        console.error('Time tester error:', e);
-                                    } finally {
-                                        setTimeTesterLoading(false);
-                                    }
-                                }}
-                                className={`w-8 h-4 rounded-full p-0.5 transition-colors duration-200 ease-in-out relative inline-flex items-center ${timeTesterLoading ? 'opacity-50 cursor-not-allowed bg-violet-500/80' : 'bg-violet-500/80'}`}
-                            >
-                                <div className="bg-white w-3 h-3 rounded-full shadow transform translate-x-4" />
-                            </button>
-                        </div>
-                    ) : (
-                        <div
-                            className="flex items-center justify-between p-2 bg-slate-800/50 rounded-lg border border-slate-700/50 cursor-pointer hover:bg-slate-800 transition-colors"
-                            onClick={() => {
-                                if (isTransmitting) {
-                                    setModalConfig({
-                                        isOpen: true,
-                                        title: 'Broadcast Active',
-                                        message: 'Stop the current broadcast before starting a Time Tester session.',
-                                        type: 'warning'
-                                    });
-                                    return;
-                                }
-                                setShowTimeTesterModal(true);
-                            }}
-                        >
-                            <div className="flex items-center gap-2.5">
-                                <div className="p-1.5 rounded-full bg-slate-700 text-slate-400">
-                                    <FlaskConical size={14} />
-                                </div>
-                                <div className="relative flex items-center gap-1.5 group cursor-help" onClick={(e) => e.stopPropagation()}>
-                                    <div className="text-sm font-medium text-slate-200">Sync Time Check</div>
-                                    <HelpCircle size={14} className="text-slate-500 hover:text-slate-300 transition-colors" />
-                                    <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-64 p-2 bg-slate-900 text-xs text-slate-300 rounded shadow-xl border border-slate-700 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
-                                        Disables all scheduled broadcasts to continuously transmit a fixed 12:00 time signal. Useful for verifying radio hardware and syncing clocks from scratch.
-                                    </div>
-                                </div>
-                            </div>
-                            <button className="w-8 h-4 rounded-full p-0.5 bg-slate-600 relative inline-flex items-center pointer-events-none">
-                                <div className="bg-white w-3 h-3 rounded-full shadow transform translate-x-0" />
-                            </button>
-                        </div>
-                    )}
+
 
                     <div className="border-t border-slate-800/50 my-2"></div>
 
@@ -527,42 +463,23 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
                             </button>
                         </div>
 
-                        <div
-                            onClick={() => {
-                                if (isTransmitting) {
-                                    setModalConfig({
-                                        isOpen: true,
-                                        title: 'Broadcast Active',
-                                        message: 'Cannot edit offset settings while antenna is broadcasting. Please stop the broadcast first.',
-                                        type: 'warning'
-                                    });
-                                } else {
-                                    setShowOffsetModal(true);
-                                }
-                            }}
-                            className="flex items-center justify-between p-2 bg-slate-800/50 rounded-lg border border-slate-700/50 cursor-pointer hover:bg-slate-800 transition-colors"
+                        <button
+                            onClick={() => setShowTimeSettingsModal(true)}
+                            className="w-full flex items-center justify-between p-2 bg-slate-800/50 rounded-lg border border-slate-700/50 cursor-pointer hover:bg-slate-800 transition-colors text-left"
                         >
                             <div className="flex items-center gap-2.5">
-                                <div className={`p-1.5 rounded-full ${offsetEnabled && isStoredNonZero ? 'bg-cyan-500/20 text-cyan-400' : 'bg-slate-700 text-slate-400'}`}>
+                                <div className="p-1.5 rounded-full bg-slate-700 text-cyan-400">
                                     <Clock size={14} />
                                 </div>
                                 <div className="text-sm font-medium text-slate-200">
-                                    Global Offset
-                                    {isStoredNonZero && (
-                                        <span className={`ml-2 text-xs font-mono font-bold ${offsetEnabled ? 'text-cyan-400' : 'text-slate-500'}`}>
-                                            {offsetSign > 0 ? '+' : '-'}{totalStoredMinutes}m
-                                        </span>
-                                    )}
+                                    Time Settings
+                                    <span className="ml-2 text-[10px] font-mono text-slate-500 uppercase">
+                                        {timeMode === 'time_now' ? 'Now' : timeMode === 'time_now_with_offset' ? 'Offset' : 'Fixed'}
+                                    </span>
                                 </div>
                             </div>
-
-                            <button
-                                onClick={handleOffsetToggle}
-                                className={`w-8 h-4 rounded-full p-0.5 transition-colors duration-200 ease-in-out relative inline-flex items-center ${offsetEnabled && isStoredNonZero ? 'bg-cyan-500/80' : 'bg-slate-600'}`}
-                            >
-                                <div className={`bg-white w-3 h-3 rounded-full shadow transform transition-transform duration-200 ${offsetEnabled && isStoredNonZero ? 'translate-x-4' : 'translate-x-0'}`} />
-                            </button>
-                        </div>
+                            <Settings size={13} className="text-slate-500" />
+                        </button>
 
                         <div className="grid grid-cols-3 gap-2 pt-1">
                             <button
@@ -670,6 +587,96 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
                                 className="w-full py-3 rounded-lg font-bold text-sm bg-cyan-600 hover:bg-cyan-500 text-white shadow-lg shadow-cyan-500/20 disabled:opacity-50"
                             >
                                 {offsetSaving ? 'Saving...' : 'Apply Offset'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Time Settings Modal */}
+            {showTimeSettingsModal && (
+                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={() => setShowTimeSettingsModal(false)}>
+                    <div className="bg-slate-800 rounded-2xl max-w-xs w-full border border-slate-700 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                        {/* Header */}
+                        <div className="flex items-center justify-between p-4 border-b border-slate-700">
+                            <div className="flex items-center gap-2">
+                                <div className="p-1.5 rounded-full bg-cyan-500/20 text-cyan-400">
+                                    <Clock size={16} />
+                                </div>
+                                <h3 className="text-base font-bold text-white">Time Settings</h3>
+                            </div>
+                            <button onClick={() => setShowTimeSettingsModal(false)} className="p-2 hover:bg-slate-700 rounded-full text-slate-400 transition-colors">
+                                <X size={16} />
+                            </button>
+                        </div>
+
+                        {/* Radio Options */}
+                        <div className="p-4 space-y-2">
+                            {/* Time Now */}
+                            <button
+                                onClick={() => setTimeMode('time_now')}
+                                className={`w-full flex items-start gap-3 p-3.5 rounded-xl border-2 text-left transition-all ${timeMode === 'time_now'
+                                        ? 'border-cyan-500 bg-cyan-500/10'
+                                        : 'border-slate-700 bg-slate-900/50 hover:border-slate-600'
+                                    }`}
+                            >
+                                <div className={`mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${timeMode === 'time_now' ? 'border-cyan-400' : 'border-slate-600'
+                                    }`}>
+                                    {timeMode === 'time_now' && <div className="w-2 h-2 rounded-full bg-cyan-400" />}
+                                </div>
+                                <div>
+                                    <div className={`text-sm font-semibold transition-colors ${timeMode === 'time_now' ? 'text-cyan-300' : 'text-slate-200'
+                                        }`}>Time Now</div>
+                                    <div className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">Broadcasts using the current system clock.</div>
+                                </div>
+                            </button>
+
+                            {/* Time Now with Offset */}
+                            <button
+                                onClick={() => setTimeMode('time_now_with_offset')}
+                                className={`w-full flex items-start gap-3 p-3.5 rounded-xl border-2 text-left transition-all ${timeMode === 'time_now_with_offset'
+                                        ? 'border-cyan-500 bg-cyan-500/10'
+                                        : 'border-slate-700 bg-slate-900/50 hover:border-slate-600'
+                                    }`}
+                            >
+                                <div className={`mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${timeMode === 'time_now_with_offset' ? 'border-cyan-400' : 'border-slate-600'
+                                    }`}>
+                                    {timeMode === 'time_now_with_offset' && <div className="w-2 h-2 rounded-full bg-cyan-400" />}
+                                </div>
+                                <div>
+                                    <div className={`text-sm font-semibold transition-colors ${timeMode === 'time_now_with_offset' ? 'text-cyan-300' : 'text-slate-200'
+                                        }`}>Time Now with Offset</div>
+                                    <div className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">Applies a global time offset to the current clock before broadcasting.</div>
+                                </div>
+                            </button>
+
+                            {/* Fixed Time */}
+                            <button
+                                onClick={() => setTimeMode('fixed_time')}
+                                className={`w-full flex items-start gap-3 p-3.5 rounded-xl border-2 text-left transition-all ${timeMode === 'fixed_time'
+                                        ? 'border-violet-500 bg-violet-500/10'
+                                        : 'border-slate-700 bg-slate-900/50 hover:border-slate-600'
+                                    }`}
+                            >
+                                <div className={`mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${timeMode === 'fixed_time' ? 'border-violet-400' : 'border-slate-600'
+                                    }`}>
+                                    {timeMode === 'fixed_time' && <div className="w-2 h-2 rounded-full bg-violet-400" />}
+                                </div>
+                                <div>
+                                    <div className={`text-sm font-semibold transition-colors ${timeMode === 'fixed_time' ? 'text-violet-300' : 'text-slate-200'
+                                        }`}>Fixed Time</div>
+                                    <div className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">Transmits a fixed 12:00 signal. Useful for verifying hardware and syncing clocks from scratch.</div>
+                                </div>
+                            </button>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="p-4 border-t border-slate-700">
+                            <button
+                                onClick={() => setShowTimeSettingsModal(false)}
+                                className="w-full py-2.5 rounded-lg font-bold text-sm bg-slate-700 hover:bg-slate-600 text-slate-200 transition-colors"
+                            >
+                                Done
                             </button>
                         </div>
                     </div>
