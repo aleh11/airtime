@@ -151,6 +151,7 @@ def check_txtempus_process() -> bool:
         "duration": None,
         "started_at": None,
         "offset": None,
+        "fixed_time": None,
         "pid": None
     }
 
@@ -178,6 +179,10 @@ def check_txtempus_process() -> bool:
 
                     m_off = re.search(r'-z\s+([+-]?\d+)', args_str)
                     if m_off: status_data["offset"] = int(m_off.group(1))
+
+                    # match -t "YYYY-MM-DD HH:MM" or just "HH:MM", we just extract the time part
+                    m_time = re.search(r'-t\s+[\'"]?(?:(?:\$\(date[^)]+\)\s+)|(?:\d{4}-\d{2}-\d{2}\s+))?(\d{2}:\d{2})', args_str)
+                    if m_time: status_data["fixed_time"] = m_time.group(1)
 
     except Exception as e:
         print(f"Process check error: {e}")

@@ -17,6 +17,7 @@ export interface ServicesStatus {
     txtempus_duration?: number | null;
     txtempus_started_at?: string | null;
     txtempus_offset?: number | null;
+    txtempus_fixed_time?: string | null;
     txtempus_remaining_seconds?: number;
 }
 
@@ -79,6 +80,8 @@ export interface RadioConfig {
     default_duration_minutes: number;
     default_offset?: number;
     default_offset_enabled?: boolean;
+    default_time_mode?: string;
+    default_fixed_time?: string;
     timezone_offset_minutes?: number;
 }
 
@@ -100,6 +103,8 @@ export interface RadioConfigInput {
     default_duration_minutes: number;
     default_offset: number;
     default_offset_enabled?: boolean;
+    default_time_mode?: string;
+    default_fixed_time?: string;
 }
 
 export enum ServiceType {

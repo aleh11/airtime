@@ -132,6 +132,8 @@ class RadioConfigInput(BaseModel):
     default_duration_minutes: int
     default_offset: int = 0
     default_offset_enabled: bool = False
+    default_time_mode: str = "time_now"
+    default_fixed_time: str = ""
 
     @field_validator('default_service')
     @classmethod
@@ -270,7 +272,7 @@ def validate_txtempus_command(command: str) -> dict:
     }
 
 
-def update_all_cron_offsets(new_offset: int, offset_enabled: bool) -> int:
+def update_all_cron_offsets(new_offset: int, offset_enabled: bool, time_mode: str = "time_now", fixed_time: str = "") -> int:
     jobs = db.get_cron_jobs()
     updated_count = 0
 
@@ -281,7 +283,9 @@ def update_all_cron_offsets(new_offset: int, offset_enabled: bool) -> int:
         details = job["radio_details"]
         cmd = f'/usr/bin/txtempus -s {details["service"]} -r {details["duration"]}'
 
-        if offset_enabled and new_offset != 0:
+        if time_mode == "fixed_time" and fixed_time:
+            cmd += f" -t '$(date +\\%Y-\\%m-\\%d) {fixed_time}'"
+        elif (time_mode == "time_now_with_offset" or offset_enabled) and new_offset != 0:
             cmd += f' -z {new_offset}'
 
         db.add_or_update_cron_job(
@@ -344,6 +348,7 @@ async def get_status():
             "txtempus_duration": details.get("duration") if isinstance(details, dict) else None,
             "txtempus_started_at": details.get("started_at") if isinstance(details, dict) else None,
             "txtempus_offset": details.get("offset") if isinstance(details, dict) else None,
+            "txtempus_fixed_time": details.get("fixed_time") if isinstance(details, dict) else None,
             "txtempus_remaining_seconds": remaining_seconds
         },
         "ntp_status": {
@@ -378,9 +383,13 @@ async def add_or_update_cron(job: CronJobInput, request: Request):
     # This prevents stale-offset bugs when the user updates the offset and immediately adds a new job.
     global_offset = int(db.get_setting("radio_config", "default_offset", "0"))
     global_offset_enabled = str(db.get_setting("radio_config", "default_offset_enabled", "false")).lower() == "true"
+    global_time_mode = db.get_setting("radio_config", "default_time_mode", "time_now")
+    global_fixed_time = db.get_setting("radio_config", "default_fixed_time", "")
 
     safe_command = f"/usr/bin/txtempus -s {validated['service']} -r {validated['duration']}"
-    if global_offset_enabled and global_offset != 0:
+    if global_time_mode == "fixed_time" and global_fixed_time:
+        safe_command += f" -t '$(date +\\%Y-\\%m-\\%d) {global_fixed_time}'"
+    elif (global_time_mode == "time_now_with_offset" or global_offset_enabled) and global_offset != 0:
         safe_command += f" -z {global_offset}"
 
     cron_schedule = friendly_to_cron(job.time, job.frequency)
@@ -432,6 +441,8 @@ async def get_radio_config():
         "default_duration_minutes": 10,
         "default_offset": 0,
         "default_offset_enabled": False,
+        "default_time_mode": "time_now",
+        "default_fixed_time": "12:00",
         "available_services": ["DCF77", "WWVB", "MSF", "JJY40", "JJY60"]
     }
 
@@ -462,8 +473,10 @@ async def update_radio_config(conf: RadioConfigInput, request: Request):
     db.set_setting("radio_config", "default_duration_minutes", str(duration))
     db.set_setting("radio_config", "default_offset", str(offset))
     db.set_setting("radio_config", "default_offset_enabled", str(conf.default_offset_enabled).lower())
+    db.set_setting("radio_config", "default_time_mode", conf.default_time_mode)
+    db.set_setting("radio_config", "default_fixed_time", conf.default_fixed_time)
 
-    updated_count = update_all_cron_offsets(offset, conf.default_offset_enabled)
+    updated_count = update_all_cron_offsets(offset, conf.default_offset_enabled, conf.default_time_mode, conf.default_fixed_time)
 
     if updated_count > 0:
         try:
@@ -497,11 +510,17 @@ async def manual_transmit(req: TransmitRequest, request: Request):
 
     offset = int(db.get_setting("radio_config", "default_offset", "0"))
     offset_enabled = str(db.get_setting("radio_config", "default_offset_enabled", "true")).lower() == "true"
+    time_mode = db.get_setting("radio_config", "default_time_mode", "time_now")
+    fixed_time = db.get_setting("radio_config", "default_fixed_time", "12:00")
 
     subprocess.run(['sudo', 'pkill', 'txtempus'])
 
     cmd = ['sudo', '/usr/bin/txtempus', '-s', service, '-r', str(duration)]
-    if offset != 0 and offset_enabled:
+    
+    if time_mode == "fixed_time" and fixed_time:
+        start_time_str = time.strftime(f"%Y-%m-%d {fixed_time}")
+        cmd.extend(['-t', start_time_str])
+    elif (time_mode == "time_now_with_offset" or offset_enabled) and offset != 0:
         cmd.extend(['-z', str(offset)])
 
     subprocess.Popen(cmd)

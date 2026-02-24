@@ -61,6 +61,7 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
 
     const [showTimeSettingsModal, setShowTimeSettingsModal] = useState<boolean>(false);
     const [timeMode, setTimeMode] = useState<'time_now' | 'time_now_with_offset' | 'fixed_time'>('time_now');
+    const [fixedTimeStr, setFixedTimeStr] = useState<string>('12:00');
 
     const [countdown, setCountdown] = useState<number>(0);
 
@@ -92,6 +93,8 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
             setOffsetMinutes(m);
             setOffsetSign(totalMins >= 0 ? 1 : -1);
             setOffsetEnabled(radioConfig.default_offset_enabled ?? false);
+            setTimeMode((radioConfig.default_time_mode as any) || 'time_now');
+            setFixedTimeStr(radioConfig.default_fixed_time || '12:00');
         }
     }, [radioConfig]);
 
@@ -159,30 +162,30 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
     const handleTimeSettingsSave = async () => {
         setOffsetSaving(true);
         try {
+            const config: RadioConfigInput = {
+                default_service: selectedService,
+                default_duration_minutes: duration,
+                default_offset: 0,
+                default_offset_enabled: false,
+                default_time_mode: timeMode,
+                default_fixed_time: fixedTimeStr
+            };
+
             if (timeMode === 'time_now_with_offset') {
                 const h = parseInt(modalHours) || 0;
                 const m = parseInt(modalMinutes) || 0;
                 const totalAbsMinutes = (h * 60) + m;
                 const totalMinutes = totalAbsMinutes * offsetSign;
 
-                const config: RadioConfigInput = {
-                    default_service: selectedService,
-                    default_duration_minutes: duration,
-                    default_offset: totalMinutes,
-                    default_offset_enabled: true
-                };
+                config.default_offset = totalMinutes;
+                config.default_offset_enabled = true;
                 await api.updateRadioConfig(config);
 
                 setOffsetHours(h);
                 setOffsetMinutes(m);
                 setOffsetEnabled(true);
             } else {
-                const config: RadioConfigInput = {
-                    default_service: selectedService,
-                    default_duration_minutes: duration,
-                    default_offset: (offsetHours * 60 + offsetMinutes) * offsetSign,
-                    default_offset_enabled: false
-                };
+                config.default_offset = (offsetHours * 60 + offsetMinutes) * offsetSign;
                 await api.updateRadioConfig(config);
                 setOffsetEnabled(false);
             }
@@ -438,7 +441,18 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
                         </div>
 
                         <button
-                            onClick={() => setShowTimeSettingsModal(true)}
+                            onClick={() => {
+                                if (isTransmitting) {
+                                    setModalConfig({
+                                        isOpen: true,
+                                        title: 'Control Locked',
+                                        message: "You can't do this while broadcasting.",
+                                        type: 'warning'
+                                    });
+                                    return;
+                                }
+                                setShowTimeSettingsModal(true);
+                            }}
                             className="w-full flex items-center justify-between p-2 bg-slate-800/50 rounded-lg border border-slate-700/50 cursor-pointer hover:bg-slate-800 transition-colors text-left"
                         >
                             <div className="flex items-center gap-2.5">
@@ -447,15 +461,19 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
                                 </div>
                                 <div className="text-sm font-medium text-slate-200 flex items-center gap-2">
                                     Time Settings
-                                    {offsetEnabled && (offsetHours > 0 || offsetMinutes > 0) ? (
+                                    {timeMode === 'fixed_time' ? (
+                                        <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border text-violet-400 bg-violet-500/10 border-violet-500/30 ml-1">
+                                            Fixed {fixedTimeStr}
+                                        </span>
+                                    ) : offsetEnabled && (offsetHours > 0 || offsetMinutes > 0) ? (
                                         <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border ${offsetSign > 0
                                             ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30'
-                                            : 'text-orange-400 bg-orange-500/10 border-orange-500/30'}`}>
+                                            : 'text-orange-400 bg-orange-500/10 border-orange-500/30'} ml-1`}>
                                             {offsetSign > 0 ? '+' : '-'}{offsetHours ? `${offsetHours}h ` : ''}{offsetMinutes}m
                                         </span>
                                     ) : (
                                         <span className="text-[10px] font-mono text-slate-500 uppercase">
-                                            {timeMode === 'time_now' ? 'Now' : timeMode === 'time_now_with_offset' ? 'Offset' : 'Fixed'}
+                                            {timeMode === 'time_now' ? 'Now' : 'Offset'}
                                         </span>
                                     )}
                                 </div>
@@ -590,7 +608,6 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
                                 )}
                             </div>
 
-                            {/* Fixed Time */}
                             <div className={`overflow-hidden rounded-xl border-2 transition-all ${timeMode === 'fixed_time' ? 'border-violet-500 bg-violet-500/10' : 'border-slate-700 bg-slate-900/50 hover:border-slate-600'}`}>
                                 <button onClick={() => setTimeMode('fixed_time')} className="w-full flex items-start gap-3 p-3.5 text-left transition-colors">
                                     <div className={`mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${timeMode === 'fixed_time' ? 'border-violet-400' : 'border-slate-600'}`}>
@@ -598,9 +615,23 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
                                     </div>
                                     <div>
                                         <div className={`text-sm font-semibold transition-colors ${timeMode === 'fixed_time' ? 'text-violet-300' : 'text-slate-200'}`}>Fixed Time</div>
-                                        <div className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">Transmits a fixed 12:00 signal. Useful for verifying hardware and syncing clocks from scratch.</div>
+                                        <div className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">Transmits a specific fixed time signal. Useful for verifying hardware and syncing clocks from scratch.</div>
                                     </div>
                                 </button>
+                                {timeMode === 'fixed_time' && (
+                                    <div className="p-4 bg-black/20 border-t border-violet-500/30 animate-fade-in flex flex-col items-center">
+                                        <label className="text-[10px] text-violet-300/70 font-bold uppercase block mb-3">Select Time</label>
+                                        <div className="flex items-center justify-center pb-2">
+                                            <input
+                                                type="time"
+                                                value={fixedTimeStr}
+                                                onChange={(e) => setFixedTimeStr(e.target.value)}
+                                                className="bg-slate-900/80 border border-violet-500/50 rounded-lg p-2 text-2xl font-mono text-center text-violet-200 focus:ring-2 focus:ring-violet-500 outline-none w-40 flex items-center justify-center custom-time-input"
+                                                required
+                                            />
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
