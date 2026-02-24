@@ -448,7 +448,9 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
                                 <div className="text-sm font-medium text-slate-200 flex items-center gap-2">
                                     Time Settings
                                     {offsetEnabled && (offsetHours > 0 || offsetMinutes > 0) ? (
-                                        <span className="text-[10px] font-mono font-bold text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded border border-green-500/30">
+                                        <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border ${offsetSign > 0
+                                            ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30'
+                                            : 'text-orange-400 bg-orange-500/10 border-orange-500/30'}`}>
                                             {offsetSign > 0 ? '+' : '-'}{offsetHours ? `${offsetHours}h ` : ''}{offsetMinutes}m
                                         </span>
                                     ) : (
@@ -599,42 +601,6 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
                                         <div className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">Transmits a fixed 12:00 signal. Useful for verifying hardware and syncing clocks from scratch.</div>
                                     </div>
                                 </button>
-
-                                {timeMode === 'fixed_time' && (
-                                    <div className="p-4 bg-black/20 border-t border-violet-500/30 animate-fade-in relative z-10">
-                                        <div className="space-y-4">
-                                            <div>
-                                                <label className="text-[10px] font-bold text-violet-300/70 uppercase tracking-wider block mb-1.5">Service</label>
-                                                <select
-                                                    value={timeTesterService}
-                                                    onChange={e => setTimeTesterService(e.target.value)}
-                                                    className="w-full bg-slate-900/80 border border-slate-700 rounded-lg px-3 text-sm font-medium text-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent h-[36px]"
-                                                >
-                                                    {(radioConfig?.available_services ?? ['DCF77', 'WWVB', 'MSF', 'JJY40', 'JJY60']).map(svc => (
-                                                        <option key={svc} value={svc}>{svc}</option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                            <div>
-                                                <label className="text-[10px] font-bold text-violet-300/70 uppercase tracking-wider block mb-1.5">Duration</label>
-                                                <div className="grid grid-cols-2 gap-2 relative z-10">
-                                                    {([12, 24] as const).map(h => (
-                                                        <button
-                                                            key={h}
-                                                            onClick={(e) => { e.stopPropagation(); setTimeTesterDuration(h); }}
-                                                            className={`py-2 rounded-lg font-bold text-[11px] border transition-all ${timeTesterDuration === h
-                                                                ? 'border-violet-500 bg-violet-500/30 text-violet-200 shadow-[inset_0_0_10px_rgba(139,92,246,0.3)]'
-                                                                : 'border-slate-600 bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-300'
-                                                                }`}
-                                                        >
-                                                            {h} hours
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
                             </div>
                         </div>
 

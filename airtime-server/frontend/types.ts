@@ -16,6 +16,7 @@ export interface ServicesStatus {
     txtempus_service?: string | null;
     txtempus_duration?: number | null;
     txtempus_started_at?: string | null;
+    txtempus_offset?: number | null;
     txtempus_remaining_seconds?: number;
 }
 

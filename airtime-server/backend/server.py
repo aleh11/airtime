@@ -343,6 +343,7 @@ async def get_status():
             "txtempus_service": details.get("service") if isinstance(details, dict) else None,
             "txtempus_duration": details.get("duration") if isinstance(details, dict) else None,
             "txtempus_started_at": details.get("started_at") if isinstance(details, dict) else None,
+            "txtempus_offset": details.get("offset") if isinstance(details, dict) else None,
             "txtempus_remaining_seconds": remaining_seconds
         },
         "ntp_status": {

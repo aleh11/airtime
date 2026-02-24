@@ -150,6 +150,7 @@ def check_txtempus_process() -> bool:
         "service": None,
         "duration": None,
         "started_at": None,
+        "offset": None,
         "pid": None
     }
 
@@ -174,6 +175,9 @@ def check_txtempus_process() -> bool:
 
                     m_dur = re.search(r'-r\s+(\d+)', args_str)
                     if m_dur: status_data["duration"] = int(m_dur.group(1))
+
+                    m_off = re.search(r'-z\s+([+-]?\d+)', args_str)
+                    if m_off: status_data["offset"] = int(m_off.group(1))
 
     except Exception as e:
         print(f"Process check error: {e}")
