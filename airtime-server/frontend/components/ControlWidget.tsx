@@ -621,8 +621,8 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
                                 </button>
                                 {timeMode === 'fixed_time' && (
                                     <div className="px-3 pb-3 pt-2.5 bg-black/20 border-t border-violet-500/30 animate-fade-in">
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide shrink-0">Time</span>
+                                        <div className="flex items-center justify-center gap-2">
+                                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide shrink-0">Fixed Time</span>
                                             <input
                                                 type="time"
                                                 value={fixedTimeStr}
