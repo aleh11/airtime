@@ -6,3 +6,4 @@ airtime-server/ssl/*.key
 airtime-server/ssl/*.crt
 airtime-server/ssl/openssl.cnf
 
+.claude/
