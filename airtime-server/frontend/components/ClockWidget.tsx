@@ -150,11 +150,16 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({ status, timeTesterEnab
                                             FIXED {fixedTime}
                                         </span>
                                     )}
+                                    {!timeTesterEnabled && !isFixedTimeBroadcast && !hasOffset && (
+                                        <span className="text-[12px] font-mono font-bold px-2 py-0.5 rounded-full border text-cyan-400 bg-cyan-500/10 border-cyan-500/30 ml-1">
+                                            NOW
+                                        </span>
+                                    )}
                                     {hasOffset && !timeTesterEnabled && !isFixedTimeBroadcast && (
                                         <span className={`text-[12px] font-mono font-bold px-2 py-0.5 rounded-full border ${offsetSign > 0
                                             ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30'
                                             : 'text-orange-400 bg-orange-500/10 border-orange-500/30'} ml-1`}>
-                                            {offsetSign > 0 ? '+' : '-'}{offsetHours > 0 ? `${offsetHours}h ` : ''}{offsetMinutes}m
+                                            NOW {offsetSign > 0 ? '+' : '-'}{offsetHours > 0 ? `${offsetHours}h ` : ''}{offsetMinutes}m
                                         </span>
                                     )}
                                 </div>
