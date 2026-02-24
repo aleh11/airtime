@@ -605,7 +605,6 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
                                             />
                                             <span className="text-xs text-slate-500 font-bold shrink-0">m</span>
                                         </div>
-                                        <div className="text-[10px] text-slate-500">Applies global offset to current clock</div>
                                     </div>
                                 )}
                             </div>
@@ -621,15 +620,18 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
                                     </div>
                                 </button>
                                 {timeMode === 'fixed_time' && (
-                                    <div className="px-3 pb-3 pt-3 bg-black/20 border-t border-violet-500/30 animate-fade-in flex flex-col items-center">
-                                        <label className="text-[10px] text-violet-300/70 font-bold uppercase block mb-2">Select Time</label>
+                                    <div className="px-3 pb-3 pt-2.5 bg-black/20 border-t border-violet-500/30 animate-fade-in">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">Fixed Time</span>
+                                        </div>
                                         <input
                                             type="time"
                                             value={fixedTimeStr}
                                             onChange={(e) => setFixedTimeStr(e.target.value)}
-                                            className="bg-slate-900/80 border border-violet-500/50 rounded-lg p-1.5 text-lg font-mono text-center text-violet-200 focus:ring-2 focus:ring-violet-500 outline-none w-32 custom-time-input"
+                                            className="w-full min-w-0 bg-slate-900/80 border border-violet-500/50 rounded-lg p-1.5 text-base font-mono text-center text-violet-200 focus:ring-2 focus:ring-violet-500 outline-none custom-time-input mb-1.5"
                                             required
                                         />
+                                        <div className="text-[10px] text-slate-500">Transmits this fixed time regardless of system clock</div>
                                     </div>
                                 )}
                             </div>
