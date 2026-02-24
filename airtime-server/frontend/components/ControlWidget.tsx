@@ -461,17 +461,17 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
                                 <div className="text-sm font-medium text-slate-200 flex items-center gap-2">
                                     Time Settings
                                     {timeMode === 'fixed_time' ? (
-                                        <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border text-violet-400 bg-violet-500/10 border-violet-500/30 ml-1">
+                                        <span className="text-[10px] font-mono font-bold px-2 py-px rounded-md border text-violet-400 bg-violet-500/10 border-violet-500/30 ml-1">
                                             Fixed {fixedTimeStr}
                                         </span>
                                     ) : offsetEnabled && (offsetHours > 0 || offsetMinutes > 0) ? (
-                                        <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border ${offsetSign > 0
+                                        <span className={`text-[10px] font-mono font-bold px-2 py-px rounded-md border ${offsetSign > 0
                                             ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30'
                                             : 'text-orange-400 bg-orange-500/10 border-orange-500/30'} ml-1`}>
                                             {offsetSign > 0 ? '+' : '-'}{offsetHours ? `${offsetHours}h ` : ''}{offsetMinutes}m
                                         </span>
                                     ) : timeMode === 'time_now' ? (
-                                        <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border text-cyan-400 bg-cyan-500/10 border-cyan-500/30 ml-1">
+                                        <span className="text-[10px] font-mono font-bold px-2 py-px rounded-md border text-cyan-400 bg-cyan-500/10 border-cyan-500/30 ml-1">
                                             NOW
                                         </span>
                                     ) : (

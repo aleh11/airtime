@@ -110,8 +110,8 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({ status, timeTesterEnab
                 {isTransmitting && (
                     <div className="flex items-center gap-6 animate-fade-in pr-4 pt-2">
                         <div className="relative px-2 py-1 md:px-4 md:py-1.5 hidden md:block">
-                            <div className={`absolute inset-0 border-2 ${c.border} rounded blur-sm animate-pulse`}></div>
-                            <div className={`absolute inset-0 border ${c.borderSolid} rounded`}></div>
+                            <div className={`absolute inset-0 border-2 ${c.border} rounded-md blur-sm animate-pulse`}></div>
+                            <div className={`absolute inset-0 border ${c.borderSolid} rounded-md`}></div>
                             <span className={`font-black ${c.text} tracking-widest text-xs md:text-2xl relative z-10 ${c.glow}`}>
                                 ON AIR
                             </span>
@@ -141,22 +141,22 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({ status, timeTesterEnab
                                 <div className="text-2xl font-bold text-slate-200 flex items-center gap-2">
                                     {serviceName}
                                     {timeTesterEnabled && (
-                                        <span className="text-[9px] font-bold text-violet-400 border border-violet-500/50 bg-violet-500/10 px-1 py-0 rounded-sm tracking-widest uppercase mt-0.5 ml-1">
+                                        <span className="text-[9px] font-bold text-violet-400 border border-violet-500/50 bg-violet-500/10 px-1.5 py-px rounded-md tracking-widest uppercase mt-0.5 ml-1">
                                             Testing
                                         </span>
                                     )}
                                     {isFixedTimeBroadcast && (
-                                        <span className="text-[12px] font-mono font-bold px-2 py-0.5 rounded-full border text-violet-400 bg-violet-500/10 border-violet-500/30 ml-1">
+                                        <span className="text-[12px] font-mono font-bold px-2 py-px rounded-md border text-violet-400 bg-violet-500/10 border-violet-500/30 ml-1">
                                             FIXED {fixedTime}
                                         </span>
                                     )}
                                     {!timeTesterEnabled && !isFixedTimeBroadcast && !hasOffset && (
-                                        <span className="text-[12px] font-mono font-bold px-2 py-0.5 rounded-full border text-cyan-400 bg-cyan-500/10 border-cyan-500/30 ml-1">
+                                        <span className="text-[12px] font-mono font-bold px-2 py-px rounded-md border text-cyan-400 bg-cyan-500/10 border-cyan-500/30 ml-1">
                                             NOW
                                         </span>
                                     )}
                                     {hasOffset && !timeTesterEnabled && !isFixedTimeBroadcast && (
-                                        <span className={`text-[12px] font-mono font-bold px-2 py-0.5 rounded-full border ${offsetSign > 0
+                                        <span className={`text-[12px] font-mono font-bold px-2 py-px rounded-md border ${offsetSign > 0
                                             ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30'
                                             : 'text-orange-400 bg-orange-500/10 border-orange-500/30'} ml-1`}>
                                             NOW {offsetSign > 0 ? '+' : '-'}{offsetHours > 0 ? `${offsetHours}h ` : ''}{offsetMinutes}m
