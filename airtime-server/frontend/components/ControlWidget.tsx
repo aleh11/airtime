@@ -586,24 +586,24 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
                                             </div>
                                         </div>
                                         {/* Inputs row */}
-                                        <div className="flex items-center gap-1.5 mb-1.5">
+                                        <div className="flex items-center gap-1.5 mb-1.5 w-full">
                                             <input
                                                 type="number"
                                                 value={modalHours}
                                                 onChange={e => validateHours(e.target.value)}
-                                                className="flex-1 bg-slate-900/80 border border-slate-600 rounded-lg p-1.5 text-base font-mono text-center text-white focus:ring-2 focus:ring-cyan-500 outline-none"
+                                                className="flex-1 min-w-0 bg-slate-900/80 border border-slate-600 rounded-lg p-1.5 text-base font-mono text-center text-white focus:ring-2 focus:ring-cyan-500 outline-none"
                                                 placeholder="0"
                                             />
-                                            <span className="text-xs text-slate-500 font-bold">h</span>
-                                            <span className="text-slate-600 font-bold">:</span>
+                                            <span className="text-xs text-slate-500 font-bold shrink-0">h</span>
+                                            <span className="text-slate-600 font-bold shrink-0">:</span>
                                             <input
                                                 type="number"
                                                 value={modalMinutes}
                                                 onChange={e => validateMinutes(e.target.value)}
-                                                className="flex-1 bg-slate-900/80 border border-slate-600 rounded-lg p-1.5 text-base font-mono text-center text-white focus:ring-2 focus:ring-cyan-500 outline-none"
+                                                className="flex-1 min-w-0 bg-slate-900/80 border border-slate-600 rounded-lg p-1.5 text-base font-mono text-center text-white focus:ring-2 focus:ring-cyan-500 outline-none"
                                                 placeholder="00"
                                             />
-                                            <span className="text-xs text-slate-500 font-bold">m</span>
+                                            <span className="text-xs text-slate-500 font-bold shrink-0">m</span>
                                         </div>
                                         <div className="text-[10px] text-slate-500">Applies global offset to current clock</div>
                                     </div>
