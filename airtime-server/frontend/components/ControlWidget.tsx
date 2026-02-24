@@ -560,53 +560,52 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
                                 </button>
 
                                 {timeMode === 'time_now_with_offset' && (
-                                    <div className="px-3 pb-3 pt-0 bg-black/20 border-t border-cyan-500/30 animate-fade-in">
-                                        <div className="flex flex-col items-center pt-3">
-                                            <div className="flex items-end gap-2 mb-2">
-                                                <div className="text-center">
-                                                    <label className="text-[10px] text-slate-400 font-bold uppercase block mb-1">Hours</label>
-                                                    <input
-                                                        type="number"
-                                                        value={modalHours}
-                                                        onChange={e => validateHours(e.target.value)}
-                                                        className="w-12 bg-slate-900/80 border border-slate-600 rounded-lg p-1.5 text-base font-mono text-center text-white focus:ring-2 focus:ring-cyan-500 outline-none"
-                                                        placeholder="0"
-                                                    />
-                                                </div>
-                                                <div className="text-sm text-slate-600 font-bold pb-1.5">:</div>
-                                                <div className="text-center">
-                                                    <label className="text-[10px] text-slate-400 font-bold uppercase block mb-1">Mins</label>
-                                                    <input
-                                                        type="number"
-                                                        value={modalMinutes}
-                                                        onChange={e => validateMinutes(e.target.value)}
-                                                        className="w-12 bg-slate-900/80 border border-slate-600 rounded-lg p-1.5 text-base font-mono text-center text-white focus:ring-2 focus:ring-cyan-500 outline-none"
-                                                        placeholder="00"
-                                                    />
-                                                </div>
-                                            </div>
-
-                                            <div className="flex w-full gap-2 relative z-10">
+                                    <div className="px-3 pb-3 pt-2.5 bg-black/20 border-t border-cyan-500/30 animate-fade-in">
+                                        {/* Header: label + sign toggle */}
+                                        <div className="flex items-center justify-between mb-2">
+                                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">Time Offset</span>
+                                            <div className="flex gap-1 relative z-10">
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); setOffsetSign(-1); }}
-                                                    className={`flex-1 py-1.5 rounded-lg font-bold text-[10px] uppercase tracking-wide border transition-all ${offsetSign === -1
+                                                    className={`px-2.5 py-1 rounded-lg font-bold text-[10px] uppercase tracking-wide border transition-all ${offsetSign === -1
                                                         ? 'border-orange-500 bg-orange-500/20 text-orange-400 shadow-[inset_0_0_12px_rgba(249,115,22,0.2)]'
                                                         : 'border-slate-600 bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-300'
-                                                        }`}
+                                                    }`}
                                                 >
-                                                    Behind (-)
+                                                    Behind
                                                 </button>
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); setOffsetSign(1); }}
-                                                    className={`flex-1 py-1.5 rounded-lg font-bold text-[10px] uppercase tracking-wide border transition-all ${offsetSign === 1
+                                                    className={`px-2.5 py-1 rounded-lg font-bold text-[10px] uppercase tracking-wide border transition-all ${offsetSign === 1
                                                         ? 'border-emerald-500 bg-emerald-500/20 text-emerald-400 shadow-[inset_0_0_12px_rgba(16,185,129,0.2)]'
                                                         : 'border-slate-600 bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-300'
-                                                        }`}
+                                                    }`}
                                                 >
-                                                    Ahead (+)
+                                                    Ahead
                                                 </button>
                                             </div>
                                         </div>
+                                        {/* Inputs row */}
+                                        <div className="flex items-center gap-1.5 mb-1.5">
+                                            <input
+                                                type="number"
+                                                value={modalHours}
+                                                onChange={e => validateHours(e.target.value)}
+                                                className="flex-1 bg-slate-900/80 border border-slate-600 rounded-lg p-1.5 text-base font-mono text-center text-white focus:ring-2 focus:ring-cyan-500 outline-none"
+                                                placeholder="0"
+                                            />
+                                            <span className="text-xs text-slate-500 font-bold">h</span>
+                                            <span className="text-slate-600 font-bold">:</span>
+                                            <input
+                                                type="number"
+                                                value={modalMinutes}
+                                                onChange={e => validateMinutes(e.target.value)}
+                                                className="flex-1 bg-slate-900/80 border border-slate-600 rounded-lg p-1.5 text-base font-mono text-center text-white focus:ring-2 focus:ring-cyan-500 outline-none"
+                                                placeholder="00"
+                                            />
+                                            <span className="text-xs text-slate-500 font-bold">m</span>
+                                        </div>
+                                        <div className="text-[10px] text-slate-500">Applies global offset to current clock</div>
                                     </div>
                                 )}
                             </div>
