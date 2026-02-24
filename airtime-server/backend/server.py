@@ -284,7 +284,7 @@ def update_all_cron_offsets(new_offset: int, offset_enabled: bool, time_mode: st
         cmd = f'/usr/bin/txtempus -s {details["service"]} -r {details["duration"]}'
 
         if time_mode == "fixed_time" and fixed_time:
-            cmd += f' -t "$(date +\\%Y-\\%m-\\%d) {fixed_time}"'
+            cmd += f' -t "$(date +%Y-%m-%d) {fixed_time}"'
         elif (time_mode == "time_now_with_offset" or offset_enabled) and new_offset != 0:
             cmd += f' -z {new_offset}'
 
@@ -388,7 +388,7 @@ async def add_or_update_cron(job: CronJobInput, request: Request):
 
     safe_command = f"/usr/bin/txtempus -s {validated['service']} -r {validated['duration']}"
     if global_time_mode == "fixed_time" and global_fixed_time:
-        safe_command += f' -t "$(date +\\%Y-\\%m-\\%d) {global_fixed_time}"'
+        safe_command += f' -t "$(date +%Y-%m-%d) {global_fixed_time}"'
     elif (global_time_mode == "time_now_with_offset" or global_offset_enabled) and global_offset != 0:
         safe_command += f" -z {global_offset}"
 
