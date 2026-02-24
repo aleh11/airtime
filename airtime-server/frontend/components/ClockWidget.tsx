@@ -70,9 +70,12 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({ status, timeTesterEnab
     const offsetMinutes = Math.abs(offset) % 60;
     const offsetSign = offset >= 0 ? 1 : -1;
     const hasOffset = offset !== 0;
+    const fixedTime = status?.services.txtempus_fixed_time || null;
+    const isFixedTimeBroadcast = !!isTransmitting && !!fixedTime && !timeTesterEnabled;
 
-    // colour tokens — cyan normally, violet in test mode
-    const c = timeTesterEnabled ? {
+    // colour tokens — cyan normally, violet for test mode or fixed-time broadcast
+    const useViolet = timeTesterEnabled || isFixedTimeBroadcast;
+    const c = useViolet ? {
         border: 'border-violet-500/50',
         borderSolid: 'border-violet-500/80',
         text: 'text-violet-500',
@@ -142,7 +145,12 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({ status, timeTesterEnab
                                             Testing
                                         </span>
                                     )}
-                                    {hasOffset && !timeTesterEnabled && (
+                                    {isFixedTimeBroadcast && (
+                                        <span className="text-[12px] font-mono font-bold px-2 py-0.5 rounded-full border text-violet-400 bg-violet-500/10 border-violet-500/30 ml-1">
+                                            FIXED {fixedTime}
+                                        </span>
+                                    )}
+                                    {hasOffset && !timeTesterEnabled && !isFixedTimeBroadcast && (
                                         <span className={`text-[12px] font-mono font-bold px-2 py-0.5 rounded-full border ${offsetSign > 0
                                             ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30'
                                             : 'text-orange-400 bg-orange-500/10 border-orange-500/30'} ml-1`}>

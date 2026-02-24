@@ -43,7 +43,6 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
     const [offsetMinutes, setOffsetMinutes] = useState<number>(0);
     const [offsetSign, setOffsetSign] = useState<number>(1);
     const [offsetEnabled, setOffsetEnabled] = useState<boolean>(false);
-    const [showOffsetModal, setShowOffsetModal] = useState<boolean>(false);
     const [offsetSaving, setOffsetSaving] = useState<boolean>(false);
 
     const [modalHours, setModalHours] = useState<string>('0');
@@ -117,11 +116,11 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
     }, [selectedService, timeTesterEnabled]);
 
     useEffect(() => {
-        if (showOffsetModal) {
+        if (showTimeSettingsModal) {
             setModalHours(offsetHours.toString());
             setModalMinutes(offsetMinutes.toString().padStart(2, '0'));
         }
-    }, [showOffsetModal, offsetHours, offsetMinutes]);
+    }, [showTimeSettingsModal, offsetHours, offsetMinutes]);
 
     useEffect(() => {
         if (isTransmitting && remainingSeconds > 0) {
@@ -471,9 +470,13 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
                                             : 'text-orange-400 bg-orange-500/10 border-orange-500/30'} ml-1`}>
                                             {offsetSign > 0 ? '+' : '-'}{offsetHours ? `${offsetHours}h ` : ''}{offsetMinutes}m
                                         </span>
+                                    ) : timeMode === 'time_now' ? (
+                                        <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border text-cyan-400 bg-cyan-500/10 border-cyan-500/30 ml-1">
+                                            NOW
+                                        </span>
                                     ) : (
                                         <span className="text-[10px] font-mono text-slate-500 uppercase">
-                                            {timeMode === 'time_now' ? 'Now' : 'Offset'}
+                                            Offset
                                         </span>
                                     )}
                                 </div>
@@ -557,27 +560,27 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
                                 </button>
 
                                 {timeMode === 'time_now_with_offset' && (
-                                    <div className="p-4 bg-black/20 border-t border-cyan-500/30 animate-fade-in">
-                                        <div className="flex flex-col items-center">
-                                            <div className="flex items-end gap-2 mb-4">
+                                    <div className="px-3 pb-3 pt-0 bg-black/20 border-t border-cyan-500/30 animate-fade-in">
+                                        <div className="flex flex-col items-center pt-3">
+                                            <div className="flex items-end gap-2 mb-2">
                                                 <div className="text-center">
                                                     <label className="text-[10px] text-slate-400 font-bold uppercase block mb-1">Hours</label>
                                                     <input
                                                         type="number"
                                                         value={modalHours}
                                                         onChange={e => validateHours(e.target.value)}
-                                                        className="w-16 bg-slate-900/80 border border-slate-600 rounded-lg p-2 text-xl font-mono text-center text-white focus:ring-2 focus:ring-cyan-500 outline-none"
+                                                        className="w-12 bg-slate-900/80 border border-slate-600 rounded-lg p-1.5 text-base font-mono text-center text-white focus:ring-2 focus:ring-cyan-500 outline-none"
                                                         placeholder="0"
                                                     />
                                                 </div>
-                                                <div className="text-xl text-slate-600 font-bold pb-2">:</div>
+                                                <div className="text-sm text-slate-600 font-bold pb-1.5">:</div>
                                                 <div className="text-center">
                                                     <label className="text-[10px] text-slate-400 font-bold uppercase block mb-1">Mins</label>
                                                     <input
                                                         type="number"
                                                         value={modalMinutes}
                                                         onChange={e => validateMinutes(e.target.value)}
-                                                        className="w-16 bg-slate-900/80 border border-slate-600 rounded-lg p-2 text-xl font-mono text-center text-white focus:ring-2 focus:ring-cyan-500 outline-none"
+                                                        className="w-12 bg-slate-900/80 border border-slate-600 rounded-lg p-1.5 text-base font-mono text-center text-white focus:ring-2 focus:ring-cyan-500 outline-none"
                                                         placeholder="00"
                                                     />
                                                 </div>
@@ -586,7 +589,7 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
                                             <div className="flex w-full gap-2 relative z-10">
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); setOffsetSign(-1); }}
-                                                    className={`flex-1 py-2.5 rounded-lg font-bold text-[10px] uppercase tracking-wide border transition-all ${offsetSign === -1
+                                                    className={`flex-1 py-1.5 rounded-lg font-bold text-[10px] uppercase tracking-wide border transition-all ${offsetSign === -1
                                                         ? 'border-orange-500 bg-orange-500/20 text-orange-400 shadow-[inset_0_0_12px_rgba(249,115,22,0.2)]'
                                                         : 'border-slate-600 bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-300'
                                                         }`}
@@ -595,7 +598,7 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
                                                 </button>
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); setOffsetSign(1); }}
-                                                    className={`flex-1 py-2.5 rounded-lg font-bold text-[10px] uppercase tracking-wide border transition-all ${offsetSign === 1
+                                                    className={`flex-1 py-1.5 rounded-lg font-bold text-[10px] uppercase tracking-wide border transition-all ${offsetSign === 1
                                                         ? 'border-emerald-500 bg-emerald-500/20 text-emerald-400 shadow-[inset_0_0_12px_rgba(16,185,129,0.2)]'
                                                         : 'border-slate-600 bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-300'
                                                         }`}
@@ -619,17 +622,15 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
                                     </div>
                                 </button>
                                 {timeMode === 'fixed_time' && (
-                                    <div className="p-4 bg-black/20 border-t border-violet-500/30 animate-fade-in flex flex-col items-center">
-                                        <label className="text-[10px] text-violet-300/70 font-bold uppercase block mb-3">Select Time</label>
-                                        <div className="flex items-center justify-center pb-2">
-                                            <input
-                                                type="time"
-                                                value={fixedTimeStr}
-                                                onChange={(e) => setFixedTimeStr(e.target.value)}
-                                                className="bg-slate-900/80 border border-violet-500/50 rounded-lg p-2 text-2xl font-mono text-center text-violet-200 focus:ring-2 focus:ring-violet-500 outline-none w-40 flex items-center justify-center custom-time-input"
-                                                required
-                                            />
-                                        </div>
+                                    <div className="px-3 pb-3 pt-3 bg-black/20 border-t border-violet-500/30 animate-fade-in flex flex-col items-center">
+                                        <label className="text-[10px] text-violet-300/70 font-bold uppercase block mb-2">Select Time</label>
+                                        <input
+                                            type="time"
+                                            value={fixedTimeStr}
+                                            onChange={(e) => setFixedTimeStr(e.target.value)}
+                                            className="bg-slate-900/80 border border-violet-500/50 rounded-lg p-1.5 text-lg font-mono text-center text-violet-200 focus:ring-2 focus:ring-violet-500 outline-none w-32 custom-time-input"
+                                            required
+                                        />
                                     </div>
                                 )}
                             </div>

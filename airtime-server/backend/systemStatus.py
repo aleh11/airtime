@@ -80,22 +80,24 @@ def set_stealth_mode(state: bool) -> None:
         print(f"Error saving stealth mode: {e}")
 
 
-def get_radio_defaults() -> tuple[str, str, str, bool]:
+def get_radio_defaults() -> tuple[str, str, str, bool, str, str]:
     try:
         service = db.get_setting("radio_config", "default_service", "DCF77")
         duration = db.get_setting("radio_config", "default_duration_minutes", "10")
         offset = db.get_setting("radio_config", "default_offset", "0")
         offset_enabled_raw = db.get_setting("radio_config", "default_offset_enabled", "false")
+        time_mode = db.get_setting("radio_config", "default_time_mode", "time_now")
+        fixed_time = db.get_setting("radio_config", "default_fixed_time", "")
 
         if isinstance(offset_enabled_raw, bool):
             offset_enabled = offset_enabled_raw
         else:
             offset_enabled = str(offset_enabled_raw).lower() == "true"
 
-        return service, duration, offset, offset_enabled
+        return service, duration, offset, offset_enabled, time_mode, fixed_time
     except Exception as e:
         print(f"Error reading radio defaults: {e}")
-        return "DCF77", "10", "0", False
+        return "DCF77", "10", "0", False, "time_now", ""
 
 
 def update_db_status(section: str, key: str, value) -> None:
@@ -289,18 +291,24 @@ def toggle_txtempus() -> None:
             print("txtempus stopped via button press")
             update_db_status("services", "txtempus_running", False)
         else:
-            service, duration, offset, offset_enabled = get_radio_defaults()
+            service, duration, offset, offset_enabled, time_mode, fixed_time = get_radio_defaults()
             service = str(service)
             duration = str(duration)
             offset = str(offset)
 
             cmd = ['sudo', TXTEMPUS_BINARY, '-s', service, '-r', duration]
 
-            if int(offset) != 0 and offset_enabled:
+            if time_mode == "fixed_time" and fixed_time:
+                start_time_str = time.strftime(f"%Y-%m-%d {fixed_time}")
+                cmd.extend(['-t', start_time_str])
+                print(f"txtempus launched: {service} for {duration}m with fixed_time={fixed_time}")
+            elif int(offset) != 0 and offset_enabled:
                 cmd.extend(['-z', offset])
+                print(f"txtempus launched: {service} for {duration}m with offset={offset}")
+            else:
+                print(f"txtempus launched: {service} for {duration}m (time_now)")
 
             subprocess.Popen(cmd)
-            print(f"txtempus launched: {service} for {duration}m with offset={offset if offset_enabled else 'disabled'}")
             update_db_status("services", "txtempus_running", True)
 
     except Exception as e:
