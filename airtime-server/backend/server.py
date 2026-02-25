@@ -525,6 +525,19 @@ async def manual_transmit(req: TransmitRequest, request: Request):
 
     subprocess.Popen(cmd)
 
+    # Write status immediately so the next poll reflects the correct mode
+    # (systemStatus.py will overwrite with pid/started_at once it detects the process)
+    db.update_status("services", "txtempus_running", True)
+    db.update_status("services", "txtempus_details", {
+        "running": True,
+        "service": service,
+        "duration": duration,
+        "started_at": time.ctime(),
+        "offset": offset if (time_mode == "time_now_with_offset" or offset_enabled) and offset != 0 else None,
+        "fixed_time": fixed_time if time_mode == "fixed_time" else None,
+        "pid": None,
+    })
+
     # Audit log
     client_ip = get_client_ip(request)
     audit_logger.info(f"Manual transmit started: service={service}, duration={duration}min, ip={client_ip}")
@@ -535,6 +548,12 @@ async def manual_transmit(req: TransmitRequest, request: Request):
 @app.post("/api/control/stop")
 async def stop_transmit(request: Request):
     subprocess.run(['sudo', 'pkill', 'txtempus'])
+
+    db.update_status("services", "txtempus_running", False)
+    db.update_status("services", "txtempus_details", {
+        "running": False, "service": None, "duration": None,
+        "started_at": None, "offset": None, "fixed_time": None, "pid": None,
+    })
 
     # Audit log
     client_ip = get_client_ip(request)
