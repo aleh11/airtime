@@ -19,6 +19,7 @@ interface ControlWidgetProps {
     radioConfig: RadioConfig | null;
     onBroadcastStart: () => void;
     onCheckUpdates: () => void;
+    onSettingsSaved?: () => void;
     isTransmitting?: boolean;
     activeService?: string | null;
     activeDuration?: number | null;
@@ -30,6 +31,7 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
     radioConfig,
     onBroadcastStart,
     onCheckUpdates,
+    onSettingsSaved,
     isTransmitting = false,
     activeService,
     activeDuration,
@@ -190,6 +192,7 @@ export const ControlWidget: React.FC<ControlWidgetProps> = ({
             }
 
             setShowTimeSettingsModal(false);
+            onSettingsSaved?.();
         } catch (e) {
             console.error(e);
             setModalConfig({

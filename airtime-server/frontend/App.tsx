@@ -380,6 +380,7 @@ Continue with update?`}
           <div className="order-1 lg:col-span-7">
             <ClockWidget
               status={status}
+              radioConfig={radioConfig}
               timeTesterEnabled={timeTesterEnabled}
             />
           </div>
@@ -389,6 +390,7 @@ Continue with update?`}
               radioConfig={radioConfig}
               onBroadcastStart={handleBroadcastStart}
               onCheckUpdates={() => checkForUpdates(true)}
+              onSettingsSaved={fetchData}
               isTransmitting={status?.services.txtempus_running}
               activeService={status?.services.txtempus_service}
               activeDuration={status?.services.txtempus_duration}

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Card } from './Card';
-import { SystemStatus } from '../types';
+import { SystemStatus, RadioConfig } from '../types';
 import { RadioTower } from 'lucide-react';
 
 const formatTimeAgo = (seconds: number): string => {
@@ -13,10 +13,11 @@ const formatTimeAgo = (seconds: number): string => {
 
 interface ClockWidgetProps {
     status: SystemStatus | null;
+    radioConfig?: RadioConfig | null;
     timeTesterEnabled?: boolean;
 }
 
-export const ClockWidget: React.FC<ClockWidgetProps> = ({ status, timeTesterEnabled = false }) => {
+export const ClockWidget: React.FC<ClockWidgetProps> = ({ status, radioConfig, timeTesterEnabled = false }) => {
     const [displayTime, setDisplayTime] = useState<Date>(new Date());
     const [serverOffset, setServerOffset] = useState<number>(0);
     const [initDone, setInitDone] = useState(false);
@@ -65,13 +66,20 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({ status, timeTesterEnab
 
     const isTransmitting = status?.services.txtempus_running;
     const serviceName = status?.services.txtempus_service || 'Unknown';
-    const offset = status?.services.txtempus_offset || 0;
+
+    // Derive time mode from settings (radioConfig), not from runtime status parsing
+    const timeMode = radioConfig?.default_time_mode || 'time_now';
+    const fixedTime = timeMode === 'fixed_time' ? (radioConfig?.default_fixed_time || null) : null;
+    const isFixedTimeBroadcast = !!isTransmitting && timeMode === 'fixed_time' && !timeTesterEnabled;
+
+    const rawOffset = (timeMode === 'time_now_with_offset' && radioConfig?.default_offset_enabled)
+        ? (radioConfig?.default_offset || 0)
+        : 0;
+    const offset = rawOffset;
     const offsetHours = Math.floor(Math.abs(offset) / 60);
     const offsetMinutes = Math.abs(offset) % 60;
     const offsetSign = offset >= 0 ? 1 : -1;
     const hasOffset = offset !== 0;
-    const fixedTime = status?.services.txtempus_fixed_time || null;
-    const isFixedTimeBroadcast = !!isTransmitting && !!fixedTime && !timeTesterEnabled;
 
     // colour tokens — cyan normally, violet for test mode or fixed-time broadcast
     const useViolet = timeTesterEnabled || isFixedTimeBroadcast;
