@@ -11,22 +11,27 @@ import (
 
 const tickInterval = 30 * time.Second
 
-// Runner starts the transmitter for a due schedule.
-type Runner interface {
-	Start(args []string) error
-	Stop()
-	Running() bool
+// maxCatchUp bounds how much missed time is worth acting on. A Raspberry Pi has
+// no real-time clock, so it boots with a stale time and jumps forward when
+// chrony syncs; without this bound that jump reads as downtime and every
+// schedule fires at once.
+const maxCatchUp = 10 * time.Minute
+
+// Broadcaster starts the transmitter for a due schedule and records it, so a
+// scheduled broadcast appears on the dashboard exactly like a manual one.
+type Broadcaster interface {
+	StartCommand(command string) error
 }
 
 // Service fires schedules from the database. The last checked time is persisted
 // so a schedule missed while the daemon was down still fires once on return.
 type Service struct {
 	store  *store.Store
-	runner Runner
+	runner Broadcaster
 	log    *slog.Logger
 }
 
-func NewService(s *store.Store, runner Runner) *Service {
+func NewService(s *store.Store, runner Broadcaster) *Service {
 	return &Service{store: s, runner: runner, log: slog.Default()}
 }
 
@@ -52,6 +57,15 @@ func (s *Service) Tick(now time.Time) {
 		return
 	}
 
+	if now.Before(last) {
+		s.log.Info("clock moved backwards; skipping catch-up", "from", last, "to", now)
+		return
+	}
+	if now.Sub(last) > maxCatchUp {
+		s.log.Info("gap too large to catch up; resuming from now", "gap", now.Sub(last).Round(time.Second))
+		return
+	}
+
 	if paused, _, _ := s.store.Setting("app_config", "time_tester_active"); paused == "true" {
 		return
 	}
@@ -68,11 +82,10 @@ func (s *Service) Tick(now time.Time) {
 	}
 
 	for _, sc := range due {
-		args := strings.Fields(sc.Command)
-		if len(args) == 0 {
+		if strings.TrimSpace(sc.Command) == "" {
 			continue
 		}
-		if err := s.runner.Start(args); err != nil {
+		if err := s.runner.StartCommand(sc.Command); err != nil {
 			s.log.Error("start scheduled broadcast", "schedule", sc.ID, "error", err)
 			continue
 		}

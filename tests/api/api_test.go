@@ -9,10 +9,13 @@ import (
 	"time"
 
 	"github.com/aleh11/airtime/internal/api"
+	"github.com/aleh11/airtime/internal/broadcast"
 	"github.com/aleh11/airtime/internal/metrics"
 	"github.com/aleh11/airtime/internal/store"
 )
 
+// fakeRunner stands in for the txtempus process only; the API is tested
+// through the real broadcast controller so that status recording is covered.
 type fakeRunner struct {
 	started [][]string
 	stopped int
@@ -42,12 +45,13 @@ func newServer(t *testing.T) (http.Handler, *store.Store, *fakeRunner) {
 	t.Cleanup(func() { s.Close() })
 
 	runner := &fakeRunner{}
+	now := func() time.Time { return time.Date(2026, 8, 22, 12, 0, 0, 0, time.UTC) }
 	handler := api.New(api.Deps{
 		Store:   s,
-		Runner:  runner,
+		Runner:  broadcast.New(s, runner, now),
 		Metrics: fakeMetrics{},
 		Version: "v1.2.3",
-		Now:     func() time.Time { return time.Date(2026, 8, 22, 12, 0, 0, 0, time.UTC) },
+		Now:     now,
 	})
 	return handler, s, runner
 }
@@ -295,9 +299,8 @@ func TestTimeTesterEnablesAndDisables(t *testing.T) {
 	if len(runner.started) != 1 {
 		t.Fatalf("runner started %d times, want 1", len(runner.started))
 	}
-	args := strings.Join(runner.started[0], " ")
-	if !strings.Contains(args, "-r 120") {
-		t.Fatalf("got %q, want two hours in minutes", args)
+	if !strings.Contains(strings.Join(runner.started[0], " "), "-r 120") {
+		t.Fatalf("got %q, want two hours in minutes", runner.started[0])
 	}
 
 	got := decode(t, do(t, h, http.MethodGet, "/api/control/time-tester", ""))
@@ -321,7 +324,7 @@ func TestUnknownAPIPathsDoNotFallThroughToTheDashboard(t *testing.T) {
 
 	h := api.New(api.Deps{
 		Store:   s,
-		Runner:  &fakeRunner{},
+		Runner:  broadcast.New(s, &fakeRunner{}, nil),
 		Metrics: fakeMetrics{},
 		Static: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Write([]byte("<!DOCTYPE html>"))

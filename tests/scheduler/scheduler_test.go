@@ -83,14 +83,14 @@ func TestDisabledScheduleNeverFires(t *testing.T) {
 	}
 }
 
-func TestMissedWindowStillFiresOnce(t *testing.T) {
+func TestMissedWindowFiresOnceWithinTheGracePeriod(t *testing.T) {
 	due, err := scheduler.Due([]store.Schedule{nightly()},
-		at(t, "2026-08-20 12:00:00"), at(t, "2026-08-22 12:00:00"))
+		at(t, "2026-08-22 23:54:00"), at(t, "2026-08-22 23:58:00"))
 	if err != nil {
 		t.Fatalf("due: %v", err)
 	}
 	if len(due) != 1 {
-		t.Fatalf("got %d, want a single catch-up fire after downtime", len(due))
+		t.Fatalf("got %d, want a single catch-up fire after a brief restart", len(due))
 	}
 }
 

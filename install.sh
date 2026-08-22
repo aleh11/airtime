@@ -45,12 +45,18 @@ else
   interactive=false
 fi
 
+curl_opts=(--fail --silent --show-error --location --retry 3)
+if [[ "${release_base_url}" == https://* ]]; then
+  curl_opts+=(--proto '=https' --tlsv1.2)
+fi
+
 cleanup() {
   if [[ -n "${download_dir}" && -d "${download_dir}" ]]; then
     rm -rf -- "${download_dir}"
   fi
 }
 trap cleanup EXIT
+trap 'fail "installer stopped unexpectedly at line ${LINENO}"' ERR
 
 fail() {
   printf '%b\n  ✕  %s%b\n' "${danger}" "$1" "${reset}" >&2
@@ -129,7 +135,14 @@ with_status() {
 
   if [[ "${interactive}" != true ]]; then
     printf '  ·  %s\n' "${label}"
-    "$@" >/dev/null 2>&1 || return 1
+    local log
+    log="$(mktemp)"
+    if ! "$@" >"${log}" 2>&1; then
+      tail -n 12 "${log}" >&2
+      rm -f "${log}"
+      return 1
+    fi
+    rm -f "${log}"
     return 0
   fi
 
@@ -184,10 +197,8 @@ download_release() {
   local asset="$1"
   download_dir="$(mktemp -d)"
 
-  curl --fail --silent --show-error --location --retry 3 --proto '=https' --tlsv1.2 \
-    "${release_base_url}/${asset}" --output "${download_dir}/${asset}"
-  curl --fail --silent --show-error --location --retry 3 --proto '=https' --tlsv1.2 \
-    "${release_base_url}/${asset}.sha256" --output "${download_dir}/${asset}.sha256"
+  curl "${curl_opts[@]}" "${release_base_url}/${asset}" --output "${download_dir}/${asset}"
+  curl "${curl_opts[@]}" "${release_base_url}/${asset}.sha256" --output "${download_dir}/${asset}.sha256"
 
   (cd "${download_dir}" && sha256sum --check --status "${asset}.sha256") \
     || fail "checksum mismatch — refusing to install this download"
@@ -196,7 +207,7 @@ download_release() {
 install_dependencies() {
   export DEBIAN_FRONTEND=noninteractive
   apt-get update
-  apt-get install -y --no-install-recommends chrony
+  apt-get install -y --no-install-recommends chrony sqlite3
 }
 
 install_txtempus() {
@@ -215,10 +226,19 @@ install_txtempus() {
 
 retire_python_install() {
   local unit
+  # Unconditional and idempotent. An earlier version guarded this with
+  # `systemctl list-unit-files | grep -q`, which reports failure under pipefail
+  # because grep -q exits early and systemd dies of SIGPIPE.
   for unit in airtime-server airtime-status; do
-    if systemctl list-unit-files | grep -q "^${unit}.service"; then
-      systemctl disable --now "${unit}" || true
-      rm -f "/etc/systemd/system/${unit}.service"
+    systemctl disable --now "${unit}.service" 2>/dev/null || true
+    rm -f "/etc/systemd/system/${unit}.service"
+  done
+  systemctl daemon-reload
+
+  for unit in airtime-server airtime-status; do
+    if [[ -e "/etc/systemd/system/${unit}.service" ]]; then
+      printf 'could not remove %s.service\n' "${unit}" >&2
+      return 1
     fi
   done
 
@@ -243,9 +263,26 @@ provision_state() {
   install -d -m 0755 -o root -g root "${state_dir}"
 
   local legacy_db="${legacy_dir}/airtime-server/database/airtime.db"
-  if [[ -f "${legacy_db}" && ! -f "${state_dir}/airtime.db" ]]; then
-    printf '  %b·%b  found an existing database; it will be migrated on first start\n' "${muted}" "${reset}"
+  if [[ ! -f "${legacy_db}" || -f "${state_dir}/airtime.db" ]]; then
+    return 0
   fi
+
+  # The migration happens here rather than in the daemon: the service runs with
+  # ProtectHome=true, so it cannot see a database living under /home. Use the
+  # SQLite backup API, because the legacy database is in WAL mode and recent
+  # writes may exist only in its -wal sidecar.
+  if command -v sqlite3 >/dev/null 2>&1; then
+    sqlite3 "${legacy_db}" ".backup '${state_dir}/airtime.db'"
+  else
+    cp -- "${legacy_db}" "${state_dir}/airtime.db"
+  fi
+
+  mv -- "${legacy_db}" "${legacy_db}.migrated"
+  rm -f -- "${legacy_db}-wal" "${legacy_db}-shm"
+
+  local schedules
+  schedules="$(sqlite3 "${state_dir}/airtime.db" 'SELECT COUNT(*) FROM cron_jobs' 2>/dev/null || echo '?')"
+  printf '  %b·%b  migrated your existing database (%s schedules kept)\n' "${muted}" "${reset}" "${schedules}"
 }
 
 install_units() {
@@ -285,6 +322,11 @@ request="${update_request_path}"
 install_path="${install_path}"
 release_base_url="${release_base_url}"
 
+curl_opts=(--fail --silent --show-error --location --retry 3)
+if [[ "\${release_base_url}" == https://* ]]; then
+  curl_opts+=(--proto '=https' --tlsv1.2)
+fi
+
 rm -f -- "\${request}"
 
 machine="\$(uname -m)"
@@ -296,10 +338,8 @@ esac
 work="\$(mktemp -d)"
 trap 'rm -rf -- "\${work}"' EXIT
 
-curl --fail --silent --show-error --location --retry 3 --proto '=https' --tlsv1.2 \\
-  "\${release_base_url}/\${asset}" --output "\${work}/\${asset}"
-curl --fail --silent --show-error --location --retry 3 --proto '=https' --tlsv1.2 \\
-  "\${release_base_url}/\${asset}.sha256" --output "\${work}/\${asset}.sha256"
+curl "\${curl_opts[@]}" "\${release_base_url}/\${asset}" --output "\${work}/\${asset}"
+curl "\${curl_opts[@]}" "\${release_base_url}/\${asset}.sha256" --output "\${work}/\${asset}.sha256"
 
 cd "\${work}"
 sha256sum --check --status "\${asset}.sha256"

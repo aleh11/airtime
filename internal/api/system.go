@@ -3,13 +3,15 @@ package api
 import (
 	"net/http"
 	"time"
+
+	"github.com/aleh11/airtime/internal/broadcast"
 )
 
 func (s *server) getStatus(w http.ResponseWriter, r *http.Request) {
 	var running bool
 	s.Store.Status("services", "txtempus_running", &running)
 
-	var details broadcast
+	var details broadcast.Details
 	s.Store.Status("services", "txtempus_details", &details)
 
 	remaining := 0

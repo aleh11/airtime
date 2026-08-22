@@ -8,12 +8,14 @@ import (
 
 	"github.com/aleh11/airtime/internal/metrics"
 	"github.com/aleh11/airtime/internal/store"
+	"github.com/aleh11/airtime/internal/transmit"
 	"github.com/aleh11/airtime/internal/update"
 )
 
-// Transmitter is the subset of the txtempus runner the API needs.
-type Transmitter interface {
-	Start(args []string) error
+// Broadcaster starts and stops transmissions, recording what is on air.
+type Broadcaster interface {
+	Start(req transmit.Request) error
+	StartTester(req transmit.Request) error
 	Stop()
 	Running() bool
 }
@@ -30,7 +32,7 @@ type Updater interface {
 
 type Deps struct {
 	Store   *store.Store
-	Runner  Transmitter
+	Runner  Broadcaster
 	Metrics MetricsSource
 	Updater Updater
 	Version string

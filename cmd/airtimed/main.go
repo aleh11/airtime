@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/aleh11/airtime/internal/api"
+	"github.com/aleh11/airtime/internal/broadcast"
 	"github.com/aleh11/airtime/internal/gpio"
 	"github.com/aleh11/airtime/internal/health"
 	"github.com/aleh11/airtime/internal/metrics"
@@ -87,12 +88,14 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	var broadcaster *broadcast.Controller
 	runner := transmit.NewRunner(func(err error) {
 		if err != nil && !errors.Is(err, context.Canceled) {
 			slog.Info("transmission ended", "reason", err)
 		}
-		db.SetStatus("services", "txtempus_running", false)
+		broadcaster.Finished()
 	})
+	broadcaster = broadcast.New(db, runner, time.Now)
 	// A transmission never survives a daemon restart, so the recorded state is
 	// stale by definition at startup.
 	db.SetStatus("services", "txtempus_running", false)
@@ -102,10 +105,10 @@ func run() error {
 		defer leds.Close()
 	}
 
-	monitor := health.NewMonitor(db, leds, runner.Running)
+	monitor := health.NewMonitor(db, leds, broadcaster.Running)
 	go monitor.Run(ctx)
 
-	schedules := scheduler.NewService(db, runner)
+	schedules := scheduler.NewService(db, broadcaster)
 	go schedules.Run(ctx)
 
 	if err := tlsgen.EnsureSelfSigned(cfg.certPath, cfg.keyPath); err != nil {
@@ -114,7 +117,7 @@ func run() error {
 
 	handler := api.New(api.Deps{
 		Store:   db,
-		Runner:  runner,
+		Runner:  broadcaster,
 		Metrics: metrics.NewCollector(),
 		Updater: update.Checker{Current: version, RequestPath: cfg.requestPath},
 		Version: version,

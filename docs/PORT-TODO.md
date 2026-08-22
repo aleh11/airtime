@@ -11,7 +11,7 @@ Anything marked **[PI]** cannot be signed off without hardware.
 - [x] Resolve state dir to `/var/lib/airtime`, override via `AIRTIME_STATE_DIR`
 - [x] Migrate a legacy in-repo database via the SQLite backup API
 - [x] Installer provisions the state dir; units declare `StateDirectory=`
-- [ ] **[PI]** Confirm an existing install migrates and keeps its schedules
+- [x] **[PI]** Confirm an existing install migrates and keeps its schedules — verified: 5 schedules, 8 settings, offset preserved
 
 ## Phase 1 — Go daemon core
 
@@ -29,7 +29,8 @@ Anything marked **[PI]** cannot be signed off without hardware.
 - [x] In-process scheduler driven from SQLite
 - [x] Installer strips the crontab mirror (schedules already live in SQLite)
 - [x] Offset and time-mode applied at fire time, not at write time
-- [ ] **[PI]** Verify a schedule survives a reboot and fires
+- [x] **[PI]** Verify a schedule survives a reboot and fires — verified; exposed the clock-jump misfire ([ADR 0005](adr/0005-bounded-schedule-catch-up.md))
+- [ ] **[PI]** Re-verify after a reboot that the clock-jump fix holds (fix is unit-tested, not yet on hardware)
 
 ## Phase 3 — GPIO
 
@@ -37,7 +38,7 @@ Anything marked **[PI]** cannot be signed off without hardware.
 - [x] Button input with kernel debounce and pull-up bias
 - [x] Stealth mode suppresses LEDs
 - [x] Fake implementation behind the same interface for development
-- [ ] **[PI]** Lines behave after reboot; no leaked lines on restart
+- [x] **[PI]** Lines behave after reboot; no leaked lines on restart — verified, kernel reports the 10ms debounce
 
 ## Phase 4 — release pipeline
 
@@ -60,7 +61,7 @@ Anything marked **[PI]** cannot be signed off without hardware.
 ## Phase 6 — cutover
 
 - [ ] **[PI]** Full install on a clean SD card
-- [ ] **[PI]** Upgrade from a Python install, verifying nothing is lost
+- [x] **[PI]** Upgrade from a Python install, verifying nothing is lost — verified end to end
 - [ ] Merge `experimental` into master (2 conflict hunks, both in built assets)
 - [ ] Tag the first binary release
 
@@ -68,6 +69,14 @@ Anything marked **[PI]** cannot be signed off without hardware.
 
 - [x] Split `ControlWidget` (785 lines) and `ScheduleWidget` (722 lines)
 - [ ] Layout pass on the 7/5 grid
+
+## Notes
+
+- Tests live in `tests/`, not beside the packages. They are all external
+  (`package foo_test`), so they exercise only exported API. `go test ./...`
+  covers them; per-package coverage needs `-coverpkg ./internal/...`.
+- The daemon cannot migrate a database from `/home` itself: the unit sets
+  `ProtectHome=true`, so the installer performs that migration as root.
 
 ## Phase 8 — post-Pi cleanup
 

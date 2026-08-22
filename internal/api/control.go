@@ -2,20 +2,9 @@ package api
 
 import (
 	"net/http"
-	"time"
 
 	"github.com/aleh11/airtime/internal/transmit"
 )
-
-// broadcast is what the daemon remembers about the transmission it started.
-type broadcast struct {
-	Standard  string `json:"service"`
-	Duration  int    `json:"duration"`
-	StartedAt string `json:"started_at"`
-	Offset    *int   `json:"offset"`
-	FixedTime string `json:"fixed_time"`
-	IsTester  bool   `json:"is_tester"`
-}
 
 type transmitInput struct {
 	Standard string `json:"service"`
@@ -47,11 +36,10 @@ func (s *server) startTransmit(w http.ResponseWriter, r *http.Request) {
 		FixedTime:       config.FixedTime,
 	}
 
-	if err := s.Runner.Start(transmit.Command(request, s.Now())); err != nil {
+	if err := s.Runner.Start(request); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	s.recordBroadcast(request, false)
 
 	s.log.Info("broadcast started", "standard", input.Standard, "duration", duration)
 	writeJSON(w, http.StatusOK, map[string]any{
@@ -61,42 +49,9 @@ func (s *server) startTransmit(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) stopTransmit(w http.ResponseWriter, r *http.Request) {
 	s.Runner.Stop()
-	s.clearBroadcast()
 
 	s.log.Info("broadcast stopped")
 	writeJSON(w, http.StatusOK, map[string]string{"status": "stopped"})
-}
-
-func (s *server) recordBroadcast(request transmit.Request, isTester bool) {
-	details := broadcast{
-		Standard:  request.Standard,
-		Duration:  request.DurationMinutes,
-		StartedAt: s.Now().Format(time.RFC3339),
-		IsTester:  isTester,
-	}
-	if (request.TimeMode == "time_now_with_offset" || request.OffsetEnabled) && request.Offset != 0 {
-		offset := request.Offset
-		details.Offset = &offset
-	}
-	if request.TimeMode == "fixed_time" {
-		details.FixedTime = request.FixedTime
-	}
-
-	if err := s.Store.SetStatus("services", "txtempus_running", true); err != nil {
-		s.log.Error("record broadcast", "error", err)
-	}
-	if err := s.Store.SetStatus("services", "txtempus_details", details); err != nil {
-		s.log.Error("record broadcast", "error", err)
-	}
-}
-
-func (s *server) clearBroadcast() {
-	if err := s.Store.SetStatus("services", "txtempus_running", false); err != nil {
-		s.log.Error("clear broadcast", "error", err)
-	}
-	if err := s.Store.SetStatus("services", "txtempus_details", broadcast{}); err != nil {
-		s.log.Error("clear broadcast", "error", err)
-	}
 }
 
 func (s *server) toggleStealth(w http.ResponseWriter, r *http.Request) {
@@ -167,12 +122,11 @@ func (s *server) setTimeTester(w http.ResponseWriter, r *http.Request) {
 		TimeMode:        "fixed_time",
 		FixedTime:       "12:00",
 	}
-	if err := s.Runner.Start(transmit.Command(request, s.Now())); err != nil {
+	if err := s.Runner.StartTester(request); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	s.recordBroadcast(request, true)
 	s.Store.SetSetting("app_config", "time_tester_active", "true")
 	s.Store.SetSetting("app_config", "time_tester_service", input.Standard)
 
@@ -183,7 +137,6 @@ func (s *server) setTimeTester(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) disableTimeTester() {
 	s.Runner.Stop()
-	s.clearBroadcast()
 	s.Store.SetSetting("app_config", "time_tester_active", "false")
 }
 
