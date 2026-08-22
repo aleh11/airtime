@@ -41,3 +41,7 @@ jobs:
             build/airtime-linux-arm.sha256
             install.sh
           generate_release_notes: true
+          # A hyphenated tag (v0.3.0-rc.1) publishes as a prerelease, so it is
+          # not served by releases/latest/download and existing installs are
+          # left alone. Plain tags (v0.3.0) go out to everyone.
+          prerelease: ${{ contains(github.ref_name, '-') }}

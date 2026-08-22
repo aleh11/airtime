@@ -30,7 +30,7 @@ Anything marked **[PI]** cannot be signed off without hardware.
 - [x] Installer strips the crontab mirror (schedules already live in SQLite)
 - [x] Offset and time-mode applied at fire time, not at write time
 - [x] **[PI]** Verify a schedule survives a reboot and fires — verified; exposed the clock-jump misfire ([ADR 0005](adr/0005-bounded-schedule-catch-up.md))
-- [ ] **[PI]** Re-verify after a reboot that the clock-jump fix holds (fix is unit-tested, not yet on hardware)
+- [x] **[PI]** Re-verify after a reboot that the clock-jump fix holds — verified: both guards fired, zero spurious broadcasts
 
 ## Phase 3 — GPIO
 
