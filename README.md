@@ -35,37 +35,33 @@ This system makes use of several hardware components:
 Refer to the full user guide on assembling the Airtime Pi Hat [here](docs/Airtime3.pdf).
 
 ## Installing the Airtime software
-This proccess assumes you have flashed a Raspberry Pi 2W and have SSH access, this is also covered within the [full user guide](docs/Airtime3.pdf).
+This process assumes you have flashed a Raspberry Pi 2W and have SSH access, this is also covered within the [full user guide](docs/Airtime3.pdf).
 
-Clone and run **one command** (Ensure you are in the home directory):
+Run **one command**:
 
 ```bash
-git clone https://github.com/aleh11/airtime.git
-
-cd airtime && sudo ./install.sh
+curl -fsSL https://github.com/aleh11/airtime/releases/latest/download/install.sh | sudo bash
 ```
 
-The `install.sh` does the following:
-- Installs and setups the [txtempus](https://github.com/hzeller/txtempus) binary.
-- Installs system packages: `python3`, `sqlite3`, `nginx`, `chrony` (NTP), `git`
-- Installs system Python packages: `gpiozero`, `python-crontab` (for GPIO control)
-- Installs UV package manager
-- Creates virtual environment in `backend/.venv/`
-- Sets up database directory with proper permissions
-- Configures and starts Chrony NTP client
-- Checks frontend build (warns if missing)
-- Sets up system service files so the system automatically starts on boot.
+The installer downloads a single verified binary — no git clone, no Python environment, no nginx. It:
+- Verifies the release against its published `sha256` before installing anything
+- Installs and sets up the [txtempus](https://github.com/hzeller/txtempus) binary
+- Installs `chrony` (NTP) and configures it
+- Creates the state directory at `/var/lib/airtime` (databases from older installs are migrated automatically on first start)
+- Registers the `airtime` service so the system starts on boot
+- Retires any previous Python-based install it finds
 
 **Services created:**
-- `airtime-server`: FastAPI REST API
-- `airtime-status`: GPIO/LED/Button control
-- `nginx`: Frontend + API proxy
+- `airtime`: the daemon — REST API, dashboard, scheduler and GPIO in one binary
+- `airtime-update.path`: watches for update requests from the dashboard
 
+To remove it again, run `sudo ./uninstall.sh` (add `--purge` to delete your schedules and settings too).
 
 After installation, your dashboard will be available at `https://pi-ip-address:8443`
-#### Additional scripts
-- `restart.sh` - Restarts all services
-- `status.sh` - Displays status of all services
+#### Useful commands
+- `sudo systemctl restart airtime` - Restart the service
+- `sudo systemctl status airtime` - Check the service
+- `sudo journalctl -u airtime -f` - Follow the logs
 
 ## Using the Airtime UI
 
@@ -81,8 +77,8 @@ The Airtime dashboard provides an easy way to interact with the Airtime pi, and 
 - **Additional Features**: 
     - **Stealth Mode**: Toggle hardware LEDs.
     - **Global Offset**: Apply a time offset to all transmissions (usefull for timezone differences on certain services/watches).
-    - **Auto-Update**: System updates directly from the UI.
-    - **System Restart**: Restart **all** of the system services (invokes the `restart.sh` script).
+    - **Auto-Update**: Installs the latest GitHub release directly from the UI, verified by checksum.
+    - **System Restart**: Restart the AirTime service.
     - **Pi Reboot**: Reboot the Pi directly from the dashboard UI.
 
 The UI is also fully covered within the [full user guide](docs/Airtime3.pdf), so if you still have questions, refer to that document.

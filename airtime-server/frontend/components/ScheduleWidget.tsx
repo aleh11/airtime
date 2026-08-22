@@ -1,19 +1,13 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useState } from 'react';
+import { Plus, X } from 'lucide-react';
 import { Card } from './Card';
-import { CronJob, CronJobInput, ServiceType, RadioConfig, SystemStatus } from '../types';
+import { CronJob, RadioConfig, SystemStatus } from '../types';
 import { api } from '../services/api';
-import { Trash2, Plus, Clock, RefreshCw, X, Edit2, Zap } from 'lucide-react';
 import { ConfirmModal, ModalType } from './ConfirmModal';
-
-const DURATION_OPTIONS = [
-    { label: '10 min', value: 10 },
-    { label: '20 min', value: 20 },
-    { label: '30 min', value: 30 },
-    { label: '1 hr', value: 60 },
-    { label: '2 hr', value: 120 },
-    { label: '4 hr', value: 240 },
-    { label: '6 hr', value: 360 },
-];
+import { ScheduleTable } from './schedule/ScheduleTable';
+import { ScheduleCards } from './schedule/ScheduleCards';
+import { useScheduleSorting } from '../hooks/useScheduleSorting';
+import { useScheduleEditor } from '../hooks/useScheduleEditor';
 
 interface ScheduleWidgetProps {
     jobs: CronJob[];
@@ -23,115 +17,24 @@ interface ScheduleWidgetProps {
     timeTesterEnabled?: boolean;
 }
 
-export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, radioConfig, status, timeTesterEnabled }) => {
-    const [isAdding, setIsAdding] = useState(false);
-    const [editingJobId, setEditingJobId] = useState<string | null>(null);
-    const [newJob, setNewJob] = useState<Partial<CronJobInput>>({
-        frequency: 'daily',
-        time: '12:00',
-        enabled: true
-    });
-    const [selectedService, setSelectedService] = useState('DCF77');
-    const [duration, setDuration] = useState(10);
+interface Prompt {
+    title: string;
+    message: string;
+    type: ModalType;
+    confirmText?: string;
+    onConfirm?: () => void;
+}
 
-    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-    const [sortColumn, setSortColumn] = useState<string>('time');
+export function ScheduleWidget({ jobs, onUpdate, status, timeTesterEnabled = false }: ScheduleWidgetProps) {
+    const [prompt, setPrompt] = useState<Prompt | null>(null);
+    const sorting = useScheduleSorting(jobs);
+    const editor = useScheduleEditor(onUpdate, (message) =>
+        setPrompt({ title: 'Error', message, type: 'warning' }));
 
-    const editingRowRef = useRef<HTMLTableRowElement | null>(null);
-    const editingCardRef = useRef<HTMLDivElement | null>(null);
-
-    const cancelEdit = useCallback(() => {
-        setEditingJobId(null);
-    }, []);
-
-    useEffect(() => {
-        if (!editingJobId) return;
-
-        const handleClickOutside = (e: MouseEvent) => {
-            const target = e.target as Node;
-            const isInsideEdit =
-                (editingRowRef.current?.contains(target)) ||
-                (editingCardRef.current?.contains(target));
-            if (!isInsideEdit) cancelEdit();
-        };
-
-        const handleEscape = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') cancelEdit();
-        };
-
-        document.addEventListener('mousedown', handleClickOutside);
-        document.addEventListener('keydown', handleEscape);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-            document.removeEventListener('keydown', handleEscape);
-        };
-    }, [editingJobId, cancelEdit]);
-
-    const sortedJobs = [...jobs].sort((a, b) => {
-        let valA: any = '';
-        let valB: any = '';
-
-        switch (sortColumn) {
-            case 'time':
-                valA = a.friendly_time;
-                valB = b.friendly_time;
-                break;
-            case 'freq':
-                valA = a.friendly_freq;
-                valB = b.friendly_freq;
-                break;
-            case 'service':
-                valA = a.radio_details.service;
-                valB = b.radio_details.service;
-                break;
-            case 'duration':
-                valA = parseInt(a.radio_details.duration);
-                valB = parseInt(b.radio_details.duration);
-                break;
-            default:
-                valA = a.friendly_time;
-                valB = b.friendly_time;
-        }
-
-        if (valA === valB) return 0;
-        return sortDirection === 'asc' ? (valA > valB ? 1 : -1) : (valA < valB ? 1 : -1);
-    });
-
-    const toggleSort = (column: string) => {
-        if (sortColumn === column) {
-            setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
-        } else {
-            setSortColumn(column);
-            setSortDirection('asc');
-        }
-    };
-
-    const SortIcon = ({ column }: { column: string }) => {
-        if (sortColumn !== column) return <div className="ml-1 w-2" />;
-        return (
-            <div className="flex flex-col text-[8px] leading-[8px] ml-1">
-                <span className={sortDirection === 'asc' ? 'text-cyan-400' : 'text-slate-600'}>▲</span>
-                <span className={sortDirection === 'desc' ? 'text-cyan-400' : 'text-slate-600'}>▼</span>
-            </div>
-        );
-    };
-
-    const [modalConfig, setModalConfig] = useState<{
-        isOpen: boolean;
-        title: string;
-        message: string;
-        type: ModalType;
-        onConfirm?: () => void;
-        confirmText?: string;
-    }>({ isOpen: false, title: '', message: '', type: 'info' });
-
-    const closeModal = () => setModalConfig(prev => ({ ...prev, isOpen: false }));
-
-    const handleDelete = (id: string) => {
-        setModalConfig({
-            isOpen: true,
+    const confirmDelete = (id: string) => {
+        setPrompt({
             title: 'Delete Schedule',
-            message: 'Are you sure you want to delete this scheduled broadcast? This action cannot be undone.',
+            message: 'Delete this scheduled broadcast? This cannot be undone.',
             type: 'danger',
             confirmText: 'Delete',
             onConfirm: async () => {
@@ -139,108 +42,25 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
                     await api.deleteCron(id);
                     onUpdate();
                 } catch (e) {
-                    console.error(e);
+                    console.error('Failed to delete the schedule', e);
                 }
-            }
+            },
         });
     };
 
-    const handleToggle = async (job: CronJob) => {
-        try {
-            const updatedJob: CronJobInput = {
-                id: job.id,
-                time: job.friendly_time,
-                frequency: job.friendly_freq,
-                command: job.command,
-                enabled: !job.enabled
-            };
-            await api.addOrUpdateCron(updatedJob);
-            onUpdate();
-        } catch (e) {
-            console.error("Failed to toggle job", e);
-        }
-    };
-
-    const handleEdit = (job: CronJob) => {
-        setSelectedService(job.radio_details.service);
-        setDuration(parseInt(job.radio_details.duration));
-        setNewJob({
-            time: job.friendly_time,
-            frequency: job.friendly_freq,
-            enabled: job.enabled
-        });
-        setEditingJobId(job.id);
-        setIsAdding(false);
-    };
-
-    const handleSave = async (id?: string) => {
-        if (!newJob.time || !newJob.frequency) return;
-
-        const globalOffset = radioConfig?.default_offset || 0;
-
-        let command = `/usr/bin/txtempus -s ${selectedService} -r ${duration}`;
-        if (globalOffset !== 0) {
-            command += ` -z ${globalOffset}`;
-        }
-
-        const jobInput: CronJobInput = {
-            id: id || `job-${Date.now()}`,
-            time: newJob.time || "12:00",
-            frequency: newJob.frequency || "daily",
-            command: command,
-            enabled: true
-        };
-
-        try {
-            await api.addOrUpdateCron(jobInput);
-
-            setIsAdding(false);
-            setEditingJobId(null);
-
-            if (!id) {
-                setNewJob({
-                    frequency: 'daily',
-                    time: '12:00',
-                    enabled: true
-                });
-                setSelectedService('DCF77');
-                setDuration(10);
-            }
-
-            onUpdate();
-        } catch (e) {
-            console.error(e);
-            setModalConfig({
-                isOpen: true,
-                title: 'Error',
-                message: 'Failed to save schedule. Please check the logs.',
-                type: 'warning'
-            });
-        }
-    };
-
-    const isJobActive = (job: CronJob): boolean => {
-        if (!status?.services.txtempus_running) return false;
-
-        const currentDuration = status.services.txtempus_duration;
-        const jobDuration = parseInt(job.radio_details.duration);
-        if (currentDuration !== jobDuration) return false;
-
-        if (status.services.txtempus_service && job.radio_details.service !== status.services.txtempus_service) {
-            return false;
-        }
-
-        if (!status.services.txtempus_started_at) return false;
-
-        try {
-            const startDate = new Date(status.services.txtempus_started_at);
-            const startTotal = startDate.getHours() * 60 + startDate.getMinutes();
-            const [jobHours, jobMinutes] = job.friendly_time.split(':').map(Number);
-            const jobTotal = jobHours * 60 + jobMinutes;
-            return Math.abs(startTotal - jobTotal) <= 1;
-        } catch (e) {
-            return false;
-        }
+    const shared = {
+        jobs: sorting.sorted,
+        status,
+        locked: timeTesterEnabled,
+        draft: editor.draft,
+        adding: editor.adding,
+        editingId: editor.editingId,
+        onDraftChange: editor.setDraft,
+        onSave: editor.save,
+        onCancel: editor.cancel,
+        onEdit: editor.startEditing,
+        onDelete: confirmDelete,
+        onToggle: editor.setEnabled,
     };
 
     return (
@@ -250,473 +70,36 @@ export const ScheduleWidget: React.FC<ScheduleWidgetProps> = ({ jobs, onUpdate, 
                 className="h-full"
                 action={
                     <button
-                        onClick={() => {
-                            if (timeTesterEnabled) return;
-                            if (isAdding) {
-                                setIsAdding(false);
-                            } else {
-                                setNewJob({
-                                    frequency: 'daily',
-                                    time: '12:00',
-                                    enabled: true
-                                });
-                                setSelectedService('DCF77');
-                                setDuration(10);
-                                setEditingJobId(null);
-                                setIsAdding(true);
-                            }
-                        }}
+                        onClick={() => (editor.adding ? editor.stopAdding() : editor.startAdding())}
                         className={`p-2 rounded-full transition-colors ${timeTesterEnabled ? 'bg-slate-800 text-slate-600 cursor-not-allowed' : 'bg-slate-700 hover:bg-slate-600 text-slate-200'}`}
                         disabled={timeTesterEnabled}
+                        aria-label={editor.adding ? 'Cancel new schedule' : 'Add schedule'}
                     >
-                        {isAdding ? <X size={16} /> : <Plus size={16} />}
+                        {editor.adding ? <X size={16} /> : <Plus size={16} />}
                     </button>
                 }
             >
                 <div className="overflow-x-auto">
-                    <table className="hidden md:table w-full text-left border-collapse">
-                        <thead>
-                            <tr className="text-xs font-bold text-slate-500 uppercase border-b border-slate-700">
-                                <th
-                                    className="pb-3 pl-4 cursor-pointer hover:text-cyan-400 transition-colors select-none group"
-                                    onClick={() => toggleSort('time')}
-                                >
-                                    <div className="flex items-center gap-1">
-                                        Time
-                                        <SortIcon column="time" />
-                                    </div>
-                                </th>
-                                <th
-                                    className="pb-3 cursor-pointer hover:text-cyan-400 transition-colors select-none group"
-                                    onClick={() => toggleSort('freq')}
-                                >
-                                    <div className="flex items-center gap-1">
-                                        Frequency
-                                        <SortIcon column="freq" />
-                                    </div>
-                                </th>
-                                <th
-                                    className="pb-3 cursor-pointer hover:text-cyan-400 transition-colors select-none group"
-                                    onClick={() => toggleSort('service')}
-                                >
-                                    <div className="flex items-center gap-1">
-                                        Service
-                                        <SortIcon column="service" />
-                                    </div>
-                                </th>
-                                <th
-                                    className="pb-3 cursor-pointer hover:text-cyan-400 transition-colors select-none group"
-                                    onClick={() => toggleSort('duration')}
-                                >
-                                    <div className="flex items-center gap-1">
-                                        Duration
-                                        <SortIcon column="duration" />
-                                    </div>
-                                </th>
-                                <th className="pb-3 text-center">Active</th>
-                                <th className="pb-3 text-right pr-4">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="text-sm">
-                            {jobs.length === 0 && !isAdding && (
-                                <tr>
-                                    <td colSpan={6} className="py-8 text-center text-slate-500 italic">
-                                        No scheduled broadcasts active.
-                                    </td>
-                                </tr>
-                            )}
-
-                            {isAdding && (
-                                <tr className="border-b border-slate-600 bg-cyan-900/20">
-                                    <td className="py-3 pl-4">
-                                        <input
-                                            type="time"
-                                            value={newJob.time}
-                                            onChange={e => setNewJob({ ...newJob, time: e.target.value })}
-                                            className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-xs w-24 text-slate-200"
-                                        />
-                                    </td>
-                                    <td className="py-3">
-                                        <select
-                                            value={newJob.frequency}
-                                            onChange={e => setNewJob({ ...newJob, frequency: e.target.value })}
-                                            className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200"
-                                        >
-                                            <option value="daily">Daily</option>
-                                            <option value="weekly">Weekly</option>
-                                        </select>
-                                    </td>
-                                    <td className="py-3">
-                                        <select
-                                            value={selectedService}
-                                            onChange={e => setSelectedService(e.target.value)}
-                                            className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-xs w-20 text-slate-200"
-                                        >
-                                            {Object.values(ServiceType).map(s => <option key={s} value={s}>{s}</option>)}
-                                        </select>
-                                    </td>
-                                    <td className="py-3">
-                                        <select
-                                            value={duration}
-                                            onChange={e => setDuration(parseInt(e.target.value))}
-                                            className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-xs w-20 text-slate-200"
-                                        >
-                                            {DURATION_OPTIONS.map(opt => (
-                                                <option key={opt.value} value={opt.value}>{opt.label}</option>
-                                            ))}
-                                        </select>
-                                    </td>
-                                    <td className="py-3 text-center">
-                                    </td>
-                                    <td className="py-3 text-right pr-4">
-                                        <button onClick={() => handleSave()} className="text-emerald-400 hover:text-emerald-300 text-xs font-bold bg-emerald-500/10 px-2 py-1 rounded border border-emerald-500/30">
-                                            SAVE
-                                        </button>
-                                    </td>
-                                </tr>
-                            )}
-
-                            {sortedJobs.map((job) => {
-                                const isEditingThis = editingJobId === job.id;
-                                const isActive = isJobActive(job);
-                                const durationValue = parseInt(job.radio_details.duration);
-                                const durationLabel = DURATION_OPTIONS.find(opt => opt.value === durationValue)?.label || `${durationValue}m`;
-
-                                if (isEditingThis) {
-                                    return (
-                                        <tr key={job.id} ref={editingRowRef} className="border-b border-slate-600 bg-slate-700/50">
-                                            <td className="py-3 pl-4">
-                                                <input
-                                                    type="time"
-                                                    value={newJob.time}
-                                                    onChange={e => setNewJob({ ...newJob, time: e.target.value })}
-                                                    className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-xs w-24 text-slate-200"
-                                                />
-                                            </td>
-                                            <td className="py-3">
-                                                <select
-                                                    value={newJob.frequency}
-                                                    onChange={e => setNewJob({ ...newJob, frequency: e.target.value })}
-                                                    className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200"
-                                                >
-                                                    <option value="daily">Daily</option>
-                                                    <option value="weekly">Weekly</option>
-                                                </select>
-                                            </td>
-                                            <td className="py-3">
-                                                <select
-                                                    value={selectedService}
-                                                    onChange={e => setSelectedService(e.target.value)}
-                                                    className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-xs w-20 text-slate-200"
-                                                >
-                                                    {Object.values(ServiceType).map(s => <option key={s} value={s}>{s}</option>)}
-                                                </select>
-                                            </td>
-                                            <td className="py-3">
-                                                <select
-                                                    value={duration}
-                                                    onChange={e => setDuration(parseInt(e.target.value))}
-                                                    className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-xs w-20 text-slate-200"
-                                                >
-                                                    {DURATION_OPTIONS.map(opt => (
-                                                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                                                    ))}
-                                                </select>
-                                            </td>
-                                            <td className="py-3 text-center">
-                                            </td>
-                                            <td className="py-3 text-right pr-4">
-                                                <div className="flex items-center justify-end gap-2">
-                                                    <button onClick={() => setEditingJobId(null)} className="text-slate-400 hover:text-slate-200 text-xs font-medium px-2 py-1">
-                                                        CANCEL
-                                                    </button>
-                                                    <button onClick={() => handleSave(job.id)} className="text-cyan-400 hover:text-cyan-300 text-xs font-bold bg-cyan-500/10 px-2 py-1 rounded border border-cyan-500/30">
-                                                        UPDATE
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    );
-                                }
-
-                                return (
-                                    <tr
-                                        key={job.id}
-                                        onClick={() => !isActive && !timeTesterEnabled && handleEdit(job)}
-                                        className={`
-                                        border-b border-slate-800 transition-all duration-300 group
-                                        ${(!job.enabled || timeTesterEnabled) ? 'opacity-50' : ''}
-                                        ${isActive ? 'bg-emerald-500/10' : (timeTesterEnabled ? 'cursor-not-allowed bg-slate-800/20' : 'cursor-pointer hover:bg-slate-700/20')}
-                                    `}
-                                    >
-                                        <td className={`py-4 pl-4 font-mono font-bold text-slate-200 ${isActive ? 'border-l-2 border-emerald-500' : 'border-l-2 border-transparent'}`}>
-                                            <div className="flex items-center gap-2">
-                                                <Clock size={14} className={isActive ? "text-emerald-400 animate-pulse" : "text-slate-500"} />
-                                                <span className={isActive ? "text-emerald-300 drop-shadow-sm" : ""}>{job.friendly_time}</span>
-                                            </div>
-                                        </td>
-                                        <td className="py-4 text-slate-400">
-                                            <div className="flex items-center gap-2">
-                                                <RefreshCw size={14} className="text-slate-600" />
-                                                <span className="capitalize">{job.friendly_freq}</span>
-                                            </div>
-                                        </td>
-                                        <td className="py-4">
-                                            <div className="flex items-center gap-2">
-                                                <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium border ${isActive ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50' : 'bg-cyan-900/30 text-cyan-400 border-cyan-800'}`}>
-                                                    {job.radio_details.service}
-                                                </span>
-                                            </div>
-                                        </td>
-                                        <td className="py-4 text-slate-400 font-mono text-xs">
-                                            {durationLabel}
-                                        </td>
-                                        <td className="py-4 text-center" onClick={e => e.stopPropagation()}>
-                                            <button
-                                                onClick={() => !timeTesterEnabled && handleToggle(job)}
-                                                className={`w-8 h-4 rounded-full p-0.5 transition-colors duration-200 ease-in-out relative inline-flex items-center ${(job.enabled && !timeTesterEnabled) ? 'bg-emerald-500/80' : 'bg-slate-600'} ${timeTesterEnabled ? 'cursor-not-allowed' : ''}`}
-                                            >
-                                                <div className={`bg-white w-3 h-3 rounded-full shadow transform transition-transform duration-200 ${(job.enabled && !timeTesterEnabled) ? 'translate-x-4' : 'translate-x-0'}`} />
-                                            </button>
-                                        </td>
-                                        <td className="py-4 text-right pr-4" onClick={e => e.stopPropagation()}>
-                                            {isActive ? (
-                                                <div className="flex items-center justify-end gap-2 text-emerald-400 text-xs font-bold">
-                                                    LIVE <Zap size={12} fill="currentColor" />
-                                                </div>
-                                            ) : (
-                                                <div className="flex items-center justify-end gap-2">
-                                                    <button
-                                                        onClick={() => handleEdit(job)}
-                                                        className="p-1.5 rounded hover:bg-cyan-500/20 text-slate-600 hover:text-cyan-400 transition-colors opacity-0 group-hover:opacity-100"
-                                                    >
-                                                        <Edit2 size={14} />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDelete(job.id)}
-                                                        className="p-1.5 rounded hover:bg-red-500/20 text-slate-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
-                                                    >
-                                                        <Trash2 size={14} />
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-
-                    <div className="md:hidden space-y-3">
-                        {isAdding && (
-                            <div className="bg-slate-800/50 border border-cyan-500/30 rounded-lg p-4 animate-fade-in">
-                                <h4 className="text-xs font-bold text-cyan-400 mb-3 uppercase tracking-wider">New Schedule</h4>
-                                <div className="space-y-3">
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div>
-                                            <label className="text-[10px] text-slate-500 font-bold uppercase mb-1 block">Time</label>
-                                            <input
-                                                type="time"
-                                                value={newJob.time}
-                                                onChange={e => setNewJob({ ...newJob, time: e.target.value })}
-                                                className="w-32 bg-slate-900 border border-slate-600 rounded px-2 h-9 text-sm text-slate-200 py-0 leading-none"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="text-[10px] text-slate-500 font-bold uppercase mb-1 block">Frequency</label>
-                                            <select
-                                                value={newJob.frequency}
-                                                onChange={e => setNewJob({ ...newJob, frequency: e.target.value })}
-                                                className="w-full bg-slate-900 border border-slate-600 rounded px-2 h-9 text-sm text-slate-200 py-0 leading-none"
-                                            >
-                                                <option value="daily">Daily</option>
-                                                <option value="weekly">Weekly</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div>
-                                            <label className="text-[10px] text-slate-500 font-bold uppercase mb-1 block">Service</label>
-                                            <select
-                                                value={selectedService}
-                                                onChange={e => setSelectedService(e.target.value)}
-                                                className="w-full bg-slate-900 border border-slate-600 rounded px-2 h-9 text-sm text-slate-200 py-0 leading-none"
-                                            >
-                                                {Object.values(ServiceType).map(s => <option key={s} value={s}>{s}</option>)}
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label className="text-[10px] text-slate-500 font-bold uppercase mb-1 block">Duration</label>
-                                            <select
-                                                value={duration}
-                                                onChange={e => setDuration(parseInt(e.target.value))}
-                                                className="w-full bg-slate-900 border border-slate-600 rounded px-2 h-9 text-sm text-slate-200 py-0 leading-none"
-                                            >
-                                                {DURATION_OPTIONS.map(opt => (
-                                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <button onClick={() => handleSave()} className="w-full mt-2 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded text-sm transition-colors">
-                                        SAVE SCHEDULE
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-
-                        {jobs.length === 0 && !isAdding && (
-                            <div className="text-center py-8 text-slate-500 italic text-sm">
-                                No scheduled broadcasts.
-                            </div>
-                        )}
-
-                        {sortedJobs.map((job) => {
-                            const isEditingThis = editingJobId === job.id;
-                            const isActive = isJobActive(job);
-                            const durationValue = parseInt(job.radio_details.duration);
-                            const durationLabel = DURATION_OPTIONS.find(opt => opt.value === durationValue)?.label || `${durationValue}m`;
-
-                            if (isEditingThis) {
-                                return (
-                                    <div key={job.id} ref={editingCardRef} className="bg-slate-800 border border-cyan-500/30 rounded-lg p-4 animate-fade-in">
-                                        <div className="space-y-3">
-                                            <div className="flex justify-between items-center mb-2">
-                                                <span className="text-xs font-bold text-cyan-400 uppercase">Editing Job</span>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-3">
-                                                <div>
-                                                    <label className="text-[10px] text-slate-500 font-bold uppercase mb-1 block">Time</label>
-                                                    <input
-                                                        type="time"
-                                                        value={newJob.time}
-                                                        onChange={e => setNewJob({ ...newJob, time: e.target.value })}
-                                                        className="w-32 bg-slate-900 border border-slate-600 rounded px-2 h-9 text-sm text-slate-200 py-0 leading-none"
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <label className="text-[10px] text-slate-500 font-bold uppercase mb-1 block">Frequency</label>
-                                                    <select
-                                                        value={newJob.frequency}
-                                                        onChange={e => setNewJob({ ...newJob, frequency: e.target.value })}
-                                                        className="w-full bg-slate-900 border border-slate-600 rounded px-2 h-9 text-sm text-slate-200 py-0 leading-none"
-                                                    >
-                                                        <option value="daily">Daily</option>
-                                                        <option value="weekly">Weekly</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-3">
-                                                <div>
-                                                    <label className="text-[10px] text-slate-500 font-bold uppercase mb-1 block">Service</label>
-                                                    <select
-                                                        value={selectedService}
-                                                        onChange={e => setSelectedService(e.target.value)}
-                                                        className="w-full bg-slate-900 border border-slate-600 rounded px-2 h-9 text-sm text-slate-200 py-0 leading-none"
-                                                    >
-                                                        {Object.values(ServiceType).map(s => <option key={s} value={s}>{s}</option>)}
-                                                    </select>
-                                                </div>
-                                                <div>
-                                                    <label className="text-[10px] text-slate-500 font-bold uppercase mb-1 block">Duration</label>
-                                                    <select
-                                                        value={duration}
-                                                        onChange={e => setDuration(parseInt(e.target.value))}
-                                                        className="w-full bg-slate-900 border border-slate-600 rounded px-2 h-9 text-sm text-slate-200 py-0 leading-none"
-                                                    >
-                                                        {DURATION_OPTIONS.map(opt => (
-                                                            <option key={opt.value} value={opt.value}>{opt.label}</option>
-                                                        ))}
-                                                    </select>
-                                                </div>
-                                            </div>
-                                            <div className="flex gap-2 mt-2">
-                                                <button onClick={() => setEditingJobId(null)} className="flex-1 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold rounded text-sm transition-colors">
-                                                    CANCEL
-                                                </button>
-                                                <button onClick={() => handleSave(job.id)} className="flex-1 py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded text-sm transition-colors">
-                                                    UPDATE
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            }
-
-                            return (
-                                <div
-                                    key={job.id}
-                                    onClick={() => !isActive && !timeTesterEnabled && handleEdit(job)}
-                                    className={`p-4 rounded-lg border ${isActive ? 'bg-emerald-900/10 border-emerald-500/50' : 'bg-slate-800/50 border-slate-700'} ${(!job.enabled || timeTesterEnabled) ? 'opacity-60' : ''} ${(!isActive && !timeTesterEnabled) ? 'cursor-pointer' : ''}`}
-                                >
-                                    <div className="flex justify-between items-start mb-3">
-                                        <div className="flex items-center gap-2">
-                                            <Clock size={16} className={isActive ? "text-emerald-400" : "text-slate-500"} />
-                                            <span className={`text-xl font-mono font-bold ${isActive ? 'text-emerald-300' : 'text-white'}`}>
-                                                {job.friendly_time}
-                                            </span>
-                                        </div>
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); if (!timeTesterEnabled) handleToggle(job); }}
-                                            className={`w-10 h-5 rounded-full p-0.5 transition-colors duration-200 ease-in-out relative inline-flex items-center ${(job.enabled && !timeTesterEnabled) ? 'bg-emerald-500' : 'bg-slate-600'} ${timeTesterEnabled ? 'cursor-not-allowed' : ''}`}
-                                        >
-                                            <div className={`bg-white w-4 h-4 rounded-full shadow transform transition-transform duration-200 ${(job.enabled && !timeTesterEnabled) ? 'translate-x-5' : 'translate-x-0'}`} />
-                                        </button>
-                                    </div>
-
-                                    <div className="grid grid-cols-3 gap-2 text-xs mb-4">
-                                        <div className="bg-slate-900/50 p-2 rounded border border-slate-700/50">
-                                            <div className="text-slate-500 uppercase text-[10px] font-bold mb-0.5">FREQ</div>
-                                            <div className="text-slate-300 capitalize">{job.friendly_freq}</div>
-                                        </div>
-                                        <div className="bg-slate-900/50 p-2 rounded border border-slate-700/50">
-                                            <div className="text-slate-500 uppercase text-[10px] font-bold mb-0.5">SERVICE</div>
-                                            <div className="text-cyan-300 font-bold">{job.radio_details.service}</div>
-                                        </div>
-                                        <div className="bg-slate-900/50 p-2 rounded border border-slate-700/50">
-                                            <div className="text-slate-500 uppercase text-[10px] font-bold mb-0.5">DUR</div>
-                                            <div className="text-slate-300 font-mono">{durationLabel}</div>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex justify-end gap-2 border-t border-slate-700/50 pt-3" onClick={e => e.stopPropagation()}>
-                                        {isActive ? (
-                                            <div className="w-full flex items-center justify-center gap-2 text-emerald-400 font-bold text-sm bg-emerald-500/10 py-1.5 rounded">
-                                                <Zap size={14} fill="currentColor" /> LIVE BROADCAST
-                                            </div>
-                                        ) : (
-                                            <>
-                                                <button
-                                                    onClick={() => handleEdit(job)}
-                                                    className="flex-1 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs font-bold rounded flex items-center justify-center gap-2 transition-colors"
-                                                >
-                                                    <Edit2 size={12} /> EDIT
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDelete(job.id)}
-                                                    className="flex-1 py-1.5 bg-red-900/20 hover:bg-red-900/40 text-red-400 text-xs font-bold rounded flex items-center justify-center gap-2 transition-colors border border-red-900/30"
-                                                >
-                                                    <Trash2 size={12} /> DELETE
-                                                </button>
-                                            </>
-                                        )}
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
+                    <ScheduleTable
+                        {...shared}
+                        rowRef={editor.rowRef}
+                        sortColumn={sorting.column}
+                        sortDirection={sorting.direction}
+                        onSort={sorting.toggle}
+                    />
+                    <ScheduleCards {...shared} cardRef={editor.cardRef} />
                 </div>
             </Card>
 
             <ConfirmModal
-                isOpen={modalConfig.isOpen}
-                onClose={closeModal}
-                onConfirm={modalConfig.onConfirm}
-                title={modalConfig.title}
-                message={modalConfig.message}
-                type={modalConfig.type}
-                confirmText={modalConfig.confirmText}
+                isOpen={prompt !== null}
+                onClose={() => setPrompt(null)}
+                onConfirm={prompt?.onConfirm}
+                title={prompt?.title ?? ''}
+                message={prompt?.message ?? ''}
+                type={prompt?.type ?? 'info'}
+                confirmText={prompt?.confirmText}
             />
         </>
     );
-};
+}

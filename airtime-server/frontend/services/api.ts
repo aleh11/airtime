@@ -5,7 +5,8 @@ import {
     CronJobInput,
     RadioConfig,
     RadioConfigInput,
-    TransmitRequest
+    TransmitRequest,
+    UpdateInfo
 } from '../types';
 
 const API_BASE = '';
@@ -104,23 +105,14 @@ export const api = {
         return handleResponse<SystemMetrics>(res);
     },
 
-    checkUpdates: async (): Promise<{ updates_available: boolean; local_commit: string; remote_commit: string }> => {
+    checkUpdates: async (): Promise<UpdateInfo> => {
         const res = await fetch(`${API_BASE}/api/system/check-updates`);
-        return handleResponse<{ updates_available: boolean; local_commit: string; remote_commit: string }>(res);
+        return handleResponse<UpdateInfo>(res);
     },
 
     applyUpdate: async (): Promise<{ status: string; message: string }> => {
         const res = await fetch(`${API_BASE}/api/system/apply-update`, {
             method: 'POST',
-        });
-        return handleResponse<{ status: string; message: string }>(res);
-    },
-
-    switchBranch: async (branch: string): Promise<{ status: string; message: string }> => {
-        const res = await fetch(`${API_BASE}/api/system/switch-branch`, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({ branch }),
         });
         return handleResponse<{ status: string; message: string }>(res);
     },

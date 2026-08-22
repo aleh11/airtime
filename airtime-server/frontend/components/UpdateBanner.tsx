@@ -2,13 +2,13 @@ import { X, Download, CheckCircle2 } from 'lucide-react';
 
 interface UpdateBannerProps {
     type: 'available' | 'up-to-date';
-    localCommit: string;
-    remoteCommit: string;
+    currentVersion: string;
+    latestVersion: string;
     onDismiss: () => void;
     onUpdate: () => void;
 }
 
-export default function UpdateBanner({ type, localCommit, remoteCommit, onDismiss, onUpdate }: UpdateBannerProps) {
+export default function UpdateBanner({ type, currentVersion, latestVersion, onDismiss, onUpdate }: UpdateBannerProps) {
     if (type === 'up-to-date') {
         return (
             <div className="fixed top-4 right-4 z-50 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-lg shadow-2xl border border-emerald-400/30 animate-slide-in-right">
@@ -17,7 +17,7 @@ export default function UpdateBanner({ type, localCommit, remoteCommit, onDismis
                     <div className="flex flex-col">
                         <span className="font-semibold text-sm">System Up to Date</span>
                         <span className="text-xs text-emerald-100 opacity-80 font-mono">
-                            Commit: {localCommit}
+                            {currentVersion}
                         </span>
                     </div>
                     <button
@@ -39,7 +39,7 @@ export default function UpdateBanner({ type, localCommit, remoteCommit, onDismis
                 <div className="flex flex-col">
                     <span className="font-semibold text-sm">Update Available</span>
                     <span className="text-xs text-cyan-100">
-                        {localCommit} → {remoteCommit}
+                        {currentVersion} → {latestVersion}
                     </span>
                 </div>
                 <div className="flex items-center gap-2 ml-4">

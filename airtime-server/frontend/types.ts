@@ -52,8 +52,14 @@ export interface SystemStatus {
     services: ServicesStatus;
     app_config: AppConfig;
     system_time: string;
-    git_commit?: string;
-    git_branch?: string;
+    version?: string;
+}
+
+export interface UpdateInfo {
+    updates_available: boolean;
+    current_version: string;
+    latest_version: string;
+    release_url?: string;
 }
 
 export interface RadioDetails {
@@ -87,9 +93,10 @@ export interface RadioConfig {
 
 export interface CronJobInput {
     id: string;
-    command: string;
     time: string;
     frequency: string;
+    service: string;
+    duration: number;
     enabled: boolean;
 }
 

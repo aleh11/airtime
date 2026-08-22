@@ -7,3 +7,9 @@ airtime-server/ssl/*.crt
 airtime-server/ssl/openssl.cnf
 
 .claude/
+
+# Built artefacts
+build/
+internal/web/dist/*
+!internal/web/dist/.gitkeep
+.idea/

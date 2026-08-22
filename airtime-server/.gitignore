@@ -2,6 +2,7 @@
 database/airtime.db-wal
 database/airtime.db-shm
 database/*.db
+database/*.migrated
 # Python cache
 __pycache__/
 *.pyc
