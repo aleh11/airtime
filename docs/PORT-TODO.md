@@ -60,10 +60,31 @@ Anything marked **[PI]** cannot be signed off without hardware.
 
 ## Phase 6 — cutover
 
-- [ ] **[PI]** Full install on a clean SD card
+- [x] **[PI]** Full install on a clean machine — verified on the dev Pi after a
+      full purge, with txtempus and chrony removed so both were built and
+      installed from scratch. Not literally a fresh SD card: `build-essential`,
+      `cmake` and `git` were already present, so a missing build dependency
+      would not have been caught. Found three defects (see below).
 - [x] **[PI]** Upgrade from a Python install, verifying nothing is lost — verified end to end
-- [ ] Merge `experimental` into master (2 conflict hunks, both in built assets)
-- [ ] Bump `VERSION` to cut the first binary release
+- [ ] Ship `restart.sh` on master as a shim that runs the new installer, so
+      existing installs migrate from the update banner they already have
+- [ ] Merge `experimental` into master (2 conflict hunks, both in built assets).
+      The merge must **keep** `restart.sh`: Phase 8 deleted it here, and
+      `apply_update` on master pulls before executing it, so letting that
+      deletion land would strip the Python backend and the script that replaces
+      it in the same pull, leaving no way to recover from the dashboard.
+- [ ] Bump `VERSION` to `0.3.0` to cut the first full release. `0.3.0-rc.1` and
+      `0.3.0-rc.2` are published as prereleases, so `releases/latest/download`
+      is still unserved and no install can reach them by accident.
+
+Defects the clean install found, all fixed in rc.2:
+
+- `with_status` runs each step in a background subshell, so `download_release`
+  could not hand `download_dir` back and the binary install resolved to `/`.
+  Only ever broke on a TTY, which is why the upgrade test missed it.
+- The scheduler ticked on a ticker aligned to daemon start, firing schedules up
+  to 30s after the minute they name.
+- Metrics rendered raw `float64`, so the dashboard showed `0.5025125628140703%`.
 
 ## Phase 7 — UI
 
