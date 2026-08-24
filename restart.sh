@@ -1,81 +1,44 @@
-#!/bin/bash
-# AirTime Service Reboot Script
-# Restarts all services (or starts/stops them based on args)
+#!/usr/bin/env bash
+#
+# AirTime now ships as a single verified binary instead of a git checkout.
+#
+# The dashboard's "Update Now" button pulls this repository and then runs this
+# script as root, so this is the last thing the git-based updater ever does: it
+# hands over to the release installer, which retires the Python services, drops
+# the nginx site and the crontab mirror, and migrates the database.
+#
+set -Eeuo pipefail
 
-set -e
+installer_url="${AIRTIME_INSTALLER_URL:-https://github.com/aleh11/airtime/releases/latest/download/install.sh}"
+log="/var/log/airtime-migration.log"
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
-
-if [[ $EUID -ne 0 ]]; then
-   echo -e "${RED}Error: This script must be run as root${NC}"
-   echo "Usage: sudo ./restart.sh [--start|--stop]"
-   exit 1
+if [[ "${EUID}" -ne 0 ]]; then
+  echo "this must run as root" >&2
+  exit 1
 fi
 
-MODE="restart"
-if [[ "$1" == "--start" ]]; then
-    MODE="start"
-elif [[ "$1" == "--stop" ]]; then
-    MODE="stop"
+if ! command -v systemd-run >/dev/null 2>&1; then
+  echo "systemd-run is required to migrate; run the installer manually:" >&2
+  echo "  curl -fsSL ${installer_url} | sudo bash" >&2
+  exit 1
 fi
 
-echo "=========================================="
-echo "  AirTime Service Control: ${MODE^^}"
-echo "=========================================="
-echo ""
-
-control_service() {
-    local service=$1
-    
-    if [[ "$MODE" == "stop" ]]; then
-        echo -e "${YELLOW}Stopping $service...${NC}"
-        systemctl stop $service
-        if ! systemctl is-active --quiet $service; then
-            echo -e "${GREEN}✓${NC} $service stopped"
-        else
-            echo -e "${RED}✗${NC} $service failed to stop"
-        fi
-        return
-    fi
-    
-    if [[ "$MODE" == "start" ]]; then
-        echo -e "${YELLOW}Starting $service...${NC}"
-        systemctl start $service
-    elif [[ "$MODE" == "restart" ]]; then
-        if systemctl is-active --quiet $service; then
-            echo -e "${YELLOW}Restarting $service...${NC}"
-            systemctl restart $service
-        else
-            echo -e "${YELLOW}Starting $service...${NC}"
-            systemctl start $service
-        fi
-    fi
-
-    sleep 1
-    if systemctl is-active --quiet $service; then
-        echo -e "${GREEN}✓${NC} $service is running"
-    else
-        echo -e "${RED}✗${NC} $service failed to start"
-        systemctl status $service --no-pager -l
-    fi
-}
-
-control_service airtime-server
-echo ""
-control_service airtime-status
-echo ""
-
-if systemctl list-unit-files | grep -q nginx.service; then
-    control_service nginx
-else
-    echo -e "${YELLOW}Nginx not installed, skipping${NC}"
+# This script is a child of airtime-server.service, and the installer stops that
+# unit. systemd kills the whole cgroup when it does, which would kill this
+# script mid-migration and leave the Pi with neither the old stack nor the new
+# one. A transient unit gets its own cgroup and survives the teardown.
+args=(
+  --unit=airtime-migration
+  --collect
+  --no-block
+  --property=Type=oneshot
+  --property=TimeoutStartSec=3600
+)
+if [[ -n "${AIRTIME_RELEASE_BASE_URL:-}" ]]; then
+  args+=(--setenv=AIRTIME_RELEASE_BASE_URL="${AIRTIME_RELEASE_BASE_URL}")
 fi
 
-echo ""
-echo "=========================================="
-echo -e "${GREEN}  Configuration Complete!${NC}"
-echo "=========================================="
-echo ""
+echo "Migrating AirTime to a packaged release; follow ${log}"
+
+exec systemd-run "${args[@]}" \
+  /bin/bash -c "curl -fsSL '${installer_url}' | bash >>'${log}' 2>&1"
