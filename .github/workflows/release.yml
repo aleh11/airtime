@@ -2,8 +2,11 @@ name: release
 
 on:
   push:
-    tags:
-      - "v*"
+    branches:
+      - master
+      - experimental
+    paths:
+      - VERSION
   workflow_dispatch:
 
 permissions:
@@ -14,26 +17,55 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read version
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          version="$(tr -d '[:space:]' < VERSION)"
+          if [[ ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error file=VERSION::'${version}' is not a semantic version" >&2
+            exit 1
+          fi
+          tag="v${version}"
+          if gh release view "${tag}" >/dev/null 2>&1 || git rev-parse -q --verify "refs/tags/${tag}" >/dev/null; then
+            echo "::notice::${tag} is already released; nothing to do"
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          fi
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-go@v5
+        if: steps.version.outputs.release == 'true'
         with:
           go-version: "1.26"
 
       - uses: actions/setup-node@v4
+        if: steps.version.outputs.release == 'true'
         with:
           node-version: "20"
           cache: npm
           cache-dependency-path: airtime-server/frontend/package-lock.json
 
       - name: Test
+        if: steps.version.outputs.release == 'true'
         run: go test ./...
 
       - name: Build release binaries
-        run: scripts/build.sh "${GITHUB_REF_NAME}" linux/arm64 linux/arm
+        if: steps.version.outputs.release == 'true'
+        run: scripts/build.sh "${{ steps.version.outputs.tag }}" linux/arm64 linux/arm
 
       - name: Publish release
+        if: steps.version.outputs.release == 'true'
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          target_commitish: ${{ github.sha }}
           files: |
             build/airtime-linux-arm64
             build/airtime-linux-arm64.sha256
@@ -41,7 +73,7 @@ jobs:
             build/airtime-linux-arm.sha256
             install.sh
           generate_release_notes: true
-          # A hyphenated tag (v0.3.0-rc.1) publishes as a prerelease, so it is
-          # not served by releases/latest/download and existing installs are
-          # left alone. Plain tags (v0.3.0) go out to everyone.
-          prerelease: ${{ contains(github.ref_name, '-') }}
+          # A hyphenated version (0.3.0-rc.1) publishes as a prerelease, so it is
+          # not served by releases/latest/download and existing installs are left
+          # alone. Plain versions (0.3.0) go out to everyone.
+          prerelease: ${{ contains(steps.version.outputs.tag, '-') }}

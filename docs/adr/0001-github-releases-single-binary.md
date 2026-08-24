@@ -1,6 +1,6 @@
 # Releases are versioned GitHub Release assets, not git pulls
 
-AirTime originally updated itself by running `git pull` in the user's clone and restarting services, which meant every install was a working tree that could be dirtied, detached, or left on a branch nobody could identify. We now publish a single compiled binary per tag as a GitHub Release asset alongside a `.sha256`, and both the installer and the in-app updater download and verify that asset. Users no longer need git, and a version is now a thing we can name and roll back to.
+AirTime originally updated itself by running `git pull` in the user's clone and restarting services, which meant every install was a working tree that could be dirtied, detached, or left on a branch nobody could identify. We now publish a single compiled binary per version as a GitHub Release asset alongside a `.sha256`, and both the installer and the in-app updater download and verify that asset. Users no longer need git, and a version is now a thing we can name and roll back to.
 
 ## Consequences
 

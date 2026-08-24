@@ -6,8 +6,15 @@
 set -Eeuo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-version="${1:-dev}"
+version="${1:-}"
 shift || true
+if [[ -z "${version}" ]]; then
+  if [[ -f "${repo_root}/VERSION" ]]; then
+    version="v$(tr -d '[:space:]' < "${repo_root}/VERSION")-dev"
+  else
+    version="dev"
+  fi
+fi
 targets=("$@")
 if [[ ${#targets[@]} -eq 0 ]]; then
   targets=("linux/arm64")

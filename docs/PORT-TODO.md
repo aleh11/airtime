@@ -44,7 +44,7 @@ Anything marked **[PI]** cannot be signed off without hardware.
 
 - [x] `GOOS=linux GOARCH=arm64` cross-compile from the laptop
 - [x] Both `linux/arm64` and `linux/arm` (GOARM=7) build, so either image works
-- [x] GitHub Actions: build on tag, publish asset + `.sha256`
+- [x] GitHub Actions: build when `VERSION` changes, publish asset + `.sha256`
 - [x] Update helper + systemd path unit (request file, hardened oneshot)
 - [x] Rewrite the in-app updater against release assets
 - [x] Remove `/api/system/switch-branch` and its UI
@@ -63,7 +63,7 @@ Anything marked **[PI]** cannot be signed off without hardware.
 - [ ] **[PI]** Full install on a clean SD card
 - [x] **[PI]** Upgrade from a Python install, verifying nothing is lost — verified end to end
 - [ ] Merge `experimental` into master (2 conflict hunks, both in built assets)
-- [ ] Tag the first binary release
+- [ ] Bump `VERSION` to cut the first binary release
 
 ## Phase 7 — UI
 
