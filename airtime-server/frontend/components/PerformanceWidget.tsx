@@ -80,7 +80,7 @@ export function PerformanceWidget({ metrics, status }: Props) {
                     <TopStat
                         icon={Cpu}
                         label="CPU"
-                        valueText={`${metrics.cpu.percent}%`}
+                        valueText={`${metrics.cpu.percent.toFixed(1)}%`}
                         percent={metrics.cpu.percent}
                         colorClass="text-cyan-400"
                         bgClass="bg-cyan-500"
@@ -88,7 +88,7 @@ export function PerformanceWidget({ metrics, status }: Props) {
                     <TopStat
                         icon={CircuitBoard}
                         label="RAM"
-                        valueText={`${metrics.memory.percent}%`}
+                        valueText={`${metrics.memory.percent.toFixed(1)}%`}
                         percent={metrics.memory.percent}
                         colorClass="text-purple-400"
                         bgClass="bg-purple-500"
@@ -101,7 +101,7 @@ export function PerformanceWidget({ metrics, status }: Props) {
                             <Thermometer size={14} /> TEMP
                         </div>
                         <div className={`font-mono font-bold text-sm ${getTempColor(metrics.temperature)}`}>
-                            {metrics.temperature > 0 ? `${metrics.temperature}°C` : 'N/A'}
+                            {metrics.temperature > 0 ? `${metrics.temperature.toFixed(1)}°C` : 'N/A'}
                         </div>
                     </div>
 

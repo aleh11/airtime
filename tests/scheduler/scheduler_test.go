@@ -106,3 +106,31 @@ func TestInvalidSpecIsReportedAndDoesNotBlockOthers(t *testing.T) {
 		t.Fatalf("got %+v, want the valid schedule to still fire", due)
 	}
 }
+
+func TestNextTickAlignsToWallClock(t *testing.T) {
+	// A schedule names a minute, so a tick has to land on :00 of that minute
+	// however long the daemon has been up. Cron did; an unaligned ticker does not.
+	cases := []struct {
+		now  string
+		want string
+	}{
+		{"2026-08-24T18:31:07Z", "2026-08-24T18:31:30Z"},
+		{"2026-08-24T18:31:59Z", "2026-08-24T18:32:00Z"},
+		{"2026-08-24T18:31:30Z", "2026-08-24T18:32:00Z"},
+		{"2026-08-24T18:59:47Z", "2026-08-24T19:00:00Z"},
+	}
+
+	for _, tc := range cases {
+		now, err := time.Parse(time.RFC3339, tc.now)
+		if err != nil {
+			t.Fatalf("parse %q: %v", tc.now, err)
+		}
+		want, err := time.Parse(time.RFC3339, tc.want)
+		if err != nil {
+			t.Fatalf("parse %q: %v", tc.want, err)
+		}
+		if got := scheduler.NextTick(now); !got.Equal(want) {
+			t.Errorf("NextTick(%s) = %s, want %s", tc.now, got.Format(time.RFC3339), tc.want)
+		}
+	}
+}
