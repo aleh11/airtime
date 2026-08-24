@@ -24,8 +24,8 @@ progress_visible=false
 status_visible=false
 
 if [[ -t 1 && "${TERM:-dumb}" != "dumb" ]]; then
-  accent=$'\033[38;5;214m'
-  accent_alt=$'\033[38;5;220m'
+  accent=$'\033[38;5;80m'
+  accent_alt=$'\033[38;5;74m'
   success=$'\033[38;5;83m'
   danger=$'\033[38;5;203m'
   muted=$'\033[38;5;244m'
@@ -195,7 +195,6 @@ preflight() {
 
 download_release() {
   local asset="$1"
-  download_dir="$(mktemp -d)"
 
   curl "${curl_opts[@]}" "${release_base_url}/${asset}" --output "${download_dir}/${asset}"
   curl "${curl_opts[@]}" "${release_base_url}/${asset}.sha256" --output "${download_dir}/${asset}.sha256"
@@ -206,7 +205,12 @@ download_release() {
 
 install_dependencies() {
   export DEBIAN_FRONTEND=noninteractive
-  apt-get update
+  # apt-get update dominates this step on a Pi. Skip it when the lists were
+  # refreshed in the last day; apt still errors if a package is genuinely gone.
+  local stamp=/var/lib/apt/periodic/update-success-stamp
+  if [[ -z "$(find "${stamp}" -mtime -1 2>/dev/null)" ]]; then
+    apt-get update
+  fi
   apt-get install -y --no-install-recommends chrony sqlite3
 }
 
@@ -220,8 +224,24 @@ install_txtempus() {
   work="$(mktemp -d)"
   git clone --depth 1 https://github.com/hzeller/txtempus.git "${work}/txtempus"
   mkdir -p "${work}/txtempus/build"
-  (cd "${work}/txtempus/build" && cmake .. -DPLATFORM=rpi && make && make install)
+  # A Pi Zero 2W has four cores but only 512MB, and each g++ of txtempus peaks
+  # well over 100MB, so cap the parallelism rather than inviting the OOM killer.
+  local jobs
+  jobs="$(nproc 2>/dev/null || echo 1)"
+  [[ "${jobs}" -gt 2 ]] && jobs=2
+  (cd "${work}/txtempus/build" && cmake .. -DPLATFORM=rpi && make -j"${jobs}" && make install)
   rm -rf "${work}"
+}
+
+legacy_install_present() {
+  local unit
+  for unit in airtime-server airtime-status; do
+    [[ -e "/etc/systemd/system/${unit}.service" ]] && return 0
+  done
+  [[ -e /etc/nginx/sites-enabled/airtime ]] && return 0
+  [[ -e "${legacy_dir}" ]] && return 0
+  crontab -l -u root 2>/dev/null | grep -q 'txtempus' && return 0
+  return 1
 }
 
 retire_python_install() {
@@ -416,6 +436,10 @@ main() {
   local asset
   asset="$(detect_asset)"
 
+  # with_status runs each step in a background subshell, so a step cannot
+  # export state back here. Anything later steps depend on is set in main.
+  download_dir="$(mktemp -d)"
+
   complete_step "Checked this Pi (${asset#airtime-linux-})"
 
   with_status "Downloading and verifying the release" download_release "${asset}" \
@@ -430,9 +454,16 @@ main() {
     || fail "could not install txtempus"
   complete_step "Transmitter ready"
 
-  with_status "Retiring the previous install" retire_python_install \
+  local had_legacy=false
+  legacy_install_present && had_legacy=true
+
+  with_status "Checking for a previous install" retire_python_install \
     || fail "could not retire the previous install"
-  complete_step "Previous install retired"
+  if [[ "${had_legacy}" == true ]]; then
+    complete_step "Previous install retired"
+  else
+    complete_step "No previous install to retire"
+  fi
 
   with_status "Installing AirTime" install_binary "${asset}" \
     || fail "could not install the binary"
