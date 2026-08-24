@@ -440,6 +440,15 @@ main() {
   # export state back here. Anything later steps depend on is set in main.
   download_dir="$(mktemp -d)"
 
+  # Retiring an old install is a step only when there is one to retire, so the
+  # bar has to know before it draws its first frame.
+  local had_legacy=false
+  if legacy_install_present; then
+    had_legacy=true
+  else
+    step_total=$((step_total - 1))
+  fi
+
   complete_step "Checked this Pi (${asset#airtime-linux-})"
 
   with_status "Downloading and verifying the release" download_release "${asset}" \
@@ -454,15 +463,10 @@ main() {
     || fail "could not install txtempus"
   complete_step "Transmitter ready"
 
-  local had_legacy=false
-  legacy_install_present && had_legacy=true
-
-  with_status "Checking for a previous install" retire_python_install \
-    || fail "could not retire the previous install"
   if [[ "${had_legacy}" == true ]]; then
+    with_status "Retiring the previous install" retire_python_install \
+      || fail "could not retire the previous install"
     complete_step "Previous install retired"
-  else
-    complete_step "No previous install to retire"
   fi
 
   with_status "Installing AirTime" install_binary "${asset}" \
