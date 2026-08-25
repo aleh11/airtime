@@ -73,6 +73,8 @@ func New(deps Deps) http.Handler {
 	mux.HandleFunc("POST /api/control/restart", s.restartService)
 	mux.HandleFunc("POST /api/control/restart-pi", s.rebootHost)
 	mux.HandleFunc("GET /api/system/metrics", s.getMetrics)
+	mux.HandleFunc("GET /api/system/release-channel", s.getReleaseChannel)
+	mux.HandleFunc("POST /api/system/release-channel", s.setReleaseChannel)
 	mux.HandleFunc("GET /api/system/check-updates", s.checkUpdates)
 	mux.HandleFunc("POST /api/system/apply-update", s.applyUpdate)
 

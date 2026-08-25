@@ -53,7 +53,6 @@ export function ControlWidget({
     const [showTimeSettings, setShowTimeSettings] = useState(false);
     const [showTimeTester, setShowTimeTester] = useState(false);
     const [prompt, setPrompt] = useState<Prompt | null>(null);
-
     const standards = radioConfig?.available_services ?? FALLBACK_STANDARDS;
 
     const toggleBroadcast = async () => {

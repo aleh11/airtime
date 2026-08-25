@@ -3,19 +3,30 @@ import { api } from '../services/api';
 import { UpdateInfo } from '../types';
 
 const UP_TO_DATE_BANNER_MS = 5000;
-const RECONNECT_ATTEMPTS = 90;
+const RECONNECT_ATTEMPTS = 240;
 const RECONNECT_DELAY_MS = 1000;
 
 type BannerType = 'available' | 'up-to-date' | null;
 
-async function waitForDaemon(): Promise<boolean> {
+/**
+ * Waits for the daemon to come back reporting a different version.
+ *
+ * Waiting for it to merely answer is not enough: the helper downloads and
+ * verifies the release before it restarts anything, so the old daemon is still
+ * serving for most of the update. Reloading then just re-renders the version
+ * being replaced, which looks like the update silently did nothing.
+ */
+async function waitForNewVersion(before: string | undefined): Promise<boolean> {
     for (let attempt = 0; attempt < RECONNECT_ATTEMPTS; attempt++) {
         try {
-            await api.getStatus();
-            return true;
+            const status = await api.getStatus();
+            if (!before || (status.version && status.version !== before)) {
+                return true;
+            }
         } catch {
-            await new Promise((resolve) => setTimeout(resolve, RECONNECT_DELAY_MS));
+            // The daemon is mid-restart; that is the expected path, not an error.
         }
+        await new Promise((resolve) => setTimeout(resolve, RECONNECT_DELAY_MS));
     }
     return false;
 }
@@ -55,11 +66,9 @@ export function useSystemUpdate() {
         setInstalling(true);
 
         try {
+            const before = info?.current_version ?? (await api.getStatus().catch(() => null))?.version;
             await api.applyUpdate();
-            // The helper swaps the binary and restarts the service, so the daemon
-            // disappears for a few seconds before answering again.
-            await new Promise((resolve) => setTimeout(resolve, 3000));
-            await waitForDaemon();
+            await waitForNewVersion(before);
             window.location.reload();
         } catch (e) {
             console.error('Update failed', e);

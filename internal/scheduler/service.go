@@ -9,6 +9,9 @@ import (
 	"github.com/aleh11/airtime/internal/store"
 )
 
+// Ticks are aligned to the wall clock rather than to daemon start, because a
+// schedule names a minute and cron fired exactly on it. An unaligned ticker
+// fires up to a full interval late, which reads as the schedule being wrong.
 const tickInterval = 30 * time.Second
 
 // maxCatchUp bounds how much missed time is worth acting on. A Raspberry Pi has
@@ -36,18 +39,23 @@ func NewService(s *store.Store, runner Broadcaster) *Service {
 }
 
 func (s *Service) Run(ctx context.Context) {
-	ticker := time.NewTicker(tickInterval)
-	defer ticker.Stop()
-
 	s.Tick(time.Now())
 	for {
+		now := time.Now()
+		timer := time.NewTimer(NextTick(now).Sub(now))
 		select {
 		case <-ctx.Done():
+			timer.Stop()
 			return
-		case now := <-ticker.C:
-			s.Tick(now)
+		case tick := <-timer.C:
+			s.Tick(tick)
 		}
 	}
+}
+
+// NextTick is the first wall-clock tick boundary strictly after now.
+func NextTick(now time.Time) time.Time {
+	return now.Truncate(tickInterval).Add(tickInterval)
 }
 
 func (s *Service) Tick(now time.Time) {

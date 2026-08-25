@@ -341,6 +341,15 @@ set -Eeuo pipefail
 request="${update_request_path}"
 install_path="${install_path}"
 release_base_url="${release_base_url}"
+download_base="https://github.com/${repository}/releases/download"
+
+# The daemon writes the tag it means to install, so a beta opt-in installs the
+# prerelease the dashboard offered rather than whatever "latest" resolves to.
+# An unreadable or malformed request falls back to the URL baked in at install.
+requested_tag="\$(head -n1 "\${request}" 2>/dev/null | tr -d '[:space:]')"
+if [[ "\${requested_tag}" =~ ^v[0-9A-Za-z.+-]+$ ]]; then
+  release_base_url="\${download_base}/\${requested_tag}"
+fi
 
 curl_opts=(--fail --silent --show-error --location --retry 3)
 if [[ "\${release_base_url}" == https://* ]]; then
@@ -402,6 +411,10 @@ UNIT
 
 start_service() {
   systemctl restart "${service_name}"
+  # Enabling the path unit only arms it for the next boot. Without starting it
+  # here, nothing watches for update requests until the Pi is rebooted, so the
+  # dashboard's update button silently does nothing on a fresh install.
+  systemctl restart airtime-update.path
   systemctl restart chrony 2>/dev/null || systemctl restart chronyd 2>/dev/null || true
 
   local attempt

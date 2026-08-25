@@ -55,11 +55,15 @@ export interface SystemStatus {
     version?: string;
 }
 
+export type ReleaseChannel = 'stable' | 'beta';
+
 export interface UpdateInfo {
     updates_available: boolean;
     current_version: string;
     latest_version: string;
     release_url?: string;
+    channel?: ReleaseChannel;
+    prerelease?: boolean;
 }
 
 export interface RadioDetails {
