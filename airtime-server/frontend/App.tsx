@@ -24,6 +24,7 @@ function App() {
   const [timeTesterEnabled, setTimeTesterEnabled] = useState(false);
   const [betaEnabled, setBetaEnabled] = useState(false);
   const [confirmBeta, setConfirmBeta] = useState(false);
+  const [confirmStable, setConfirmStable] = useState(false);
 
   useEffect(() => {
     api.getReleaseChannel()
@@ -33,6 +34,7 @@ function App() {
 
   const applyChannel = async (channel: 'stable' | 'beta') => {
     setConfirmBeta(false);
+    setConfirmStable(false);
     try {
       await api.setReleaseChannel(channel);
       setBetaEnabled(channel === 'beta');
@@ -93,6 +95,18 @@ You can switch back to stable at any time.`}
         confirmText="Enable"
       />
 
+      <ConfirmModal
+        isOpen={confirmStable}
+        title="Switch Back to Stable?"
+        message={`This install will only be offered stable releases from now on.
+
+It stays on ${status?.version ?? 'the current build'} until a stable release is newer than it, so nothing is downgraded or reinstalled right now.`}
+        type="info"
+        onConfirm={() => applyChannel('stable')}
+        onClose={() => setConfirmStable(false)}
+        confirmText="Switch to Stable"
+      />
+
       {update.installing && (
         <RestartOverlay
           title="Installing Update"
@@ -122,7 +136,7 @@ You can switch back to stable at any time.`}
             <Button
               variant="ghost"
               size="icon-sm"
-              onClick={() => (betaEnabled ? applyChannel('stable') : setConfirmBeta(true))}
+              onClick={() => (betaEnabled ? setConfirmStable(true) : setConfirmBeta(true))}
               className={betaEnabled
                 ? 'border border-testing/50 bg-testing/10 text-testing-bright hover:bg-testing/20'
                 : 'text-faint-foreground hover:text-muted-foreground'}

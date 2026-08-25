@@ -3,6 +3,14 @@
 @import './themes.css';
 
 /*
+  dist/ is a build output that is still tracked, so Tailwind's automatic source
+  detection scans it: every build then finds the previous build's class names
+  and emits them again, and the stylesheet ratchets upwards (69.89 kB -> 82.46
+  kB from one identical rebuild). Excluding it keeps the build deterministic.
+*/
+@source not './dist';
+
+/*
   Every colour in the dashboard resolves through a token defined here. Nothing
   under components/ may name a palette colour directly — that is what makes a
   theme a block of variable overrides rather than a find-and-replace.

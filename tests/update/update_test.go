@@ -261,3 +261,19 @@ func TestBetaChannelTakesAFinalReleaseOverItsOwnPrereleases(t *testing.T) {
 		t.Fatalf("got %+v, want the final release", got)
 	}
 }
+
+func TestStableChannelDoesNotOfferADowngradeToABetaInstall(t *testing.T) {
+	// Switching back to stable while running a beta leaves the install ahead of
+	// the stable release. It should sit there until stable catches up.
+	stable := releaseServer(t, "v0.3.0")
+	defer stable.Close()
+
+	checker := update.Checker{Current: "v0.4.0-beta.6", ReleaseAPI: stable.URL, Client: stable.Client()}
+	got, err := checker.Check()
+	if err != nil {
+		t.Fatalf("check: %v", err)
+	}
+	if got.Available {
+		t.Fatalf("got %+v, want no update offered", got)
+	}
+}

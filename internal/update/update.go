@@ -63,7 +63,10 @@ func (c Checker) Check() (Info, error) {
 	}
 
 	return Info{
-		Available:  latest.TagName != c.Current,
+		// Newer, not merely different: an install that switched back to stable
+		// while running a beta is ahead of the stable release, and offering that
+		// as an update would be offering a downgrade.
+		Available:  newer(latest.TagName, c.Current),
 		Current:    c.Current,
 		Latest:     latest.TagName,
 		URL:        latest.HTMLURL,
