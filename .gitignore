@@ -13,3 +13,6 @@ build/
 internal/web/dist/*
 !internal/web/dist/.gitkeep
 .idea/
+
+# Local issue tracker (mattpocock skills)
+.scratch/
