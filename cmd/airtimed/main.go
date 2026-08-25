@@ -119,7 +119,14 @@ func run() error {
 		Store:   db,
 		Runner:  broadcaster,
 		Metrics: metrics.NewCollector(),
-		Updater: update.Checker{Current: version, RequestPath: cfg.requestPath},
+		Updater: update.Checker{
+			Current:     version,
+			RequestPath: cfg.requestPath,
+			Beta: func() bool {
+				channel, _, _ := db.Setting("app_config", "release_channel")
+				return channel == "beta"
+			},
+		},
 		Version: version,
 		Static:  web.Handler(),
 		RestartService: func() error {

@@ -6,8 +6,7 @@ import {
     RadioConfig,
     RadioConfigInput,
     TransmitRequest,
-    UpdateInfo
-} from '../types';
+    UpdateInfo, ReleaseChannel } from '../types';
 
 const API_BASE = '';
 
@@ -108,6 +107,20 @@ export const api = {
     checkUpdates: async (): Promise<UpdateInfo> => {
         const res = await fetch(`${API_BASE}/api/system/check-updates`);
         return handleResponse<UpdateInfo>(res);
+    },
+
+    getReleaseChannel: async (): Promise<{ channel: ReleaseChannel }> => {
+        const res = await fetch(`${API_BASE}/api/system/release-channel`);
+        return handleResponse<{ channel: ReleaseChannel }>(res);
+    },
+
+    setReleaseChannel: async (channel: ReleaseChannel): Promise<{ channel: ReleaseChannel }> => {
+        const res = await fetch(`${API_BASE}/api/system/release-channel`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ channel }),
+        });
+        return handleResponse<{ channel: ReleaseChannel }>(res);
     },
 
     applyUpdate: async (): Promise<{ status: string; message: string }> => {

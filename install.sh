@@ -341,6 +341,15 @@ set -Eeuo pipefail
 request="${update_request_path}"
 install_path="${install_path}"
 release_base_url="${release_base_url}"
+download_base="https://github.com/${repository}/releases/download"
+
+# The daemon writes the tag it means to install, so a beta opt-in installs the
+# prerelease the dashboard offered rather than whatever "latest" resolves to.
+# An unreadable or malformed request falls back to the URL baked in at install.
+requested_tag="\$(head -n1 "\${request}" 2>/dev/null | tr -d '[:space:]')"
+if [[ "\${requested_tag}" =~ ^v[0-9A-Za-z.+-]+$ ]]; then
+  release_base_url="\${download_base}/\${requested_tag}"
+fi
 
 curl_opts=(--fail --silent --show-error --location --retry 3)
 if [[ "\${release_base_url}" == https://* ]]; then

@@ -136,3 +136,44 @@ func (s *server) rebootHost(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "rebooting"})
 }
+
+// ReleaseChannel is which releases this install is offered: "stable" ignores
+// prereleases, "beta" takes the newest release of any kind.
+const (
+	channelStable = "stable"
+	channelBeta   = "beta"
+)
+
+func (s *server) getReleaseChannel(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]string{"channel": s.releaseChannel()})
+}
+
+func (s *server) setReleaseChannel(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Channel string `json:"channel"`
+	}
+	if !readJSON(w, r, &body) {
+		return
+	}
+
+	if body.Channel != channelStable && body.Channel != channelBeta {
+		writeError(w, http.StatusBadRequest, "channel must be \"stable\" or \"beta\"")
+		return
+	}
+
+	if err := s.Store.SetSetting("app_config", "release_channel", body.Channel); err != nil {
+		writeError(w, http.StatusInternalServerError, "could not save the release channel")
+		return
+	}
+
+	s.log.Info("release channel changed", "channel", body.Channel)
+	writeJSON(w, http.StatusOK, map[string]string{"channel": body.Channel})
+}
+
+func (s *server) releaseChannel() string {
+	channel, found, err := s.Store.Setting("app_config", "release_channel")
+	if err != nil || !found || channel != channelBeta {
+		return channelStable
+	}
+	return channelBeta
+}

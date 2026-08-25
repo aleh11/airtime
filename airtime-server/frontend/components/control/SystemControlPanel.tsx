@@ -1,4 +1,4 @@
-import { Clock, RefreshCw, RotateCw, Settings, Zap } from 'lucide-react';
+import { Clock, FlaskConical, RefreshCw, RotateCw, Settings, Zap } from 'lucide-react';
 import { TimeModeBadge } from './TimeModeBadge';
 import { TimeMode } from '../../hooks/useBroadcastSettings';
 
@@ -16,6 +16,8 @@ interface SystemControlPanelProps {
     onRestartService: () => void;
     onRestartPi: () => void;
     onCheckUpdates: () => void;
+    betaEnabled: boolean;
+    onToggleBeta: () => void;
 }
 
 export function SystemControlPanel({
@@ -32,6 +34,8 @@ export function SystemControlPanel({
     onRestartService,
     onRestartPi,
     onCheckUpdates,
+    betaEnabled,
+    onToggleBeta,
 }: SystemControlPanelProps) {
     return (
         <div className="space-y-2">
@@ -51,6 +55,23 @@ export function SystemControlPanel({
                     aria-label="Toggle system LEDs"
                 >
                     <div className={`bg-white w-3 h-3 rounded-full shadow transform transition-transform duration-200 ${ledsEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
+                </button>
+            </div>
+
+            <div className="flex items-center justify-between p-2 bg-slate-800/50 rounded-lg border border-slate-700/50">
+                <div className="flex items-center gap-2.5">
+                    <div className={`p-1.5 rounded-full ${betaEnabled ? 'bg-cyan-500/20 text-cyan-400' : 'bg-slate-700 text-slate-400'}`}>
+                        <FlaskConical size={14} />
+                    </div>
+                    <div className="text-sm font-medium text-slate-200">Beta Releases</div>
+                </div>
+
+                <button
+                    onClick={onToggleBeta}
+                    className={`w-8 h-4 rounded-full p-0.5 transition-colors duration-200 ease-in-out relative inline-flex items-center ${betaEnabled ? 'bg-cyan-500/80' : 'bg-slate-600'}`}
+                    aria-label="Toggle beta releases"
+                >
+                    <div className={`bg-white w-3 h-3 rounded-full shadow transform transition-transform duration-200 ${betaEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
                 </button>
             </div>
 
