@@ -5,6 +5,8 @@ import {
     CronJobInput,
     RadioConfig,
     RadioConfigInput,
+    UiConfig,
+    UiConfigInput,
     TransmitRequest,
     UpdateInfo
 } from '../types';
@@ -115,6 +117,20 @@ export const api = {
             method: 'POST',
         });
         return handleResponse<{ status: string; message: string }>(res);
+    },
+
+    getUiConfig: async (): Promise<UiConfig> => {
+        const res = await fetch(`${API_BASE}/api/settings/ui`);
+        return handleResponse<UiConfig>(res);
+    },
+
+    updateUiConfig: async (config: UiConfigInput): Promise<{ status: string }> => {
+        const res = await fetch(`${API_BASE}/api/settings/ui`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(config),
+        });
+        return handleResponse<{ status: string }>(res);
     },
 
     getTimeTester: async (): Promise<{ enabled: boolean; service: string }> => {

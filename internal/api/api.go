@@ -63,6 +63,8 @@ func New(deps Deps) http.Handler {
 	mux.HandleFunc("DELETE /api/crons/{id}", s.deleteSchedule)
 	mux.HandleFunc("GET /api/settings/radio", s.getRadioConfig)
 	mux.HandleFunc("POST /api/settings/radio", s.setRadioConfig)
+	mux.HandleFunc("GET /api/settings/ui", s.getUIConfig)
+	mux.HandleFunc("POST /api/settings/ui", s.setUIConfig)
 	mux.HandleFunc("POST /api/control/stealth", s.toggleStealth)
 	mux.HandleFunc("POST /api/control/transmit", s.startTransmit)
 	mux.HandleFunc("POST /api/control/stop", s.stopTransmit)

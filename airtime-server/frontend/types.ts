@@ -121,3 +121,16 @@ export enum ServiceType {
     JJY40 = "JJY40",
     JJY60 = "JJY60"
 }
+
+export interface UiConfig {
+    theme: string;
+    layout: string;
+    hidden_widgets: string[];
+    available_themes: string[];
+}
+
+export interface UiConfigInput {
+    theme: string;
+    layout?: string;
+    hidden_widgets?: string[];
+}
