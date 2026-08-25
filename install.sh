@@ -402,6 +402,10 @@ UNIT
 
 start_service() {
   systemctl restart "${service_name}"
+  # Enabling the path unit only arms it for the next boot. Without starting it
+  # here, nothing watches for update requests until the Pi is rebooted, so the
+  # dashboard's update button silently does nothing on a fresh install.
+  systemctl restart airtime-update.path
   systemctl restart chrony 2>/dev/null || systemctl restart chronyd 2>/dev/null || true
 
   local attempt
