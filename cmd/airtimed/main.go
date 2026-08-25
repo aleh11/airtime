@@ -115,10 +115,13 @@ func run() error {
 		return err
 	}
 
+	collector := metrics.NewCollector()
+	go collector.Run(ctx)
+
 	handler := api.New(api.Deps{
 		Store:   db,
 		Runner:  broadcaster,
-		Metrics: metrics.NewCollector(),
+		Metrics: collector,
 		Updater: update.Checker{
 			Current:     version,
 			RequestPath: cfg.requestPath,

@@ -1,10 +1,12 @@
 package metrics
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"sync"
 	"syscall"
+	"time"
 )
 
 type Disk struct {
@@ -34,14 +36,69 @@ type MemoryJSON struct {
 	SwapPercent float64 `json:"swap_percent"`
 }
 
-// Collector samples the kernel's counters, keeping the previous CPU reading so
-// utilisation can be reported over the interval between polls.
+// sampleInterval is the window CPU utilisation is measured over. It is fixed
+// rather than taken from the gap between requests so that the number means the
+// same thing however often, and by however many clients, it is asked for.
+const sampleInterval = 2 * time.Second
+
+// Collector samples the kernel's counters on its own cadence. CPU utilisation
+// is a rate, so it can only be measured between two readings: deriving it from
+// the gap between callers made the figure depend on who asked and when, and
+// counted the work of serving that very request against a window as short as
+// the round trip.
 type Collector struct {
 	mu       sync.Mutex
 	previous *Stat
+	cpu      CPU
 }
 
 func NewCollector() *Collector { return &Collector{} }
+
+// Run samples until ctx is cancelled. Without it a Collector reports zero
+// utilisation, having never had two readings to compare.
+func (c *Collector) Run(ctx context.Context) {
+	c.sample()
+	// Prime with a short second reading so the first dashboard load has a real
+	// figure instead of a zero that looks like a broken sensor.
+	timer := time.NewTimer(200 * time.Millisecond)
+	select {
+	case <-ctx.Done():
+		timer.Stop()
+		return
+	case <-timer.C:
+		c.sample()
+	}
+
+	ticker := time.NewTicker(sampleInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			c.sample()
+		}
+	}
+}
+
+func (c *Collector) sample() {
+	contents, err := os.ReadFile("/proc/stat")
+	if err != nil {
+		return
+	}
+	current, err := ParseStat(string(contents))
+	if err != nil {
+		return
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.previous != nil {
+		c.cpu.Percent = CPUPercent(c.previous.Total, current.Total)
+		c.cpu.PerCore = PerCorePercent(c.previous.PerCore, current.PerCore)
+	}
+	c.previous = &current
+}
 
 func (c *Collector) Snapshot() Snapshot {
 	var snap Snapshot
@@ -57,17 +114,11 @@ func (c *Collector) Snapshot() Snapshot {
 		}
 	}
 
-	if contents, err := os.ReadFile("/proc/stat"); err == nil {
-		if current, err := ParseStat(string(contents)); err == nil {
-			c.mu.Lock()
-			if c.previous != nil {
-				snap.CPU.Percent = CPUPercent(c.previous.Total, current.Total)
-				snap.CPU.PerCore = PerCorePercent(c.previous.PerCore, current.PerCore)
-			}
-			c.previous = &current
-			c.mu.Unlock()
-		}
-	}
+	c.mu.Lock()
+	snap.CPU.Percent = c.cpu.Percent
+	snap.CPU.PerCore = append([]float64(nil), c.cpu.PerCore...)
+	c.mu.Unlock()
+
 	if snap.CPU.PerCore == nil {
 		snap.CPU.PerCore = []float64{}
 	}
