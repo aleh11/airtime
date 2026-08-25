@@ -23,7 +23,9 @@ fi
 cd "${repo_root}"
 
 echo "▸ building dashboard"
-(cd airtime-server/frontend && npm ci --no-audit --no-fund && npm run build)
+# vite build transpiles with esbuild and never checks types, so the typecheck
+# is explicit here: every published build goes through it.
+(cd airtime-server/frontend && npm ci --no-audit --no-fund && npx tsc --noEmit && npm run build)
 
 echo "▸ embedding dashboard"
 rm -rf internal/web/dist
