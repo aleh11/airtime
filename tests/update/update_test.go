@@ -191,3 +191,73 @@ func TestApplyWritesTheResolvedTag(t *testing.T) {
 		t.Fatalf("request contains %q, want the resolved tag", got)
 	}
 }
+
+func TestBetaChannelRanksByVersionNotByDate(t *testing.T) {
+	// GitHub lists newest-first, so a hotfix cut from master appears above a
+	// beta it ranks below. Trusting that order would offer a downgrade.
+	list := listServer(t, `[
+		{"tag_name":"v0.3.1","prerelease":false},
+		{"tag_name":"v0.4.0-beta.12","prerelease":true}
+	]`)
+	defer list.Close()
+
+	checker := update.Checker{
+		Current:       "v0.4.0-beta.12",
+		PrereleaseAPI: list.URL,
+		Client:        list.Client(),
+		Beta:          func() bool { return true },
+	}
+	got, err := checker.Check()
+	if err != nil {
+		t.Fatalf("check: %v", err)
+	}
+	if got.Latest != "v0.4.0-beta.12" || got.Available {
+		t.Fatalf("got %+v, want to stay on the newer beta", got)
+	}
+}
+
+func TestBetaChannelOrdersBetaBuildsNumerically(t *testing.T) {
+	// beta.9 must not beat beta.12: semver compares numeric identifiers as
+	// numbers, where a plain string sort would get this backwards.
+	list := listServer(t, `[
+		{"tag_name":"v0.4.0-beta.9","prerelease":true},
+		{"tag_name":"v0.4.0-beta.12","prerelease":true}
+	]`)
+	defer list.Close()
+
+	checker := update.Checker{
+		Current:       "v0.4.0-beta.9",
+		PrereleaseAPI: list.URL,
+		Client:        list.Client(),
+		Beta:          func() bool { return true },
+	}
+	got, err := checker.Check()
+	if err != nil {
+		t.Fatalf("check: %v", err)
+	}
+	if got.Latest != "v0.4.0-beta.12" {
+		t.Fatalf("got %+v, want beta.12", got)
+	}
+}
+
+func TestBetaChannelTakesAFinalReleaseOverItsOwnPrereleases(t *testing.T) {
+	list := listServer(t, `[
+		{"tag_name":"v0.4.0-beta.12","prerelease":true},
+		{"tag_name":"v0.4.0","prerelease":false}
+	]`)
+	defer list.Close()
+
+	checker := update.Checker{
+		Current:       "v0.4.0-beta.12",
+		PrereleaseAPI: list.URL,
+		Client:        list.Client(),
+		Beta:          func() bool { return true },
+	}
+	got, err := checker.Check()
+	if err != nil {
+		t.Fatalf("check: %v", err)
+	}
+	if got.Latest != "v0.4.0" || !got.Available {
+		t.Fatalf("got %+v, want the final release", got)
+	}
+}

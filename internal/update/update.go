@@ -99,13 +99,19 @@ func (c Checker) latest() (release, error) {
 	if err := c.fetch(endpoint, &all); err != nil {
 		return release{}, err
 	}
+	var best release
 	for _, candidate := range all {
 		if candidate.Draft || candidate.TagName == "" {
 			continue
 		}
-		return candidate, nil
+		if best.TagName == "" || newer(candidate.TagName, best.TagName) {
+			best = candidate
+		}
 	}
-	return release{}, fmt.Errorf("no published release found")
+	if best.TagName == "" {
+		return release{}, fmt.Errorf("no published release found")
+	}
+	return best, nil
 }
 
 func (c Checker) fetch(endpoint string, into any) error {

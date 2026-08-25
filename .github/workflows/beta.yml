@@ -1,0 +1,88 @@
+name: beta
+
+on:
+  push:
+    branches:
+      - experimental
+    paths-ignore:
+      - "docs/**"
+      - "README.md"
+      - "**/*.md"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  beta:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Work out the beta version
+        id: version
+        run: |
+          set -Eeuo pipefail
+          version="$(tr -d '[:space:]' < VERSION)"
+          # VERSION on experimental names the release being worked towards, so
+          # the beta builds leading to it are prereleases of that version.
+          base="${version%%-*}"
+          if [[ ! "${base}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error file=VERSION::'${version}' is not a semantic version" >&2
+            exit 1
+          fi
+
+          # A VERSION change is handled by the release workflow; publishing a
+          # beta of the same commit as well would just duplicate the build.
+          if git diff --name-only HEAD^ HEAD | grep -qx VERSION; then
+            echo "::notice::VERSION changed; leaving this commit to the release workflow"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+          echo "tag=v${base}-beta.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-go@v5
+        if: steps.version.outputs.publish == 'true'
+        with:
+          go-version: "1.26"
+
+      - uses: actions/setup-node@v4
+        if: steps.version.outputs.publish == 'true'
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: airtime-server/frontend/package-lock.json
+
+      - name: Test
+        if: steps.version.outputs.publish == 'true'
+        run: go test ./...
+
+      - name: Build beta binaries
+        if: steps.version.outputs.publish == 'true'
+        run: scripts/build.sh "${{ steps.version.outputs.tag }}" linux/arm64 linux/arm
+
+      - name: Publish beta
+        if: steps.version.outputs.publish == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: ${{ steps.version.outputs.tag }}
+          body: |
+            Automatic beta build from `experimental` (${{ github.sha }}).
+
+            Only installs on the beta release channel. Not served by
+            `releases/latest/download`.
+          files: |
+            build/airtime-linux-arm64
+            build/airtime-linux-arm64.sha256
+            build/airtime-linux-arm
+            build/airtime-linux-arm.sha256
+            install.sh
+          # Always a prerelease: this is the mechanism that keeps beta builds
+          # away from stable installs.
+          prerelease: true

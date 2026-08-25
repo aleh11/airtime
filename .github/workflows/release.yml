@@ -32,6 +32,15 @@ jobs:
             exit 1
           fi
           tag="v${version}"
+
+          # A plain version is a stable release and becomes releases/latest for
+          # everyone. Only master may cut one; experimental's VERSION names the
+          # release being worked towards and its builds go out as betas.
+          if [[ "${version}" != *-* && "${GITHUB_REF_NAME}" != "master" ]]; then
+            echo "::error file=VERSION::refusing to publish stable ${version} from ${GITHUB_REF_NAME}; cut it from master" >&2
+            exit 1
+          fi
+
           if gh release view "${tag}" >/dev/null 2>&1 || git rev-parse -q --verify "refs/tags/${tag}" >/dev/null; then
             echo "::notice::${tag} is already released; nothing to do"
             echo "release=false" >> "$GITHUB_OUTPUT"
