@@ -16,7 +16,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -34,11 +34,14 @@ jobs:
           tag="v${version}"
 
           # A plain version is a stable release and becomes releases/latest for
-          # everyone. Only master may cut one; experimental's VERSION names the
-          # release being worked towards and its builds go out as betas.
+          # everyone, so only master cuts one. On any other branch VERSION just
+          # names the release being worked towards, and the beta workflow builds
+          # it. That is a normal state of affairs, not a failure.
           if [[ "${version}" != *-* && "${GITHUB_REF_NAME}" != "master" ]]; then
-            echo "::error file=VERSION::refusing to publish stable ${version} from ${GITHUB_REF_NAME}; cut it from master" >&2
-            exit 1
+            echo "::notice::${version} is the version ${GITHUB_REF_NAME} is working towards; betas cover it until master cuts it"
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
 
           if gh release view "${tag}" >/dev/null 2>&1 || git rev-parse -q --verify "refs/tags/${tag}" >/dev/null; then
@@ -49,12 +52,12 @@ jobs:
           fi
           echo "tag=${tag}" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         if: steps.version.outputs.release == 'true'
         with:
           go-version: "1.26"
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         if: steps.version.outputs.release == 'true'
         with:
           node-version: "20"
@@ -71,7 +74,7 @@ jobs:
 
       - name: Publish release
         if: steps.version.outputs.release == 'true'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.version.outputs.tag }}
           target_commitish: ${{ github.sha }}
