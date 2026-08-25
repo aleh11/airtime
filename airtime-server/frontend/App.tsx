@@ -9,18 +9,22 @@ import { RestartOverlay } from './components/RestartOverlay';
 import { useSystemStatus } from './hooks/useSystemStatus';
 import { useDashboardData } from './hooks/useDashboardData';
 import { useSystemUpdate } from './hooks/useSystemUpdate';
+import { useUiConfig } from './hooks/useUiConfig';
+import { ThemePicker } from './components/ThemePicker';
+import { Button } from './components/ui/button';
 import { RadioTower, Github, AlertTriangle, RefreshCw } from 'lucide-react';
 
 function App() {
   const { status, metrics, refreshStatus } = useSystemStatus();
   const { schedules, radioConfig, loading, error, refresh, refreshSchedules, retry } = useDashboardData();
   const update = useSystemUpdate();
+  const ui = useUiConfig();
 
   const [timeTesterEnabled, setTimeTesterEnabled] = useState(false);
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center text-slate-500 animate-pulse">
+      <div className="flex min-h-screen animate-pulse items-center justify-center bg-background text-subtle-foreground">
         <RadioTower size={48} className="mb-4" />
       </div>
     );
@@ -31,7 +35,7 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-200 p-4 md:p-8 font-sans selection:bg-amber-500/30">
+    <div className="min-h-screen bg-background p-4 font-sans text-foreground selection:bg-primary/30 md:p-8">
       {update.banner && update.info && (
         <UpdateBanner
           type={update.banner}
@@ -70,16 +74,17 @@ Your schedules and settings are kept.`}
           <div className="flex items-center gap-3">
             <img src="/airtime-logo.png" alt="AirTime" className="w-14 h-14 object-contain" />
             <div>
-              <h1 className="text-xl font-bold tracking-tight text-white">AirTime</h1>
-              <p className="text-xs text-slate-500 font-mono">LOCAL TIME-SIGNAL TRANSMITTER</p>
+              <h1 className="text-xl font-bold tracking-tight text-heading">AirTime</h1>
+              <p className="font-mono text-xs text-subtle-foreground">LOCAL TIME-SIGNAL TRANSMITTER</p>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <a href="https://airtime.diy/" target="_blank" rel="noreferrer" className="text-slate-500 hover:text-slate-300 transition-colors text-xs font-mono">
+            <ThemePicker theme={ui.theme} themes={ui.availableThemes} onSelect={ui.setTheme} />
+            <a href="https://airtime.diy/" target="_blank" rel="noreferrer" className="font-mono text-xs text-subtle-foreground transition-colors hover:text-foreground">
               Website
             </a>
-            <a href="https://github.com/aleh11/airtime" target="_blank" rel="noreferrer" className="text-slate-500 hover:text-slate-300 transition-colors">
+            <a href="https://github.com/aleh11/airtime" target="_blank" rel="noreferrer" className="text-subtle-foreground transition-colors hover:text-foreground">
               <Github size={20} />
             </a>
           </div>
@@ -126,7 +131,7 @@ Your schedules and settings are kept.`}
           </div>
         </main>
 
-        <footer className="text-center text-xs text-slate-600 pt-12 pb-4">
+        <footer className="pt-12 pb-4 text-center text-xs text-faint-foreground">
           AirTime Control Dashboard • {status?.version || 'unknown version'}
         </footer>
       </div>
@@ -136,26 +141,23 @@ Your schedules and settings are kept.`}
 
 function ConnectionFailed({ error, onRetry }: { error: string; onRetry: () => void }) {
   return (
-    <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4">
-      <div className="bg-slate-800 border border-red-900/50 p-8 rounded-2xl max-w-md w-full text-center shadow-2xl">
-        <div className="bg-red-900/20 p-4 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-6 text-red-500">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
+      <div className="w-full max-w-md rounded-2xl border border-danger/50 bg-card p-8 text-center shadow-2xl">
+        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-danger/20 text-danger">
           <AlertTriangle size={32} />
         </div>
-        <h2 className="text-xl font-bold text-white mb-2">Connection Failed</h2>
-        <p className="text-slate-400 mb-6 font-mono text-sm">{error}</p>
-        <div className="text-xs text-slate-500 mb-8 bg-slate-900 p-4 rounded text-left">
+        <h2 className="mb-2 text-xl font-bold text-heading">Connection Failed</h2>
+        <p className="mb-6 font-mono text-sm text-muted-foreground">{error}</p>
+        <div className="mb-8 rounded bg-surface-sunken p-4 text-left text-xs text-subtle-foreground">
           <p className="font-semibold mb-2">Troubleshooting:</p>
           <ul className="list-disc list-inside space-y-1">
             <li>Check the daemon is running: <span className="font-mono">systemctl status airtime</span></li>
             <li>Check the logs: <span className="font-mono">journalctl -u airtime -f</span></li>
           </ul>
         </div>
-        <button
-          onClick={onRetry}
-          className="w-full py-3 bg-red-600 hover:bg-red-500 text-white rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
-        >
+        <Button variant="destructive" size="lg" onClick={onRetry} className="w-full font-semibold">
           <RefreshCw size={18} /> Retry Connection
-        </button>
+        </Button>
       </div>
     </div>
   );

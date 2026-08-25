@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { Card } from './Card';
+import { Button } from './ui/button';
 import { CronJob, RadioConfig, SystemStatus } from '../types';
 import { api } from '../services/api';
 import { ConfirmModal, ModalType } from './ConfirmModal';
@@ -69,14 +70,16 @@ export function ScheduleWidget({ jobs, onUpdate, status, timeTesterEnabled = fal
                 title="Broadcast Schedule"
                 className="h-full"
                 action={
-                    <button
+                    <Button
+                        variant="secondary"
+                        size="icon"
                         onClick={() => (editor.adding ? editor.stopAdding() : editor.startAdding())}
-                        className={`p-2 rounded-full transition-colors ${timeTesterEnabled ? 'bg-slate-800 text-slate-600 cursor-not-allowed' : 'bg-slate-700 hover:bg-slate-600 text-slate-200'}`}
+                        className="rounded-full"
                         disabled={timeTesterEnabled}
                         aria-label={editor.adding ? 'Cancel new schedule' : 'Add schedule'}
                     >
                         {editor.adding ? <X size={16} /> : <Plus size={16} />}
-                    </button>
+                    </Button>
                 }
             >
                 <div className="overflow-x-auto">

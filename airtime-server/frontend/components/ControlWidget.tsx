@@ -119,7 +119,7 @@ export function ControlWidget({
                         onToggleBroadcast={toggleBroadcast}
                     />
 
-                    <div className="border-t border-slate-800/50 my-2" />
+                    <div className="my-2 border-t border-muted/50" />
 
                     <SystemControlPanel
                         ledsEnabled={ledsEnabled}

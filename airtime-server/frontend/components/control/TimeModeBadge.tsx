@@ -1,3 +1,4 @@
+import { Badge } from '../ui/badge';
 import { TimeMode } from '../../hooks/useBroadcastSettings';
 
 interface TimeModeBadgeProps {
@@ -9,6 +10,8 @@ interface TimeModeBadgeProps {
     offsetSign: number;
 }
 
+const CHIP_CLASS = 'ml-1 rounded-md border px-2 py-px font-mono text-[10px] font-bold';
+
 /** Summarises the current time mode as a single chip beside its settings row. */
 export function TimeModeBadge({
     timeMode,
@@ -19,30 +22,20 @@ export function TimeModeBadge({
     offsetSign,
 }: TimeModeBadgeProps) {
     if (timeMode === 'fixed_time') {
-        return (
-            <span className="text-[10px] font-mono font-bold px-2 py-px rounded-md border text-violet-400 bg-violet-500/10 border-violet-500/30 ml-1">
-                Fixed {fixedTime}
-            </span>
-        );
+        return <Badge variant="testing" className={CHIP_CLASS}>Fixed {fixedTime}</Badge>;
     }
 
     if (offsetEnabled && (offsetHours > 0 || offsetMinutes > 0)) {
         return (
-            <span className={`text-[10px] font-mono font-bold px-2 py-px rounded-md border ${offsetSign > 0
-                ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30'
-                : 'text-orange-400 bg-orange-500/10 border-orange-500/30'} ml-1`}>
+            <Badge variant={offsetSign > 0 ? 'offsetPositive' : 'offsetNegative'} className={CHIP_CLASS}>
                 {offsetSign > 0 ? '+' : '-'}{offsetHours ? `${offsetHours}h ` : ''}{offsetMinutes}m
-            </span>
+            </Badge>
         );
     }
 
     if (timeMode === 'time_now') {
-        return (
-            <span className="text-[10px] font-mono font-bold px-2 py-px rounded-md border text-cyan-400 bg-cyan-500/10 border-cyan-500/30 ml-1">
-                NOW
-            </span>
-        );
+        return <Badge variant="onAir" className={CHIP_CLASS}>NOW</Badge>;
     }
 
-    return <span className="text-[10px] font-mono text-slate-500 uppercase">Offset</span>;
+    return <span className="font-mono text-[10px] text-subtle-foreground uppercase">Offset</span>;
 }

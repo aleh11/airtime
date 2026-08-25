@@ -3,6 +3,11 @@ import { Clock, Edit2, Trash2, Zap } from 'lucide-react';
 import { CronJob, ServiceType, SystemStatus } from '../../types';
 import { DURATION_OPTIONS, durationLabel, isScheduleLive } from './scheduleFormat';
 import { ScheduleDraft } from '../../hooks/useScheduleEditor';
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import { Switch } from '../ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
 interface ScheduleCardsProps {
     jobs: CronJob[];
@@ -20,8 +25,8 @@ interface ScheduleCardsProps {
     onToggle: (job: CronJob, enabled: boolean) => void;
 }
 
-const fieldClass = 'w-full bg-slate-900 border border-slate-600 rounded px-2 h-9 text-sm text-slate-200 py-0 leading-none';
-const labelClass = 'text-[10px] text-slate-500 font-bold uppercase mb-1 block';
+const FIELD_CLASS = 'h-9 w-full bg-surface-sunken text-sm';
+const LABEL_CLASS = 'mb-1 block text-[10px] font-bold text-subtle-foreground uppercase';
 
 export function ScheduleCards({
     jobs, status, locked, draft, adding, editingId, cardRef,
@@ -31,65 +36,75 @@ export function ScheduleCards({
         <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
                 <div>
-                    <label className={labelClass}>Time</label>
-                    <input
+                    <Label className={LABEL_CLASS}>Time</Label>
+                    <Input
                         type="time"
                         value={draft.time}
                         onChange={(e) => onDraftChange({ ...draft, time: e.target.value })}
-                        className={`${fieldClass} w-32`}
+                        className={FIELD_CLASS}
                     />
                 </div>
                 <div>
-                    <label className={labelClass}>Frequency</label>
-                    <select
-                        value={draft.frequency}
-                        onChange={(e) => onDraftChange({ ...draft, frequency: e.target.value })}
-                        className={fieldClass}
-                    >
-                        <option value="daily">Daily</option>
-                        <option value="weekly">Weekly</option>
-                    </select>
+                    <Label className={LABEL_CLASS}>Frequency</Label>
+                    <Select value={draft.frequency} onValueChange={(value) => onDraftChange({ ...draft, frequency: value })}>
+                        <SelectTrigger className={FIELD_CLASS}>
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="daily">Daily</SelectItem>
+                            <SelectItem value="weekly">Weekly</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
                 <div>
-                    <label className={labelClass}>Service</label>
-                    <select
-                        value={draft.standard}
-                        onChange={(e) => onDraftChange({ ...draft, standard: e.target.value })}
-                        className={fieldClass}
-                    >
-                        {Object.values(ServiceType).map((standard) => <option key={standard} value={standard}>{standard}</option>)}
-                    </select>
+                    <Label className={LABEL_CLASS}>Service</Label>
+                    <Select value={draft.standard} onValueChange={(value) => onDraftChange({ ...draft, standard: value })}>
+                        <SelectTrigger className={FIELD_CLASS}>
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {Object.values(ServiceType).map((standard) => (
+                                <SelectItem key={standard} value={standard}>{standard}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                 </div>
                 <div>
-                    <label className={labelClass}>Duration</label>
-                    <select
-                        value={draft.duration}
-                        onChange={(e) => onDraftChange({ ...draft, duration: parseInt(e.target.value) })}
-                        className={fieldClass}
+                    <Label className={LABEL_CLASS}>Duration</Label>
+                    <Select
+                        value={String(draft.duration)}
+                        onValueChange={(value) => onDraftChange({ ...draft, duration: parseInt(value) })}
                     >
-                        {DURATION_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                    </select>
+                        <SelectTrigger className={FIELD_CLASS}>
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {DURATION_OPTIONS.map((option) => (
+                                <SelectItem key={option.value} value={String(option.value)}>{option.label}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                 </div>
             </div>
         </div>
     );
 
     return (
-        <div className="md:hidden space-y-3">
+        <div className="space-y-3 md:hidden">
             {adding && (
-                <div className="bg-slate-800/50 border border-cyan-500/30 rounded-lg p-4 animate-fade-in">
-                    <h4 className="text-xs font-bold text-cyan-400 mb-3 uppercase tracking-wider">New Schedule</h4>
+                <div className="animate-fade-in rounded-lg border border-on-air/30 bg-muted/50 p-4">
+                    <h4 className="mb-3 text-xs font-bold tracking-wider text-on-air-bright uppercase">New Schedule</h4>
                     {form}
-                    <button onClick={() => onSave()} className="w-full mt-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded text-sm transition-colors">
+                    <Button variant="success" onClick={() => onSave()} className="mt-3 w-full font-bold">
                         SAVE SCHEDULE
-                    </button>
+                    </Button>
                 </div>
             )}
 
             {jobs.length === 0 && !adding && (
-                <div className="text-center py-8 text-slate-500 italic text-sm">
+                <div className="py-8 text-center text-sm text-subtle-foreground italic">
                     No scheduled broadcasts.
                 </div>
             )}
@@ -99,18 +114,18 @@ export function ScheduleCards({
 
                 if (editingId === job.id) {
                     return (
-                        <div key={job.id} ref={cardRef} className="bg-slate-800 border border-cyan-500/30 rounded-lg p-4 animate-fade-in">
-                            <div className="flex justify-between items-center mb-2">
-                                <span className="text-xs font-bold text-cyan-400 uppercase">Editing Schedule</span>
+                        <div key={job.id} ref={cardRef} className="animate-fade-in rounded-lg border border-on-air/30 bg-card p-4">
+                            <div className="mb-2 flex items-center justify-between">
+                                <span className="text-xs font-bold text-on-air-bright uppercase">Editing Schedule</span>
                             </div>
                             {form}
-                            <div className="flex gap-2 mt-3">
-                                <button onClick={onCancel} className="flex-1 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold rounded text-sm transition-colors">
+                            <div className="mt-3 flex gap-2">
+                                <Button variant="secondary" onClick={onCancel} className="flex-1 font-bold">
                                     CANCEL
-                                </button>
-                                <button onClick={() => onSave(job.id)} className="flex-1 py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded text-sm transition-colors">
+                                </Button>
+                                <Button onClick={() => onSave(job.id)} className="flex-1 font-bold">
                                     UPDATE
-                                </button>
+                                </Button>
                             </div>
                         </div>
                     );
@@ -120,58 +135,54 @@ export function ScheduleCards({
                     <div
                         key={job.id}
                         onClick={() => !live && !locked && onEdit(job)}
-                        className={`p-4 rounded-lg border ${live ? 'bg-emerald-900/10 border-emerald-500/50' : 'bg-slate-800/50 border-slate-700'} ${(!job.enabled || locked) ? 'opacity-60' : ''} ${(!live && !locked) ? 'cursor-pointer' : ''}`}
+                        className={`rounded-lg border p-4 ${live ? 'border-success/50 bg-success/10' : 'border-border bg-muted/50'} ${(!job.enabled || locked) ? 'opacity-60' : ''} ${(!live && !locked) ? 'cursor-pointer' : ''}`}
                     >
-                        <div className="flex justify-between items-start mb-3">
+                        <div className="mb-3 flex items-start justify-between">
                             <div className="flex items-center gap-2">
-                                <Clock size={16} className={live ? 'text-emerald-400' : 'text-slate-500'} />
-                                <span className={`text-xl font-mono font-bold ${live ? 'text-emerald-300' : 'text-white'}`}>
+                                <Clock size={16} className={live ? 'text-success' : 'text-subtle-foreground'} />
+                                <span className={`font-mono text-xl font-bold ${live ? 'text-success' : 'text-heading'}`}>
                                     {job.friendly_time}
                                 </span>
                             </div>
-                            <button
-                                onClick={(e) => { e.stopPropagation(); if (!locked) onToggle(job, !job.enabled); }}
-                                className={`w-10 h-5 rounded-full p-0.5 transition-colors duration-200 ease-in-out relative inline-flex items-center ${(job.enabled && !locked) ? 'bg-emerald-500' : 'bg-slate-600'} ${locked ? 'cursor-not-allowed' : ''}`}
-                                aria-label="Toggle schedule"
-                            >
-                                <div className={`bg-white w-4 h-4 rounded-full shadow transform transition-transform duration-200 ${(job.enabled && !locked) ? 'translate-x-5' : 'translate-x-0'}`} />
-                            </button>
-                        </div>
-
-                        <div className="grid grid-cols-3 gap-2 text-xs mb-4">
-                            <div className="bg-slate-900/50 p-2 rounded border border-slate-700/50">
-                                <div className="text-slate-500 uppercase text-[10px] font-bold mb-0.5">FREQ</div>
-                                <div className="text-slate-300 capitalize">{job.friendly_freq}</div>
-                            </div>
-                            <div className="bg-slate-900/50 p-2 rounded border border-slate-700/50">
-                                <div className="text-slate-500 uppercase text-[10px] font-bold mb-0.5">SERVICE</div>
-                                <div className="text-cyan-300 font-bold">{job.radio_details.service}</div>
-                            </div>
-                            <div className="bg-slate-900/50 p-2 rounded border border-slate-700/50">
-                                <div className="text-slate-500 uppercase text-[10px] font-bold mb-0.5">DUR</div>
-                                <div className="text-slate-300 font-mono">{durationLabel(parseInt(job.radio_details.duration))}</div>
+                            <div onClick={(e) => e.stopPropagation()}>
+                                <Switch
+                                    checked={job.enabled && !locked}
+                                    disabled={locked}
+                                    onCheckedChange={(checked) => !locked && onToggle(job, checked)}
+                                    aria-label="Toggle schedule"
+                                    className="data-[state=checked]:bg-success-strong"
+                                />
                             </div>
                         </div>
 
-                        <div className="flex justify-end gap-2 border-t border-slate-700/50 pt-3" onClick={(e) => e.stopPropagation()}>
+                        <div className="mb-4 grid grid-cols-3 gap-2 text-xs">
+                            <div className="rounded border border-border/50 bg-surface-sunken/50 p-2">
+                                <div className="mb-0.5 text-[10px] font-bold text-subtle-foreground uppercase">FREQ</div>
+                                <div className="capitalize text-foreground">{job.friendly_freq}</div>
+                            </div>
+                            <div className="rounded border border-border/50 bg-surface-sunken/50 p-2">
+                                <div className="mb-0.5 text-[10px] font-bold text-subtle-foreground uppercase">SERVICE</div>
+                                <div className="font-bold text-on-air-bright">{job.radio_details.service}</div>
+                            </div>
+                            <div className="rounded border border-border/50 bg-surface-sunken/50 p-2">
+                                <div className="mb-0.5 text-[10px] font-bold text-subtle-foreground uppercase">DUR</div>
+                                <div className="font-mono text-foreground">{durationLabel(parseInt(job.radio_details.duration))}</div>
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end gap-2 border-t border-border/50 pt-3" onClick={(e) => e.stopPropagation()}>
                             {live ? (
-                                <div className="w-full flex items-center justify-center gap-2 text-emerald-400 font-bold text-sm bg-emerald-500/10 py-1.5 rounded">
+                                <div className="flex w-full items-center justify-center gap-2 rounded bg-success/10 py-1.5 text-sm font-bold text-success">
                                     <Zap size={14} fill="currentColor" /> LIVE BROADCAST
                                 </div>
                             ) : (
                                 <>
-                                    <button
-                                        onClick={() => onEdit(job)}
-                                        className="flex-1 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs font-bold rounded flex items-center justify-center gap-2 transition-colors"
-                                    >
+                                    <Button variant="secondary" size="sm" onClick={() => onEdit(job)} className="flex-1 text-xs font-bold">
                                         <Edit2 size={12} /> EDIT
-                                    </button>
-                                    <button
-                                        onClick={() => onDelete(job.id)}
-                                        className="flex-1 py-1.5 bg-red-900/20 hover:bg-red-900/40 text-red-400 text-xs font-bold rounded flex items-center justify-center gap-2 transition-colors border border-red-900/30"
-                                    >
+                                    </Button>
+                                    <Button variant="softDanger" size="sm" onClick={() => onDelete(job.id)} className="flex-1 text-xs font-bold">
                                         <Trash2 size={12} /> DELETE
-                                    </button>
+                                    </Button>
                                 </>
                             )}
                         </div>

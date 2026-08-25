@@ -1,4 +1,8 @@
-import { FlaskConical, Loader2, X } from 'lucide-react';
+import { FlaskConical, Loader2 } from 'lucide-react';
+import { Button } from '../ui/button';
+import { Label } from '../ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 
 interface TimeTesterModalProps {
     standards: string[];
@@ -22,74 +26,66 @@ export function TimeTesterModal({
     onClose,
 }: TimeTesterModalProps) {
     return (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={onClose}>
-            <div className="bg-slate-800 rounded-2xl max-w-xs w-full border border-slate-700 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-                <div className="flex items-center justify-between p-4 border-b border-slate-700">
-                    <div className="flex items-center gap-2">
-                        <div className="p-1.5 rounded-full bg-violet-500/20 text-violet-400">
-                            <FlaskConical size={16} />
-                        </div>
-                        <h3 className="text-base font-bold text-white">Time Tester</h3>
+        <Dialog open onOpenChange={(open) => !open && onClose()}>
+            <DialogContent className="max-w-xs gap-0 p-0">
+                <DialogHeader className="flex-row items-center gap-2 space-y-0 border-b border-border p-4">
+                    <div className="rounded-full bg-testing/20 p-1.5 text-testing-bright">
+                        <FlaskConical size={16} />
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-slate-700 rounded-full text-slate-400">
-                        <X size={16} />
-                    </button>
-                </div>
+                    <DialogTitle className="text-base font-bold text-heading">Time Tester</DialogTitle>
+                </DialogHeader>
 
-                <div className="px-5 py-3 bg-violet-500/10 border-b border-violet-500/20">
-                    <p className="text-[11px] text-violet-200/80 leading-relaxed">
-                        Broadcasts a <strong className="text-violet-300">fixed 12:00 time signal</strong> for testing clocks and devices.
+                <div className="border-b border-testing/20 bg-testing/10 px-5 py-3">
+                    <p className="text-[11px] leading-relaxed text-testing-bright/80">
+                        Broadcasts a <strong className="text-testing-bright">fixed 12:00 time signal</strong> for testing clocks and devices.
                         Scheduled broadcasts are paused for the duration and restored automatically when stopped.
                     </p>
                 </div>
 
-                <div className="p-5 space-y-4">
+                <div className="space-y-4 p-5">
                     <div>
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Service</label>
-                        <select
-                            value={standard}
-                            onChange={(e) => onStandardChange(e.target.value)}
-                            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 text-sm font-medium text-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent h-[40px]"
-                        >
-                            {standards.map((option) => (
-                                <option key={option} value={option}>{option}</option>
-                            ))}
-                        </select>
+                        <Label className="mb-1.5 block text-[10px] font-bold tracking-wider text-muted-foreground uppercase">Service</Label>
+                        <Select value={standard} onValueChange={onStandardChange}>
+                            <SelectTrigger className="h-10 w-full bg-surface-sunken text-sm font-medium">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {standards.map((option) => (
+                                    <SelectItem key={option} value={option}>{option}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
 
                     <div>
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Duration</label>
+                        <Label className="mb-1.5 block text-[10px] font-bold tracking-wider text-muted-foreground uppercase">Duration</Label>
                         <div className="grid grid-cols-2 gap-2">
                             {([12, 24] as const).map((hours) => (
-                                <button
+                                <Button
                                     key={hours}
+                                    variant="outline"
                                     onClick={() => onDurationChange(hours)}
-                                    className={`py-2.5 rounded-lg font-bold text-sm border-2 transition-all ${durationHours === hours
-                                        ? 'border-violet-500 bg-violet-500/20 text-violet-300'
-                                        : 'border-slate-700 bg-slate-900 text-slate-400 hover:border-violet-500/50'
-                                        }`}
+                                    className={`border-2 font-bold ${durationHours === hours
+                                        ? 'border-testing bg-testing/20 text-testing-bright'
+                                        : 'bg-surface-sunken text-muted-foreground hover:border-testing/50'}`}
                                 >
                                     {hours} hours
-                                </button>
+                                </Button>
                             ))}
                         </div>
                     </div>
                 </div>
 
-                <div className="p-4 border-t border-slate-700 flex gap-3">
-                    <button onClick={onClose} className="flex-1 py-2.5 rounded-lg font-bold text-sm bg-slate-700 hover:bg-slate-600 text-slate-200">
+                <div className="flex gap-3 border-t border-border p-4">
+                    <Button variant="secondary" onClick={onClose} className="flex-1 font-bold">
                         Cancel
-                    </button>
-                    <button
-                        disabled={busy}
-                        onClick={onStart}
-                        className="flex-1 py-2.5 rounded-lg font-bold text-sm bg-violet-600 hover:bg-violet-500 text-white shadow-lg shadow-violet-900/20 disabled:opacity-50 flex items-center justify-center gap-2"
-                    >
+                    </Button>
+                    <Button variant="testing" disabled={busy} onClick={onStart} className="flex-1 font-bold shadow-lg">
                         {busy ? <Loader2 className="animate-spin" size={16} /> : <FlaskConical size={16} />}
                         Start
-                    </button>
+                    </Button>
                 </div>
-            </div>
-        </div>
+            </DialogContent>
+        </Dialog>
     );
 }

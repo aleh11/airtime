@@ -1,4 +1,7 @@
 import { Loader2, Play, Square } from 'lucide-react';
+import { Button } from '../ui/button';
+import { Label } from '../ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
 export const DURATION_OPTIONS = [
     { label: '10 min', value: 10 },
@@ -22,6 +25,8 @@ interface BroadcastPanelProps {
     onToggleBroadcast: () => void;
 }
 
+const LABEL_CLASS = 'text-[10px] font-bold tracking-wider text-muted-foreground uppercase';
+
 export function BroadcastPanel({
     standards,
     standard,
@@ -33,61 +38,61 @@ export function BroadcastPanel({
     onChange,
     onToggleBroadcast,
 }: BroadcastPanelProps) {
-    const selectClass = `w-full bg-slate-900 border border-slate-700 rounded-lg px-3 text-sm font-medium text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent h-[40px] ${isTransmitting ? 'opacity-50 cursor-not-allowed' : ''}`;
+    const shownStandard = isTransmitting ? (activeStandard || standard) : standard;
+    const shownDuration = isTransmitting ? (activeDuration || duration) : duration;
 
     return (
         <div className="space-y-1 pb-1">
-            <div className="flex gap-2 items-end mb-2">
+            <div className="mb-2 flex items-end gap-2">
                 <div className="flex-1 space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Service</label>
-                    <select
-                        value={isTransmitting ? (activeStandard || standard) : standard}
-                        onChange={(e) => onChange(e.target.value, duration)}
+                    <Label className={LABEL_CLASS}>Service</Label>
+                    <Select
+                        value={shownStandard}
+                        onValueChange={(value) => onChange(value, duration)}
                         disabled={isTransmitting}
-                        className={selectClass}
                     >
-                        {standards.map((option) => (
-                            <option key={option} value={option}>{option}</option>
-                        ))}
-                    </select>
+                        <SelectTrigger className="h-10 w-full bg-surface-sunken text-sm font-medium">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {standards.map((option) => (
+                                <SelectItem key={option} value={option}>{option}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                 </div>
                 <div className="flex-1 space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Duration</label>
-                    <select
-                        value={isTransmitting ? (activeDuration || duration) : duration}
-                        onChange={(e) => onChange(standard, parseInt(e.target.value))}
+                    <Label className={LABEL_CLASS}>Duration</Label>
+                    <Select
+                        value={String(shownDuration)}
+                        onValueChange={(value) => onChange(standard, parseInt(value))}
                         disabled={isTransmitting}
-                        className={selectClass}
                     >
-                        {DURATION_OPTIONS.map((option) => (
-                            <option key={option.value} value={option.value}>{option.label}</option>
-                        ))}
-                    </select>
+                        <SelectTrigger className="h-10 w-full bg-surface-sunken text-sm font-medium">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {DURATION_OPTIONS.map((option) => (
+                                <SelectItem key={option.value} value={String(option.value)}>{option.label}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                 </div>
             </div>
 
-            {isTransmitting ? (
-                <button
-                    onClick={onToggleBroadcast}
-                    disabled={busy}
-                    className="w-full flex items-center justify-center gap-2 py-2 rounded-lg font-bold text-sm transition-all shadow-lg bg-red-600 hover:bg-red-500 text-white shadow-red-900/20"
-                >
-                    {busy ? <Loader2 className="animate-spin" size={16} /> : <Square size={16} fill="currentColor" />}
-                    STOP BROADCAST
-                </button>
-            ) : (
-                <button
-                    onClick={onToggleBroadcast}
-                    disabled={busy}
-                    className={`w-full flex items-center justify-center gap-2 py-2 rounded-lg font-bold text-sm transition-all shadow-lg ${busy
-                        ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
-                        : 'bg-cyan-600 hover:bg-cyan-500 text-white shadow-cyan-900/20'
-                        }`}
-                >
-                    {busy ? <Loader2 className="animate-spin" size={16} /> : <Play size={16} fill="currentColor" />}
-                    {busy ? 'STARTING...' : 'BROADCAST NOW'}
-                </button>
-            )}
+            <Button
+                onClick={onToggleBroadcast}
+                disabled={busy}
+                variant={isTransmitting ? 'destructive' : 'default'}
+                className="w-full font-bold shadow-lg"
+            >
+                {busy ? <Loader2 className="animate-spin" size={16} /> : (
+                    isTransmitting
+                        ? <Square size={16} fill="currentColor" />
+                        : <Play size={16} fill="currentColor" />
+                )}
+                {isTransmitting ? 'STOP BROADCAST' : busy ? 'STARTING...' : 'BROADCAST NOW'}
+            </Button>
         </div>
     );
 }
