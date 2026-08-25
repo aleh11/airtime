@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Card } from './Card';
 import { RadioConfig } from '../types';
 import { api } from '../services/api';
@@ -53,38 +53,6 @@ export function ControlWidget({
     const [showTimeSettings, setShowTimeSettings] = useState(false);
     const [showTimeTester, setShowTimeTester] = useState(false);
     const [prompt, setPrompt] = useState<Prompt | null>(null);
-    const [betaEnabled, setBetaEnabled] = useState(false);
-
-    useEffect(() => {
-        api.getReleaseChannel()
-            .then(({ channel }) => setBetaEnabled(channel === 'beta'))
-            .catch((e) => console.error('Could not read the release channel', e));
-    }, []);
-
-    const applyChannel = async (channel: 'stable' | 'beta') => {
-        try {
-            await api.setReleaseChannel(channel);
-            setBetaEnabled(channel === 'beta');
-        } catch (e) {
-            console.error('Could not change the release channel', e);
-        }
-    };
-
-    const toggleBeta = () => {
-        if (betaEnabled) {
-            applyChannel('stable');
-            return;
-        }
-        setPrompt({
-            title: 'Enable Beta Releases?',
-            message:
-                'Beta releases are published before they are considered stable, and may contain new features that are still being tested. You can switch back to stable at any time.',
-            type: 'info',
-            confirmText: 'Enable',
-            onConfirm: () => applyChannel('beta'),
-        });
-    };
-
     const standards = radioConfig?.available_services ?? FALLBACK_STANDARDS;
 
     const toggleBroadcast = async () => {
@@ -162,8 +130,6 @@ export function ControlWidget({
                         offsetMinutes={settings.offsetMinutes}
                         offsetSign={settings.offsetSign}
                         onToggleLeds={toggleLeds}
-                        betaEnabled={betaEnabled}
-                        onToggleBeta={toggleBeta}
                         onOpenTimeSettings={() => {
                             if (isTransmitting) {
                                 setPrompt({

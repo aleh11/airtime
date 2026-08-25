@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ClockWidget } from './components/ClockWidget';
 import { ControlWidget } from './components/ControlWidget';
 import { ScheduleWidget } from './components/ScheduleWidget';
@@ -9,7 +9,8 @@ import { RestartOverlay } from './components/RestartOverlay';
 import { useSystemStatus } from './hooks/useSystemStatus';
 import { useDashboardData } from './hooks/useDashboardData';
 import { useSystemUpdate } from './hooks/useSystemUpdate';
-import { RadioTower, Github, AlertTriangle, RefreshCw } from 'lucide-react';
+import { api } from './services/api';
+import { RadioTower, Github, AlertTriangle, RefreshCw, FlaskConical } from 'lucide-react';
 
 function App() {
   const { status, metrics, refreshStatus } = useSystemStatus();
@@ -17,6 +18,25 @@ function App() {
   const update = useSystemUpdate();
 
   const [timeTesterEnabled, setTimeTesterEnabled] = useState(false);
+  const [betaEnabled, setBetaEnabled] = useState(false);
+  const [confirmBeta, setConfirmBeta] = useState(false);
+
+  useEffect(() => {
+    api.getReleaseChannel()
+      .then(({ channel }) => setBetaEnabled(channel === 'beta'))
+      .catch((e) => console.error('Could not read the release channel', e));
+  }, []);
+
+  const applyChannel = async (channel: 'stable' | 'beta') => {
+    setConfirmBeta(false);
+    try {
+      await api.setReleaseChannel(channel);
+      setBetaEnabled(channel === 'beta');
+      update.check(true);
+    } catch (e) {
+      console.error('Could not change the release channel', e);
+    }
+  };
 
   if (loading) {
     return (
@@ -57,6 +77,18 @@ Your schedules and settings are kept.`}
         confirmText="Update Now"
       />
 
+      <ConfirmModal
+        isOpen={confirmBeta}
+        title="Enable Beta Releases?"
+        message={`This install will be offered beta builds, which are published straight from development and may be unstable.
+
+You can switch back to stable at any time.`}
+        type="info"
+        onConfirm={() => applyChannel('beta')}
+        onClose={() => setConfirmBeta(false)}
+        confirmText="Enable"
+      />
+
       {update.installing && (
         <RestartOverlay
           title="Installing Update"
@@ -82,6 +114,16 @@ Your schedules and settings are kept.`}
             <a href="https://github.com/aleh11/airtime" target="_blank" rel="noreferrer" className="text-slate-500 hover:text-slate-300 transition-colors">
               <Github size={20} />
             </a>
+            <button
+              onClick={() => (betaEnabled ? applyChannel('stable') : setConfirmBeta(true))}
+              className={`transition-colors p-1 rounded-md ${betaEnabled
+                ? 'text-purple-400 border border-purple-500/50 bg-purple-500/10 hover:bg-purple-500/20'
+                : 'text-slate-600 hover:text-slate-400'
+                }`}
+              title={betaEnabled ? 'Beta releases enabled' : 'Enable beta releases'}
+            >
+              <FlaskConical size={20} />
+            </button>
           </div>
         </header>
 
