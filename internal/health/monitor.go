@@ -34,6 +34,8 @@ type Monitor struct {
 	stealth   bool
 	stealthAt time.Time
 	lastState map[gpio.LED]bool
+
+	transmitState *bool
 }
 
 func NewMonitor(s *store.Store, leds gpio.Controller, transmitting func() bool) *Monitor {
@@ -72,9 +74,29 @@ func (m *Monitor) Run(ctx context.Context) {
 func (m *Monitor) driveLEDs(now time.Time) {
 	m.setLED(gpio.Heartbeat, m.heartbeat.State(now))
 	m.setLED(gpio.NTP, m.ntp.State(now))
-	if m.transmitting != nil {
-		m.setLED(gpio.Antenna, m.transmitting())
+	if m.transmitting == nil {
+		return
 	}
+
+	transmitting := m.transmitting()
+	m.setLED(gpio.Antenna, transmitting)
+	m.recordTransmitting(transmitting)
+}
+
+// recordTransmitting keeps the stored flag in step with what is actually on
+// air. The broadcast controller writes it when it starts and stops something,
+// but a txtempus it did not start — left by a crash, or run by hand — would
+// otherwise transmit with the dashboard reporting nothing. The original
+// implementation wrote this from its own process check for the same reason.
+func (m *Monitor) recordTransmitting(transmitting bool) {
+	if m.transmitState != nil && *m.transmitState == transmitting {
+		return
+	}
+	if err := m.store.SetStatus("services", "txtempus_running", transmitting); err != nil {
+		m.log.Error("record transmitter state", "error", err)
+		return
+	}
+	m.transmitState = &transmitting
 }
 
 func (m *Monitor) sample(ctx context.Context) {
