@@ -34,11 +34,14 @@ resolve_installer() {
 
   echo "no stable release published; falling back to the newest prerelease" >&2
 
-  local tag
-  tag="$(curl -fsSL --retry 2 -H 'Accept: application/vnd.github+json' \
-    "https://api.github.com/repos/${repository}/releases?per_page=10" 2>/dev/null \
-    | grep -m1 '"tag_name"' \
-    | sed -E 's/.*"tag_name"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/')"
+  # Read the response into a variable and parse it without a pipeline. Any
+  # reader that stops early — grep -m1, head, awk with exit — leaves curl
+  # writing to a closed pipe, and under pipefail that failure kills the script
+  # before it has installed anything. install.sh carries the same warning.
+  local body tag
+  body="$(curl -fsSL --retry 2 -H 'Accept: application/vnd.github+json' \
+    "https://api.github.com/repos/${repository}/releases?per_page=10" 2>/dev/null)" || body=""
+  tag="$(awk -F'"' '/"tag_name"/{print $4; exit}' <<<"${body}")"
 
   if [[ -z "${tag}" ]]; then
     echo "could not resolve any release to install; run the installer manually:" >&2
