@@ -11,8 +11,12 @@ import (
 )
 
 const (
-	pollInterval    = 15 * time.Second
-	heartbeatPeriod = 2 * time.Second
+	pollInterval = 15 * time.Second
+	// The LEDs are driven far faster than they are sampled: a flash is 100ms, so
+	// anything slower than this would smear the pattern, and the antenna LED has
+	// to answer a button press rather than wait for the next poll.
+	ledInterval     = 50 * time.Millisecond
+	stealthInterval = time.Second
 	pingTarget      = "1.1.1.1"
 )
 
@@ -23,32 +27,53 @@ type Monitor struct {
 	log   *slog.Logger
 
 	transmitting func() bool
+
+	heartbeat Blinker
+	ntp       Blinker
+
+	stealth   bool
+	stealthAt time.Time
+	lastState map[gpio.LED]bool
 }
 
 func NewMonitor(s *store.Store, leds gpio.Controller, transmitting func() bool) *Monitor {
-	return &Monitor{store: s, leds: leds, log: slog.Default(), transmitting: transmitting}
+	return &Monitor{
+		store:        s,
+		leds:         leds,
+		log:          slog.Default(),
+		transmitting: transmitting,
+		lastState:    map[gpio.LED]bool{},
+	}
 }
 
 func (m *Monitor) Run(ctx context.Context) {
 	poll := time.NewTicker(pollInterval)
 	defer poll.Stop()
-	heartbeat := time.NewTicker(heartbeatPeriod)
-	defer heartbeat.Stop()
+	leds := time.NewTicker(ledInterval)
+	defer leds.Stop()
 
 	m.sample(ctx)
 
-	lit := false
 	for {
 		select {
 		case <-ctx.Done():
 			m.setLED(gpio.Heartbeat, false)
+			m.setLED(gpio.NTP, false)
+			m.setLED(gpio.Antenna, false)
 			return
 		case <-poll.C:
 			m.sample(ctx)
-		case <-heartbeat.C:
-			lit = !lit
-			m.setLED(gpio.Heartbeat, lit)
+		case now := <-leds.C:
+			m.driveLEDs(now)
 		}
+	}
+}
+
+func (m *Monitor) driveLEDs(now time.Time) {
+	m.setLED(gpio.Heartbeat, m.heartbeat.State(now))
+	m.setLED(gpio.NTP, m.ntp.State(now))
+	if m.transmitting != nil {
+		m.setLED(gpio.Antenna, m.transmitting())
 	}
 }
 
@@ -64,9 +89,18 @@ func (m *Monitor) sample(ctx context.Context) {
 	m.store.SetStatus("internet_status", "score", ping.Score)
 	m.store.SetStatus("internet_status", "ping_ms", ping.LatencyMS)
 
-	m.setLED(gpio.NTP, ntp.Synced)
-	if m.transmitting != nil {
-		m.setLED(gpio.Antenna, m.transmitting())
+	// A score is only meaningful while the thing it scores is reachable, so an
+	// unsynchronised clock or a dead link leaves its LED dark rather than
+	// pulsing at whatever the last good reading was.
+	if ntp.Synced {
+		m.ntp.Interval = ScoreInterval(ntp.Score)
+	} else {
+		m.ntp.Interval = 0
+	}
+	if ping.Connected {
+		m.heartbeat.Interval = ScoreInterval(ping.Score)
+	} else {
+		m.heartbeat.Interval = 0
 	}
 }
 
@@ -92,10 +126,27 @@ func (m *Monitor) setLED(led gpio.LED, on bool) {
 	if m.leds == nil {
 		return
 	}
-	if stealth, _, _ := m.store.Setting("app_config", "stealth_mode"); stealth == "true" {
+	if m.stealthMode() {
 		on = false
 	}
+	// The LEDs are driven twenty times a second; only the changes are worth
+	// pushing at the kernel.
+	if previous, seen := m.lastState[led]; seen && previous == on {
+		return
+	}
+	m.lastState[led] = on
 	if err := m.leds.Set(led, on); err != nil {
 		m.log.Error("set led", "led", led, "error", err)
 	}
+}
+
+// stealthMode caches the setting: it is consulted on every LED tick, which is
+// far too often to be reading the database.
+func (m *Monitor) stealthMode() bool {
+	if now := time.Now(); now.Sub(m.stealthAt) >= stealthInterval {
+		stealth, _, _ := m.store.Setting("app_config", "stealth_mode")
+		m.stealth = stealth == "true"
+		m.stealthAt = now
+	}
+	return m.stealth
 }
