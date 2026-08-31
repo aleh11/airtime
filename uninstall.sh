@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
-#
 # Removes AirTime. Pass --purge to delete schedules and settings as well.
-#
 set -Eeuo pipefail
 
 state_dir="/var/lib/airtime"

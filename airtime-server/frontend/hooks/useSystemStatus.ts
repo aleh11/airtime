@@ -5,9 +5,6 @@ import { SystemMetrics, SystemStatus } from '../types';
 const STATUS_INTERVAL_MS = 5000;
 const METRICS_INTERVAL_MS = 2000;
 
-/**
- * Polls the daemon for live status and performance metrics.
- */
 export function useSystemStatus() {
     const [status, setStatus] = useState<SystemStatus | null>(null);
     const [metrics, setMetrics] = useState<SystemMetrics | null>(null);

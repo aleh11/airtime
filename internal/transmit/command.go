@@ -53,9 +53,7 @@ func ValidateDuration(minutes int) (int, error) {
 	return minutes, nil
 }
 
-// Command builds the txtempus invocation for a request. Arguments are passed as
-// a slice and never through a shell, so no value here can be interpreted as a
-// command by anything downstream.
+// Arguments go as a slice, never through a shell.
 func Command(req Request, now time.Time) []string {
 	args := []string{
 		BinaryPath,

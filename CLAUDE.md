@@ -9,6 +9,17 @@ The whole backend is one Go daemon: `cmd/airtimed` with packages under
 built and embedded into `internal/web/dist` by `scripts/build.sh`. State lives in
 `/var/lib/airtime`.
 
+## Comments
+
+One line, or none. A comment longer than one line is a defect: cut it or delete
+it. Never restate what the code does — the only thing worth writing down is a
+*why* that cannot be read off the code, and that fits on one line. History
+belongs in commit messages, reasoning belongs in `docs/adr/`, and neither
+belongs above a function.
+
+No doc comments on packages, types or functions, in any language, including Go
+and TSDoc. The convention does not override this.
+
 ## Start here
 
 - [CONTEXT.md](CONTEXT.md) — domain vocabulary. Use these terms.

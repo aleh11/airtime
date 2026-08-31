@@ -6,10 +6,7 @@ import "time"
 // their meaning in the gap between flashes, not in the flash itself.
 const FlashDuration = 100 * time.Millisecond
 
-// Blinker reproduces the hat's original blink pattern: a short flash separated
-// by a gap of Interval, so a healthier score reads as a faster pulse. An
-// Interval of zero means the LED is dark, which is how an offline check or an
-// unsynchronised clock is shown.
+// A short flash separated by Interval, so a better score pulses faster; zero is dark.
 type Blinker struct {
 	Interval   time.Duration
 	on         bool

@@ -12,9 +12,7 @@ import (
 
 const (
 	pollInterval = 15 * time.Second
-	// The LEDs are driven far faster than they are sampled: a flash is 100ms, so
-	// anything slower than this would smear the pattern, and the antenna LED has
-	// to answer a button press rather than wait for the next poll.
+	// Far faster than the poll: a flash is 100ms and the antenna must answer the button.
 	ledInterval     = 50 * time.Millisecond
 	stealthInterval = time.Second
 	pingTarget      = "1.1.1.1"
@@ -83,11 +81,7 @@ func (m *Monitor) driveLEDs(now time.Time) {
 	m.recordTransmitting(transmitting)
 }
 
-// recordTransmitting keeps the stored flag in step with what is actually on
-// air. The broadcast controller writes it when it starts and stops something,
-// but a txtempus it did not start — left by a crash, or run by hand — would
-// otherwise transmit with the dashboard reporting nothing. The original
-// implementation wrote this from its own process check for the same reason.
+// The controller only writes this for its own broadcasts; a stray would go unreported.
 func (m *Monitor) recordTransmitting(transmitting bool) {
 	if m.transmitState != nil && *m.transmitState == transmitting {
 		return
@@ -111,9 +105,7 @@ func (m *Monitor) sample(ctx context.Context) {
 	m.store.SetStatus("internet_status", "score", ping.Score)
 	m.store.SetStatus("internet_status", "ping_ms", ping.LatencyMS)
 
-	// A score is only meaningful while the thing it scores is reachable, so an
-	// unsynchronised clock or a dead link leaves its LED dark rather than
-	// pulsing at whatever the last good reading was.
+	// Unreachable leaves the LED dark rather than pulsing at a stale score.
 	if ntp.Synced {
 		m.ntp.Interval = ScoreInterval(ntp.Score)
 	} else {

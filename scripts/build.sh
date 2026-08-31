@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# Builds the dashboard, embeds it, and compiles the daemon.
-#
 # Usage: scripts/build.sh [version] [goos/goarch ...]
 
 set -Eeuo pipefail

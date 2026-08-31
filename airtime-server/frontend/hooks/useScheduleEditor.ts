@@ -11,11 +11,7 @@ export interface ScheduleDraft {
 
 const EMPTY_DRAFT: ScheduleDraft = { time: '12:00', frequency: 'daily', standard: 'DCF77', duration: 10 };
 
-/**
- * Owns the add/edit form for schedules, including dismissing it on Escape or a
- * click outside the row being edited. The daemon builds the txtempus command
- * from the stored settings, so the form only sends what the user chose.
- */
+// The daemon builds the command from stored settings, so this sends only the choices.
 export function useScheduleEditor(onSaved: () => void, onError: (message: string) => void) {
     const [draft, setDraft] = useState<ScheduleDraft>(EMPTY_DRAFT);
     const [adding, setAdding] = useState(false);

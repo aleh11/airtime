@@ -2,10 +2,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { CronJob, RadioConfig } from '../types';
 
-/**
- * Owns the two pieces of state the dashboard edits: schedules and the radio
- * configuration they are encoded with.
- */
 export function useDashboardData() {
     const [schedules, setSchedules] = useState<CronJob[]>([]);
     const [radioConfig, setRadioConfig] = useState<RadioConfig | null>(null);

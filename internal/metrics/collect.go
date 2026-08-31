@@ -36,16 +36,10 @@ type MemoryJSON struct {
 	SwapPercent float64 `json:"swap_percent"`
 }
 
-// sampleInterval is the window CPU utilisation is measured over. It is fixed
-// rather than taken from the gap between requests so that the number means the
-// same thing however often, and by however many clients, it is asked for.
+// Fixed, so the figure means the same however often it is asked for.
 const sampleInterval = 2 * time.Second
 
-// Collector samples the kernel's counters on its own cadence. CPU utilisation
-// is a rate, so it can only be measured between two readings: deriving it from
-// the gap between callers made the figure depend on who asked and when, and
-// counted the work of serving that very request against a window as short as
-// the round trip.
+// Samples on its own cadence: a rate taken between callers depended on who asked.
 type Collector struct {
 	mu       sync.Mutex
 	previous *Stat

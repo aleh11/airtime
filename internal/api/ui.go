@@ -7,9 +7,7 @@ import (
 	"strings"
 )
 
-// Themes are the dashboard appearances the daemon will accept. The CSS for each
-// lives in the dashboard's themes.css; this list is the validation authority and
-// is served to the dashboard so the picker cannot offer one the daemon rejects.
+// The validation authority for themes; the CSS lives in themes.css.
 var Themes = []string{
 	"airtime-dark",
 	"airtime-light",

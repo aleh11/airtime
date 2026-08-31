@@ -97,9 +97,7 @@ func TestTimeTesterSuspendsSchedules(t *testing.T) {
 
 var _ = time.Second
 
-// A Pi has no real-time clock, so it boots with a stale time and jumps forward
-// when chrony syncs. Without a cap, that gap reads as downtime and every
-// schedule fires at once — observed on hardware as five broadcasts on one boot.
+// The chrony jump at boot reads as downtime; on hardware this fired five at once.
 func TestClockJumpForwardDoesNotFireEverything(t *testing.T) {
 	service, s, runner := newService(t)
 	s.SaveSchedule(store.Schedule{ID: "nightly", Command: "/usr/bin/txtempus -s DCF77 -r 360", Spec: "55 23 * * *", Enabled: true})
