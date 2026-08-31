@@ -1,6 +1,9 @@
 package gpio
 
-import "errors"
+import (
+	"errors"
+	"time"
+)
 
 var ErrUnsupported = errors.New("gpio is only available on linux")
 
@@ -50,3 +53,31 @@ func (f *Fake) Set(led LED, on bool) error {
 func (f *Fake) IsOn(led LED) bool { return f.state[led] }
 
 func (f *Fake) Close() error { return nil }
+
+// StartupAnimation sweeps the three LEDs three times, as the hat has always
+// done on boot. It is the only sign a user gets that the daemon came back after
+// a reboot or an update, so it survived the port on purpose.
+func StartupAnimation(c Controller) {
+	if c == nil {
+		return
+	}
+	order := []LED{Heartbeat, NTP, Antenna}
+	for sweep := 0; sweep < 3; sweep++ {
+		for _, led := range order {
+			c.Set(led, false)
+		}
+		time.Sleep(100 * time.Millisecond)
+
+		for _, led := range order {
+			c.Set(led, true)
+			if led == Antenna {
+				time.Sleep(200 * time.Millisecond)
+				continue
+			}
+			time.Sleep(100 * time.Millisecond)
+		}
+	}
+	for _, led := range order {
+		c.Set(led, false)
+	}
+}

@@ -103,6 +103,10 @@ func run() error {
 	leds := openGPIO(cfg, db, broadcaster)
 	if leds != nil {
 		defer leds.Close()
+		// Runs before the monitor starts, not alongside it: the monitor drives the
+		// same three lines every 50ms and caches what it last wrote, so a
+		// concurrent sweep would both fight it and leave that cache lying.
+		gpio.StartupAnimation(leds)
 	}
 
 	monitor := health.NewMonitor(db, leds, broadcaster.Running)

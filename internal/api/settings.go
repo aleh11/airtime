@@ -84,10 +84,12 @@ func (s *server) setRadioConfig(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	if input.Offset < -1440 || input.Offset > 1440 {
-		writeError(w, http.StatusBadRequest, "offset must be within a day")
+	offset, err := transmit.ValidateOffset(input.Offset)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	input.Offset = offset
 	if input.TimeMode == "" {
 		input.TimeMode = defaultRadioConfig.TimeMode
 	}

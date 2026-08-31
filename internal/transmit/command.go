@@ -8,7 +8,12 @@ import (
 
 const BinaryPath = "/usr/bin/txtempus"
 
-const MaxDurationMinutes = 24 * 60
+// MaxDurationMinutes matches the limit the dashboard has always enforced.
+const MaxDurationMinutes = 720
+
+// Offsets are a timezone shift in minutes, so twelve hours either way covers
+// every real use and rejects a typo that would otherwise reach txtempus.
+const MaxOffsetMinutes = 720
 
 // Standards are the signal standards txtempus can encode.
 var Standards = []string{"DCF77", "WWVB", "MSF", "JJY40", "JJY60"}
@@ -29,6 +34,13 @@ func ValidateStandard(standard string) error {
 		}
 	}
 	return fmt.Errorf("unknown signal standard %q", standard)
+}
+
+func ValidateOffset(minutes int) (int, error) {
+	if minutes < -MaxOffsetMinutes || minutes > MaxOffsetMinutes {
+		return 0, fmt.Errorf("offset must be between -%d and %d minutes, got %d", MaxOffsetMinutes, MaxOffsetMinutes, minutes)
+	}
+	return minutes, nil
 }
 
 func ValidateDuration(minutes int) (int, error) {
