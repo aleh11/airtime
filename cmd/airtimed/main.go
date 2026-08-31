@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -32,6 +33,8 @@ type config struct {
 	stateDir    string
 	legacyDB    string
 	listen      string
+	altListen   string
+	httpListen  string
 	certPath    string
 	keyPath     string
 	gpioChip    string
@@ -42,9 +45,14 @@ type config struct {
 func loadConfig() config {
 	stateDir := envOr("AIRTIME_STATE_DIR", "/var/lib/airtime")
 	return config{
-		stateDir:    stateDir,
-		legacyDB:    envOr("AIRTIME_LEGACY_DB", "/home/time/airtime/airtime-server/database/airtime.db"),
-		listen:      envOr("AIRTIME_LISTEN", ":8443"),
+		stateDir: stateDir,
+		legacyDB: envOr("AIRTIME_LEGACY_DB", "/home/time/airtime/airtime-server/database/airtime.db"),
+		listen:   envOr("AIRTIME_LISTEN", ":443"),
+		// The dashboard answered on :8443 for the whole of the port, and on the
+		// bare address before that, so both keep working: a user should never
+		// have to be told their bookmark changed.
+		altListen:   envOr("AIRTIME_LISTEN_ALT", ":8443"),
+		httpListen:  envOr("AIRTIME_LISTEN_HTTP", ":80"),
 		certPath:    envOr("AIRTIME_TLS_CERT", filepath.Join(stateDir, "tls", "cert.pem")),
 		keyPath:     envOr("AIRTIME_TLS_KEY", filepath.Join(stateDir, "tls", "key.pem")),
 		gpioChip:    envOr("AIRTIME_GPIO_CHIP", "gpiochip0"),
@@ -150,11 +158,19 @@ func run() error {
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
+	// The extra listeners are best effort. Something else holding :80 or :443 —
+	// an nginx left over from a migration that has not finished retiring it — is
+	// a reason to log and carry on, not to leave the Pi with no dashboard.
+	extras := serveExtras(ctx, cfg, handler)
+
 	go func() {
 		<-ctx.Done()
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		server.Shutdown(shutdownCtx)
+		for _, extra := range extras {
+			extra.Shutdown(shutdownCtx)
+		}
 		runner.Stop()
 	}()
 
@@ -165,6 +181,59 @@ func run() error {
 
 	slog.Info("airtime stopped cleanly")
 	return nil
+}
+
+// serveExtras keeps the old address answering and sends plain HTTP to HTTPS, so
+// every URL the dashboard has ever been reachable on still works.
+func serveExtras(ctx context.Context, cfg config, handler http.Handler) []*http.Server {
+	var servers []*http.Server
+
+	if cfg.altListen != "" && cfg.altListen != cfg.listen {
+		alt := &http.Server{Addr: cfg.altListen, Handler: handler, ReadHeaderTimeout: 10 * time.Second}
+		servers = append(servers, alt)
+		go func() {
+			if err := alt.ListenAndServeTLS(cfg.certPath, cfg.keyPath); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				slog.Warn("not listening on the alternate address", "addr", cfg.altListen, "error", err)
+				return
+			}
+		}()
+		slog.Info("dashboard also listening", "addr", cfg.altListen)
+	}
+
+	if cfg.httpListen != "" {
+		redirect := &http.Server{
+			Addr:              cfg.httpListen,
+			ReadHeaderTimeout: 10 * time.Second,
+			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				host := r.Host
+				if name, _, err := net.SplitHostPort(host); err == nil {
+					host = name
+				}
+				target := "https://" + host
+				if port := portOf(cfg.listen); port != "443" {
+					target += ":" + port
+				}
+				http.Redirect(w, r, target+r.URL.RequestURI(), http.StatusMovedPermanently)
+			}),
+		}
+		servers = append(servers, redirect)
+		go func() {
+			if err := redirect.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				slog.Warn("not redirecting plain http", "addr", cfg.httpListen, "error", err)
+				return
+			}
+		}()
+		slog.Info("redirecting plain http", "addr", cfg.httpListen)
+	}
+
+	return servers
+}
+
+func portOf(addr string) string {
+	if _, port, err := net.SplitHostPort(addr); err == nil && port != "" {
+		return port
+	}
+	return "443"
 }
 
 func boolText(value bool) string {

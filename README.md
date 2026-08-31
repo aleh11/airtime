@@ -67,7 +67,9 @@ If your dashboard shows its commit as `unknown`, it cannot check for updates and
 will report itself up to date forever. Run the install command above over SSH
 instead — it upgrades in place and keeps your data.
 
-After installation, your dashboard will be available at `https://pi-ip-address:8443`
+After installation, your dashboard will be available at `https://pi-ip-address`. Plain
+HTTP redirects to it, and `https://pi-ip-address:8443` keeps working, so any address you
+have bookmarked still reaches it.
 #### Useful commands
 - `sudo systemctl restart airtime` - Restart the service
 - `sudo systemctl status airtime` - Check the service

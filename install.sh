@@ -435,7 +435,8 @@ render_summary() {
   [[ -n "${address}" ]] || address="pi-ip-address"
 
   printf '\n  %b%sAirTime is on the air%b\n\n' "${bright}" "${success}" "${reset}"
-  printf '    %bDashboard%b  https://%s:8443\n' "${muted}" "${reset}" "${address}"
+  printf '    %bDashboard%b  https://%s\n' "${muted}" "${reset}" "${address}"
+  printf '    %bAlso at%b    https://%s:8443\n' "${muted}" "${reset}" "${address}"
   printf '    %bStatus%b     systemctl status %s\n' "${muted}" "${reset}" "${service_name}"
   printf '    %bLogs%b       journalctl -u %s -f\n' "${muted}" "${reset}" "${service_name}"
   printf '    %bState%b      %s\n\n' "${muted}" "${reset}" "${state_dir}"
