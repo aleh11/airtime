@@ -16,6 +16,8 @@ export interface ServicesStatus {
     txtempus_service?: string | null;
     txtempus_duration?: number | null;
     txtempus_started_at?: string | null;
+    txtempus_offset?: number | null;
+    txtempus_fixed_time?: string | null;
     txtempus_remaining_seconds?: number;
 }
 
@@ -50,8 +52,18 @@ export interface SystemStatus {
     services: ServicesStatus;
     app_config: AppConfig;
     system_time: string;
-    git_commit?: string;
-    git_branch?: string;
+    version?: string;
+}
+
+export type ReleaseChannel = 'stable' | 'beta';
+
+export interface UpdateInfo {
+    updates_available: boolean;
+    current_version: string;
+    latest_version: string;
+    release_url?: string;
+    channel?: ReleaseChannel;
+    prerelease?: boolean;
 }
 
 export interface RadioDetails {
@@ -78,14 +90,17 @@ export interface RadioConfig {
     default_duration_minutes: number;
     default_offset?: number;
     default_offset_enabled?: boolean;
+    default_time_mode?: string;
+    default_fixed_time?: string;
     timezone_offset_minutes?: number;
 }
 
 export interface CronJobInput {
     id: string;
-    command: string;
     time: string;
     frequency: string;
+    service: string;
+    duration: number;
     enabled: boolean;
 }
 
@@ -99,6 +114,8 @@ export interface RadioConfigInput {
     default_duration_minutes: number;
     default_offset: number;
     default_offset_enabled?: boolean;
+    default_time_mode?: string;
+    default_fixed_time?: string;
 }
 
 export enum ServiceType {
@@ -107,4 +124,17 @@ export enum ServiceType {
     MSF = "MSF",
     JJY40 = "JJY40",
     JJY60 = "JJY60"
+}
+
+export interface UiConfig {
+    theme: string;
+    layout: string;
+    hidden_widgets: string[];
+    available_themes: string[];
+}
+
+export interface UiConfigInput {
+    theme: string;
+    layout?: string;
+    hidden_widgets?: string[];
 }

@@ -1,396 +1,175 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { api } from './services/api';
-import { SystemStatus, CronJob, RadioConfig, SystemMetrics } from './types';
+import { useEffect, useState } from 'react';
 import { ClockWidget } from './components/ClockWidget';
 import { ControlWidget } from './components/ControlWidget';
 import { ScheduleWidget } from './components/ScheduleWidget';
 import { PerformanceWidget } from './components/PerformanceWidget';
 import UpdateBanner from './components/UpdateBanner';
 import { ConfirmModal } from './components/ConfirmModal';
-import { RadioTower, Github, AlertTriangle, RefreshCw, RotateCw, FlaskConical } from 'lucide-react';
+import { RestartOverlay } from './components/RestartOverlay';
+import { useSystemStatus } from './hooks/useSystemStatus';
+import { useDashboardData } from './hooks/useDashboardData';
+import { useSystemUpdate } from './hooks/useSystemUpdate';
+import { useUiConfig } from './hooks/useUiConfig';
+import { ThemePicker } from './components/ThemePicker';
+import { Button } from './components/ui/button';
+import { api } from './services/api';
+import { RadioTower, Github, AlertTriangle, RefreshCw, FlaskConical } from 'lucide-react';
 
 function App() {
-  const [status, setStatus] = useState<SystemStatus | null>(null);
-  const [crons, setCrons] = useState<CronJob[]>([]);
-  const [radioConfig, setRadioConfig] = useState<RadioConfig | null>(null);
-  const [metrics, setMetrics] = useState<SystemMetrics | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { status, metrics, refreshStatus } = useSystemStatus();
+  const { schedules, radioConfig, loading, error, refresh, refreshSchedules, retry } = useDashboardData();
+  const update = useSystemUpdate();
+  const ui = useUiConfig();
 
-  const [updateAvailable, setUpdateAvailable] = useState(false);
-  const [updateInfo, setUpdateInfo] = useState<{ local: string; remote: string } | null>(null);
-  const [showUpdateBanner, setShowUpdateBanner] = useState(false);
-  const [showUpdateModal, setShowUpdateModal] = useState(false);
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [updateBannerType, setUpdateBannerType] = useState<'available' | 'up-to-date' | null>(null);
-  const [showExperimentalModal, setShowExperimentalModal] = useState(false);
-  const [isSwitchingBranch, setIsSwitchingBranch] = useState(false);
-
-  const fetchData = useCallback(async () => {
-    setError(null);
-    try {
-      const [cronsData, configData] = await Promise.all([
-        api.getCrons(),
-        api.getRadioConfig()
-      ]);
-      setCrons(cronsData);
-      setRadioConfig(configData);
-    } catch (err: any) {
-      console.error("Failed to fetch initial data", err);
-      setError(err.message || "Failed to connect to backend");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const [timeTesterEnabled, setTimeTesterEnabled] = useState(false);
+  const [betaEnabled, setBetaEnabled] = useState(false);
+  const [confirmBeta, setConfirmBeta] = useState(false);
+  const [confirmStable, setConfirmStable] = useState(false);
 
   useEffect(() => {
-    fetchData();
+    api.getReleaseChannel()
+      .then(({ channel }) => setBetaEnabled(channel === 'beta'))
+      .catch((e) => console.error('Could not read the release channel', e));
+  }, []);
 
-    const pollStatus = async () => {
-      try {
-        const statusData = await api.getStatus();
-        setStatus(statusData);
-        setError((prev) => (prev && prev.includes("status") ? null : prev));
-      } catch (e) {
-        console.error("Status poll failed", e);
-      }
-    };
-
-    pollStatus();
-
-    const statusInterval = setInterval(pollStatus, 5000);
-
-    const metricsInterval = setInterval(async () => {
-      try {
-        const m = await api.getSystemMetrics();
-        setMetrics(m);
-      } catch (e) {
-        console.error("Metrics poll failed", e);
-      }
-    }, 2000);
-
-    return () => {
-      clearInterval(statusInterval);
-      clearInterval(metricsInterval);
-    };
-  }, [fetchData]);
-
-  const checkForUpdates = async (manual: boolean = false) => {
+  const applyChannel = async (channel: 'stable' | 'beta') => {
+    setConfirmBeta(false);
+    setConfirmStable(false);
     try {
-      const updateData = await api.checkUpdates();
-
-      setUpdateInfo({
-        local: updateData.local_commit,
-        remote: updateData.remote_commit
-      });
-
-      if (updateData.updates_available) {
-        setUpdateAvailable(true);
-        setUpdateBannerType('available');
-        setShowUpdateBanner(true);
-      } else if (manual) {
-        setUpdateAvailable(false);
-        setUpdateBannerType('up-to-date');
-        setShowUpdateBanner(true);
-
-        setTimeout(() => {
-          setUpdateBannerType(prev => {
-            if (prev === 'up-to-date') {
-              setShowUpdateBanner(false);
-              return null;
-            }
-            return prev;
-          });
-        }, 5000);
-      } else {
-        setUpdateAvailable(false);
-        setShowUpdateBanner(false);
-      }
+      await api.setReleaseChannel(channel);
+      setBetaEnabled(channel === 'beta');
+      update.check(true);
     } catch (e) {
-      console.error("Update check failed", e);
-    }
-  };
-
-  const handleUpdateClick = () => {
-    setShowUpdateModal(true);
-  };
-
-  const handleUpdateConfirm = async () => {
-    setIsUpdating(true);
-    setShowUpdateModal(false);
-
-    try {
-      await api.applyUpdate();
-
-      const targetCommit = updateInfo?.remote;
-      let attempts = 0;
-      const maxGitAttempts = 30;
-
-      while (attempts < maxGitAttempts) {
-        try {
-          const s = await api.getStatus();
-          if (s.git_commit && targetCommit && (s.git_commit.startsWith(targetCommit) || targetCommit.startsWith(s.git_commit))) {
-            break;
-          }
-        } catch (e) {
-          break;
-        }
-        await new Promise(r => setTimeout(r, 2000));
-        attempts++;
-      }
-
-      const pollUntilOnline = async (): Promise<boolean> => {
-        const maxAttempts = 60;
-        let attempts = 0;
-        while (attempts < maxAttempts) {
-          try {
-            await api.getStatus();
-            return true;
-          } catch (e) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            attempts++;
-          }
-        }
-        return false;
-      };
-
-      await pollUntilOnline();
-      window.location.reload();
-    } catch (e) {
-      console.error("Update failed:", e);
-      setIsUpdating(false);
-      alert('Update failed. Please check the logs and try again.');
-    }
-  };
-
-  const handleBroadcastStart = () => {
-    setTimeout(async () => {
-      try {
-        const s = await api.getStatus();
-        setStatus(s);
-      } catch (e) { }
-    }, 1000);
-  };
-
-  const refreshCrons = async () => {
-    try {
-      const c = await api.getCrons();
-      setCrons(c);
-    } catch (e) { console.error(e); }
-  };
-
-  const handleExperimentalClick = () => {
-    setShowExperimentalModal(true);
-  };
-
-  const handleExperimentalConfirm = async () => {
-    setIsSwitchingBranch(true);
-    setShowExperimentalModal(false);
-
-    try {
-      const currentBranch = status?.git_branch || 'master';
-      const targetBranch = currentBranch === 'experimental' ? 'master' : 'experimental';
-
-      await api.switchBranch(targetBranch);
-
-      // Wait for restart
-      await new Promise(r => setTimeout(r, 15000));
-
-      const pollUntilOnline = async (): Promise<boolean> => {
-        const maxAttempts = 60;
-        let attempts = 0;
-        while (attempts < maxAttempts) {
-          try {
-            await api.getStatus();
-            return true;
-          } catch (e) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            attempts++;
-          }
-        }
-        return false;
-      };
-
-      await pollUntilOnline();
-      window.location.reload();
-    } catch (e) {
-      console.error("Branch switch failed:", e);
-      setIsSwitchingBranch(false);
-      alert('Branch switch failed. Please check the logs.');
+      console.error('Could not change the release channel', e);
     }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center text-slate-500 animate-pulse">
+      <div className="flex min-h-screen animate-pulse items-center justify-center bg-background text-subtle-foreground">
         <RadioTower size={48} className="mb-4" />
       </div>
     );
   }
 
   if (error && !status && !radioConfig) {
-    return (
-      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4">
-        <div className="bg-slate-800 border border-red-900/50 p-8 rounded-2xl max-w-md w-full text-center shadow-2xl">
-          <div className="bg-red-900/20 p-4 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-6 text-red-500">
-            <AlertTriangle size={32} />
-          </div>
-          <h2 className="text-xl font-bold text-white mb-2">Connection Failed</h2>
-          <p className="text-slate-400 mb-6 font-mono text-sm">{error}</p>
-          <div className="text-xs text-slate-500 mb-8 bg-slate-900 p-4 rounded text-left">
-            <p className="font-semibold mb-2">Troubleshooting:</p>
-            <ul className="list-disc list-inside space-y-1">
-              <li>Ensure backend is running</li>
-              <li>Check CORS configuration on the server</li>
-              <li>Verify endpoints (e.g. /api/status) exist</li>
-            </ul>
-          </div>
-          <button
-            onClick={() => { setLoading(true); fetchData(); }}
-            className="w-full py-3 bg-red-600 hover:bg-red-500 text-white rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
-          >
-            <RefreshCw size={18} /> Retry Connection
-          </button>
-        </div>
-      </div>
-    );
+    return <ConnectionFailed error={error} onRetry={retry} />;
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-200 p-4 md:p-8 font-sans selection:bg-cyan-500/30">
-      {showUpdateBanner && updateInfo && updateBannerType && (
+    <div className="min-h-screen bg-background p-4 font-sans text-foreground selection:bg-primary/30 md:p-8">
+      {update.banner && update.info && (
         <UpdateBanner
-          type={updateBannerType}
-          localCommit={updateInfo.local}
-          remoteCommit={updateInfo.remote}
-          onDismiss={() => setShowUpdateBanner(false)}
-          onUpdate={handleUpdateClick}
+          type={update.banner}
+          currentVersion={update.info.current_version}
+          latestVersion={update.info.latest_version}
+          onDismiss={update.dismissBanner}
+          onUpdate={update.requestConfirmation}
         />
       )}
 
       <ConfirmModal
-        isOpen={showUpdateModal}
+        isOpen={update.confirming}
         title="Update Available"
-        message={`A new version is available. The system will pull the latest changes from git and restart all services. This will take about 10-15 seconds.
+        message={`AirTime will download and verify the latest release, then restart.
 
-Current: ${updateInfo?.local}
-New: ${updateInfo?.remote}
+Current: ${update.info?.current_version}
+New: ${update.info?.latest_version}
 
-Continue with update?`}
+Your schedules and settings are kept.`}
         type="info"
-        onConfirm={handleUpdateConfirm}
-        onClose={() => setShowUpdateModal(false)}
+        onConfirm={update.install}
+        onClose={update.cancelConfirmation}
         confirmText="Update Now"
       />
 
-      {isUpdating && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[70] backdrop-blur-sm">
-          <div className="bg-slate-800 rounded-2xl p-8 max-w-sm w-full border border-slate-700 shadow-2xl text-center">
-            <div className="mb-6">
-              <RotateCw size={48} className="mx-auto animate-spin text-purple-400" />
-            </div>
-            <h3 className="text-xl font-bold text-white mb-3">
-              Restarting Server...
-            </h3>
-            <p className="text-sm text-slate-400 mb-6">
-              Update applied. Waiting for server to restart. This should take 10-15 seconds.
-            </p>
-            <div className="flex items-center justify-center gap-2 text-xs text-slate-500">
-              <div className="animate-pulse">Polling for connection</div>
-              <div className="flex gap-1">
-                <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmModal
+        isOpen={confirmBeta}
+        title="Enable Beta Releases?"
+        message={`This install will be offered beta builds, which are published straight from development and may be unstable.
 
-      {isSwitchingBranch && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[70] backdrop-blur-sm">
-          <div className="bg-slate-800 rounded-2xl p-8 max-w-sm w-full border border-slate-700 shadow-2xl text-center">
-            <div className="mb-6">
-              <FlaskConical size={48} className="mx-auto animate-bounce text-purple-400" />
-            </div>
-            <h3 className="text-xl font-bold text-white mb-3">
-              Switching Branch...
-            </h3>
-            <p className="text-sm text-slate-400 mb-6">
-              Switching to {status?.git_branch === 'experimental' ? 'master' : 'experimental'} branch. The system will restart shortly.
-            </p>
-            <div className="flex items-center justify-center gap-2 text-xs text-slate-500">
-              <div className="animate-pulse">Please wait</div>
-              <div className="flex gap-1">
-                <div className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                <div className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                <div className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+You can switch back to stable at any time.`}
+        type="info"
+        onConfirm={() => applyChannel('beta')}
+        onClose={() => setConfirmBeta(false)}
+        confirmText="Enable"
+      />
 
       <ConfirmModal
-        isOpen={showExperimentalModal}
-        title={status?.git_branch === 'experimental' ? 'Disable Experimental Features?' : 'Enable Experimental Features?'}
-        message={status?.git_branch === 'experimental'
-          ? "This will switch the system back to the stable 'master' branch. The system will restart."
-          : "This will switch the system to the 'experimental' branch. New features may be unstable. The system will restart."}
-        type={status?.git_branch === 'experimental' ? 'warning' : 'info'}
-        onConfirm={handleExperimentalConfirm}
-        onClose={() => setShowExperimentalModal(false)}
-        confirmText={status?.git_branch === 'experimental' ? 'Disable & Restart' : 'Enable & Restart'}
+        isOpen={confirmStable}
+        title="Switch Back to Stable?"
+        message={`This install will only be offered stable releases from now on.
+
+It stays on ${status?.version ?? 'the current build'} until a stable release is newer than it, so nothing is downgraded or reinstalled right now.`}
+        type="info"
+        onConfirm={() => applyChannel('stable')}
+        onClose={() => setConfirmStable(false)}
+        confirmText="Switch to Stable"
       />
+
+      {update.installing && (
+        <RestartOverlay
+          title="Installing Update"
+          message="AirTime is downloading the release, verifying it, and restarting. This usually takes 10-20 seconds."
+          hint="Waiting for the daemon"
+        />
+      )}
 
       <div className="max-w-5xl mx-auto space-y-4">
         <header className="flex items-center justify-between py-2 mb-2">
           <div className="flex items-center gap-3">
-            <img src="/airtime-logo.png" alt="Airtime Logo" className="w-14 h-14 object-contain" />
+            <img src="/airtime-logo.png" alt="AirTime" className="w-14 h-14 object-contain" />
             <div>
-              <h1 className="text-xl font-bold tracking-tight text-white">AirTime</h1>
-              <p className="text-xs text-slate-500 font-mono">LOCAL TIME-SIGNAL TRANSMITTER</p>
+              <h1 className="text-xl font-bold tracking-tight text-heading">AirTime</h1>
+              <p className="font-mono text-xs text-subtle-foreground">LOCAL TIME-SIGNAL TRANSMITTER</p>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <a href="https://airtime.diy/" target="_blank" rel="noreferrer" className="text-slate-500 hover:text-slate-300 transition-colors text-xs font-mono">
+            <ThemePicker theme={ui.theme} themes={ui.availableThemes} onSelect={ui.setTheme} />
+            <a href="https://airtime.diy/" target="_blank" rel="noreferrer" className="font-mono text-xs text-subtle-foreground transition-colors hover:text-foreground">
               Website
             </a>
-            <a href="https://github.com/aleh11/airtime" target="_blank" rel="noreferrer" className="text-slate-500 hover:text-slate-300 transition-colors">
+            <a href="https://github.com/aleh11/airtime" target="_blank" rel="noreferrer" className="text-subtle-foreground transition-colors hover:text-foreground">
               <Github size={20} />
             </a>
-            <button
-              onClick={handleExperimentalClick}
-              className={`transition-colors p-1 rounded-md ${status?.git_branch === 'experimental'
-                ? 'text-purple-400 bg-purple-500/10 hover:bg-purple-500/20'
-                : 'text-slate-500 hover:text-slate-300'
-                }`}
-              title={status?.git_branch === 'experimental' ? "Experimental Features Enabled" : "Enable Experimental Features"}
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => (betaEnabled ? setConfirmStable(true) : setConfirmBeta(true))}
+              className={betaEnabled
+                ? 'border border-testing/50 bg-testing/10 text-testing-bright hover:bg-testing/20'
+                : 'text-faint-foreground hover:text-muted-foreground'}
+              title={betaEnabled ? 'Beta releases enabled' : 'Enable beta releases'}
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2" />
-                <path d="M8.5 2h7" />
-                <path d="M7 16h10" />
-              </svg>
-            </button>
+              <FlaskConical size={18} />
+            </Button>
           </div>
         </header>
 
         <main className="grid grid-cols-1 lg:grid-cols-12 gap-4">
           <div className="order-1 lg:col-span-7">
-            <ClockWidget status={status} />
+            <ClockWidget
+              status={status}
+              radioConfig={radioConfig}
+              timeTesterEnabled={timeTesterEnabled}
+            />
           </div>
 
           <div className="order-2 lg:col-span-5 lg:row-span-2 h-full">
             <ControlWidget
               radioConfig={radioConfig}
-              onBroadcastStart={handleBroadcastStart}
-              onCheckUpdates={() => checkForUpdates(true)}
+              onBroadcastStart={() => setTimeout(refreshStatus, 1000)}
+              onCheckUpdates={() => update.check(true)}
+              onSettingsSaved={refresh}
               isTransmitting={status?.services.txtempus_running}
               activeService={status?.services.txtempus_service}
               activeDuration={status?.services.txtempus_duration}
               remainingSeconds={status?.services.txtempus_remaining_seconds}
+              onTimeTesterChange={(enabled) => {
+                setTimeTesterEnabled(enabled);
+                refresh();
+              }}
             />
           </div>
 
@@ -400,17 +179,42 @@ Continue with update?`}
 
           <div className="order-4 lg:col-span-12">
             <ScheduleWidget
-              jobs={crons}
-              onUpdate={refreshCrons}
+              jobs={schedules}
+              onUpdate={refreshSchedules}
               radioConfig={radioConfig}
               status={status}
+              timeTesterEnabled={timeTesterEnabled}
             />
           </div>
         </main>
 
-        <footer className="text-center text-xs text-slate-600 pt-12 pb-4">
-          Airtime Control Dashboard • Build: {status?.git_commit || 'unknown'}
+        <footer className="pt-12 pb-4 text-center text-xs text-faint-foreground">
+          AirTime Control Dashboard • {status?.version || 'unknown version'}
         </footer>
+      </div>
+    </div>
+  );
+}
+
+function ConnectionFailed({ error, onRetry }: { error: string; onRetry: () => void }) {
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
+      <div className="w-full max-w-md rounded-2xl border border-danger/50 bg-card p-8 text-center shadow-2xl">
+        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-danger/20 text-danger">
+          <AlertTriangle size={32} />
+        </div>
+        <h2 className="mb-2 text-xl font-bold text-heading">Connection Failed</h2>
+        <p className="mb-6 font-mono text-sm text-muted-foreground">{error}</p>
+        <div className="mb-8 rounded bg-surface-sunken p-4 text-left text-xs text-subtle-foreground">
+          <p className="font-semibold mb-2">Troubleshooting:</p>
+          <ul className="list-disc list-inside space-y-1">
+            <li>Check the daemon is running: <span className="font-mono">systemctl status airtime</span></li>
+            <li>Check the logs: <span className="font-mono">journalctl -u airtime -f</span></li>
+          </ul>
+        </div>
+        <Button variant="destructive" size="lg" onClick={onRetry} className="w-full font-semibold">
+          <RefreshCw size={18} /> Retry Connection
+        </Button>
       </div>
     </div>
   );

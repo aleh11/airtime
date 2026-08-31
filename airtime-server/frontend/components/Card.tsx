@@ -1,4 +1,6 @@
 import React from 'react';
+import { Card as UICard, CardContent, CardHeader, CardTitle } from './ui/card';
+import { cn } from '@/lib/utils';
 
 interface CardProps {
   children: React.ReactNode;
@@ -9,14 +11,14 @@ interface CardProps {
 
 export const Card: React.FC<CardProps> = ({ children, className = '', title, action }) => {
   return (
-    <div className={`bg-slate-800 border border-slate-700 rounded-xl p-6 shadow-sm ${className}`}>
+    <UICard className={cn('gap-0 rounded-xl py-6 shadow-sm', className)}>
       {(title || action) && (
-        <div className="flex justify-between items-center mb-4">
-            {title && <h3 className="text-slate-100 font-semibold text-lg">{title}</h3>}
-            {action && <div>{action}</div>}
-        </div>
+        <CardHeader className="mb-4 px-6 [.border-b]:pb-0">
+          {title && <CardTitle className="text-lg font-semibold text-card-foreground">{title}</CardTitle>}
+          {action && <div className="col-start-2 row-span-2 row-start-1 self-start justify-self-end">{action}</div>}
+        </CardHeader>
       )}
-      {children}
-    </div>
+      <CardContent className="flex-1 px-6">{children}</CardContent>
+    </UICard>
   );
 };

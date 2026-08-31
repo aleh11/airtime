@@ -20,7 +20,7 @@ export function PerformanceWidget({ metrics, status }: Props) {
     if (!metrics) {
         return (
             <Card title="System Performance">
-                <div className="h-32 flex items-center justify-center text-slate-600 animate-pulse">
+                <div className="flex h-32 animate-pulse items-center justify-center text-faint-foreground">
                     Loading...
                 </div>
             </Card>
@@ -50,15 +50,15 @@ export function PerformanceWidget({ metrics, status }: Props) {
         bgClass: string
     }) => (
         <div className="flex flex-col justify-end">
-            <div className="flex justify-between items-end mb-2">
-                <div className="flex items-center gap-2 text-slate-400 font-medium text-xs uppercase">
+            <div className="mb-2 flex items-end justify-between">
+                <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase">
                     <Icon size={14} className={colorClass} /> {label}
                 </div>
-                <div className={`font-mono font-bold ${colorClass} text-sm`}>
+                <div className={`font-mono text-sm font-bold ${colorClass}`}>
                     {valueText}
                 </div>
             </div>
-            <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
                 <div
                     className={`h-1.5 rounded-full transition-all duration-500 ${bgClass}`}
                     style={{ width: `${Math.min(100, Math.max(0, percent))}%` }}
@@ -68,70 +68,70 @@ export function PerformanceWidget({ metrics, status }: Props) {
     );
 
     const getTempColor = (temp: number) => {
-        if (temp < 50) return "text-emerald-400";
-        if (temp < 70) return "text-orange-400";
-        return "text-red-500";
+        if (temp < 50) return 'text-success';
+        if (temp < 70) return 'text-offset-negative';
+        return 'text-danger';
     };
 
     return (
         <Card title="System Statistics" className="h-full">
             <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                     <TopStat
                         icon={Cpu}
                         label="CPU"
-                        valueText={`${metrics.cpu.percent}%`}
+                        valueText={`${metrics.cpu.percent.toFixed(1)}%`}
                         percent={metrics.cpu.percent}
-                        colorClass="text-cyan-400"
-                        bgClass="bg-cyan-500"
+                        colorClass="text-on-air-bright"
+                        bgClass="bg-on-air"
                     />
                     <TopStat
                         icon={CircuitBoard}
                         label="RAM"
-                        valueText={`${metrics.memory.percent}%`}
+                        valueText={`${metrics.memory.percent.toFixed(1)}%`}
                         percent={metrics.memory.percent}
-                        colorClass="text-purple-400"
-                        bgClass="bg-purple-500"
+                        colorClass="text-accent-alt"
+                        bgClass="bg-accent-alt-strong"
                     />
                 </div>
 
                 <div className="grid grid-cols-4 gap-4">
-                    <div className="flex flex-col gap-1.5 items-start">
-                        <div className="flex items-center gap-1.5 text-slate-400 font-medium text-xs uppercase text-nowrap">
+                    <div className="flex flex-col items-start gap-1.5">
+                        <div className="flex items-center gap-1.5 text-xs font-medium text-nowrap text-muted-foreground uppercase">
                             <Thermometer size={14} /> TEMP
                         </div>
-                        <div className={`font-mono font-bold text-sm ${getTempColor(metrics.temperature)}`}>
-                            {metrics.temperature > 0 ? `${metrics.temperature}°C` : 'N/A'}
+                        <div className={`font-mono text-sm font-bold ${getTempColor(metrics.temperature)}`}>
+                            {metrics.temperature > 0 ? `${metrics.temperature.toFixed(1)}°C` : 'N/A'}
                         </div>
                     </div>
 
-                    <div className="flex flex-col gap-1.5 items-center">
-                        <div className="flex items-center gap-1.5 text-slate-400 font-medium text-xs uppercase text-nowrap">
+                    <div className="flex flex-col items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 text-xs font-medium text-nowrap text-muted-foreground uppercase">
                             <Radio size={14} /> NTP SYNC
                         </div>
-                        <div className={`font-mono font-bold text-sm ${status?.ntp_status.synced ? 'text-emerald-400' : 'text-red-400'}`}>
+                        <div className={`font-mono text-sm font-bold ${status?.ntp_status.synced ? 'text-success' : 'text-danger'}`}>
                             {status?.ntp_status.synced
                                 ? formatTimeAgo(status.ntp_status.last_rx_seconds || 0)
                                 : 'NO SYNC'}
                         </div>
                     </div>
 
-                    <div className="flex flex-col gap-1.5 items-center">
-                        <div className="flex items-center gap-1.5 text-slate-400 font-medium text-xs uppercase text-nowrap">
+                    <div className="flex flex-col items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 text-xs font-medium text-nowrap text-muted-foreground uppercase">
                             <Globe size={14} /> PING
                         </div>
-                        <div className={`font-mono font-bold text-sm ${status?.internet_status.connected ? 'text-cyan-400' : 'text-red-500'}`}>
+                        <div className={`font-mono text-sm font-bold ${status?.internet_status.connected ? 'text-on-air-bright' : 'text-danger'}`}>
                             {status?.internet_status.connected
                                 ? `${Math.round(status.internet_status.ping_ms)}ms`
                                 : 'OFFLINE'}
                         </div>
                     </div>
 
-                    <div className="flex flex-col gap-1.5 items-end text-right">
-                        <div className="flex items-center gap-1.5 text-slate-400 font-medium text-xs uppercase text-nowrap">
+                    <div className="flex flex-col items-end gap-1.5 text-right">
+                        <div className="flex items-center gap-1.5 text-xs font-medium text-nowrap text-muted-foreground uppercase">
                             <Clock size={14} /> UPTIME
                         </div>
-                        <div className="font-mono font-bold text-xs text-slate-300 whitespace-nowrap">
+                        <div className="font-mono text-xs font-bold whitespace-nowrap text-foreground">
                             {formatUptime(metrics.uptime)}
                         </div>
                     </div>

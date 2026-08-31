@@ -1,526 +1,502 @@
-#!/bin/bash
-# AirTime Installation Script
-# Sets up a fresh Raspberry Pi with all dependencies
+#!/usr/bin/env bash
+#
+# AirTime installer.
+#
+#   curl -fsSL https://github.com/aleh11/airtime/releases/latest/download/install.sh | sudo bash
+#
+set -Eeuo pipefail
 
-set -e
+service_name="airtime"
+install_path="/usr/local/bin/airtime"
+service_path="/etc/systemd/system/airtime.service"
+update_service_path="/etc/systemd/system/airtime-update.service"
+update_path_unit="/etc/systemd/system/airtime-update.path"
+update_helper="/usr/local/libexec/airtime-update"
+state_dir="/var/lib/airtime"
+update_request_path="${state_dir}/update.request"
+legacy_dir="/home/time/airtime"
+repository="aleh11/airtime"
+release_base_url="${AIRTIME_RELEASE_BASE_URL:-https://github.com/${repository}/releases/latest/download}"
+download_dir=""
+step_index=0
+step_total=8
+progress_visible=false
+status_visible=false
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
-
-echo "=========================================="
-echo "  AirTime Installation"
-echo "=========================================="
-echo ""
-echo "This script will perform the following actions:"
-echo "  • Install system packages (Python, SQLite, Nginx, Chrony, Git)"
-echo "  • Install Python packages (gpiozero, python-crontab)"
-echo "  • Configure system services (systemd units)"
-echo "  • Modify system configuration files"
-echo "  • Create and configure database directories"
-echo ""
-read -p "Do you wish to proceed with the installation? (y/n) " -n 1 -r </dev/tty
-echo ""
-echo ""
-
-if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-    echo "Installation cancelled."
-    exit 0
+if [[ -t 1 && "${TERM:-dumb}" != "dumb" ]]; then
+  accent=$'\033[38;5;80m'
+  accent_alt=$'\033[38;5;74m'
+  success=$'\033[38;5;83m'
+  danger=$'\033[38;5;203m'
+  muted=$'\033[38;5;244m'
+  bright=$'\033[1m'
+  reset=$'\033[0m'
+  clear_line=$'\r\033[2K'
+  interactive=true
+else
+  accent=""
+  accent_alt=""
+  success=""
+  danger=""
+  muted=""
+  bright=""
+  reset=""
+  clear_line=$'\r'
+  interactive=false
 fi
 
-if [[ $EUID -ne 0 ]]; then
-   echo -e "${RED}Error: This script must be run as root${NC}"
-   echo "Usage: sudo ./install.sh"
-   exit 1
+curl_opts=(--fail --silent --show-error --location --retry 3)
+if [[ "${release_base_url}" == https://* ]]; then
+  curl_opts+=(--proto '=https' --tlsv1.2)
 fi
 
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-PROJECT_DIR="$SCRIPT_DIR"
+cleanup() {
+  if [[ -n "${download_dir}" && -d "${download_dir}" ]]; then
+    rm -rf -- "${download_dir}"
+  fi
+}
+trap cleanup EXIT
+trap 'fail "installer stopped unexpectedly at line ${LINENO}"' ERR
 
-echo -e "${BLUE}Installing AirTime at:${NC} $PROJECT_DIR"
-echo ""
+fail() {
+  printf '%b\n  ✕  %s%b\n' "${danger}" "$1" "${reset}" >&2
+  exit 1
+}
 
-echo -e "${YELLOW}Updating package lists...${NC}"
-apt-get update -qq
-echo -e "${GREEN}✓${NC} Package lists updated"
-echo ""
+render_banner() {
+  printf '\n%b' "${accent}"
+  printf '%s\n' \
+    '     █████╗ ██╗██████╗ ████████╗██╗███╗   ███╗███████╗' \
+    '    ██╔══██╗██║██╔══██╗╚══██╔══╝██║████╗ ████║██╔════╝' \
+    '    ███████║██║██████╔╝   ██║   ██║██╔████╔██║█████╗  '
+  printf '%b' "${accent_alt}"
+  printf '%s\n' \
+    '    ██╔══██║██║██╔══██╗   ██║   ██║██║╚██╔╝██║██╔══╝  ' \
+    '    ██║  ██║██║██║  ██║   ██║   ██║██║ ╚═╝ ██║███████╗' \
+    '    ╚═╝  ╚═╝╚═╝╚═╝  ╚═╝   ╚═╝   ╚═╝╚═╝     ╚═╝╚══════╝'
+  printf '\n%b    ◷  P R E C I S I O N   O N   T H E   A I R%b' "${accent}" "${reset}"
+  printf '%b     DCF77 · WWVB · MSF · JJY%b\n\n' "${muted}" "${reset}"
+}
 
-echo "=========================================="
-echo "  System Dependencies"
-echo "=========================================="
-echo ""
+render_progress() {
+  local width=42
+  local filled=$((step_index * width / step_total))
+  local empty=$((width - filled))
+  local bar=""
+  local index
+  for ((index = 0; index < filled; index++)); do bar+="━"; done
+  for ((index = 0; index < empty; index++)); do bar+="·"; done
+  printf '     %b%s%b %3d%%\n' "${accent}" "${bar}" "${reset}" "$((step_index * 100 / step_total))"
+}
 
-PACKAGES=(
-    "python3"
-    "python3-pip"
-    "python3-venv"
-    "sqlite3"
-    "nginx"
-    "chrony"
-    "git"
-    "python3-psutil"
-    "cmake"
-    "build-essential"
-)
-
-for package in "${PACKAGES[@]}"; do
-    if dpkg -l | grep -q "^ii  $package "; then
-        echo -e "${GREEN}✓${NC} $package already installed"
+complete_step() {
+  step_index=$((step_index + 1))
+  if [[ "${interactive}" == true && "${progress_visible}" == true ]]; then
+    if [[ "${status_visible}" == true ]]; then
+      printf '\033[2A'
     else
-        echo -e "${YELLOW}Installing $package...${NC}"
-        apt-get install -y $package > /dev/null 2>&1
-        echo -e "${GREEN}✓${NC} $package installed"
+      printf '\033[1A'
     fi
-done
+    printf '%b' "${clear_line}"
+  fi
+  printf '  %b✓%b  %s\n' "${success}" "${reset}" "$1"
+  if [[ "${interactive}" == true ]]; then
+    printf '%b' "${clear_line}"
+    render_progress
+    progress_visible=true
+  elif [[ "${step_index}" -eq "${step_total}" ]]; then
+    render_progress
+  fi
+  status_visible=false
+}
 
-echo ""
-
-echo "=========================================="
-echo "  txtempus Installation"
-echo "=========================================="
-echo ""
-
-if [ -f "/usr/bin/txtempus" ] || [ -f "/usr/local/bin/txtempus" ]; then
-    echo -e "${GREEN}✓${NC} txtempus already installed"
-else
-    echo -e "${YELLOW}Installing txtempus (this may take a while)...${NC}"
-
-    TEMP_DIR=$(mktemp -d)
-
-    echo -e "${YELLOW}Cloning repository...${NC}"
-    git clone https://github.com/hzeller/txtempus.git "$TEMP_DIR/txtempus"
-
-    echo -e "${YELLOW}Building...${NC}"
-    pushd "$TEMP_DIR/txtempus" > /dev/null
-    mkdir -p build && cd build
-    cmake .. -DPLATFORM=rpi
-    make
-
-    echo -e "${YELLOW}Installing binary...${NC}"
-    make install
-
-    popd > /dev/null
-    rm -rf "$TEMP_DIR"
-
-    echo -e "${GREEN}✓${NC} txtempus installed successfully"
-fi
-
-echo ""
-
-echo "=========================================="
-echo "  System Python Packages"
-echo "=========================================="
-echo ""
-echo -e "${YELLOW}Installing gpiozero (GPIO control)...${NC}"
-pip3 install --break-system-packages gpiozero > /dev/null 2>&1
-echo -e "${GREEN}✓${NC} gpiozero installed"
-
-echo -e "${YELLOW}Installing python-crontab (cron management)...${NC}"
-pip3 install --break-system-packages python-crontab > /dev/null 2>&1
-echo -e "${GREEN}✓${NC} python-crontab installed"
-
-echo ""
-
-echo "=========================================="
-echo "  UV Package Manager"
-echo "=========================================="
-echo ""
-
-if command -v uv &> /dev/null; then
-    echo -e "${GREEN}✓${NC} UV already installed"
-    UV_BIN="uv"
-else
-    echo -e "${YELLOW}Installing UV package manager...${NC}"
-    curl -LsSf https://astral.sh/uv/install.sh | sh
-
-    if [ -f "$HOME/.local/bin/uv" ]; then
-        UV_BIN="$HOME/.local/bin/uv"
-    elif [ -f "$HOME/.cargo/bin/uv" ]; then
-        UV_BIN="$HOME/.cargo/bin/uv"
+render_status() {
+  local frame="$1"
+  local label="$2"
+  if [[ "${progress_visible}" == true ]]; then
+    if [[ "${status_visible}" == true ]]; then
+      printf '\033[2A'
     else
-        echo -e "${RED}Error: UV installed but binary not found${NC}"
-        exit 1
+      printf '\033[1A'
     fi
+  fi
+  printf '%b  %b%s%b  %s\n' "${clear_line}" "${accent}" "${frame}" "${reset}" "${label}"
+  printf '%b' "${clear_line}"
+  render_progress
+  progress_visible=true
+  status_visible=true
+}
 
-    echo -e "${GREEN}✓${NC} UV installed to $(dirname $UV_BIN)"
-fi
+# Runs a command while animating a waveform spinner, keeping its output for
+# failures only so a successful install stays quiet.
+with_status() {
+  local label="$1"
+  shift
 
-echo ""
-
-echo "=========================================="
-echo "  Python Virtual Environment"
-echo "=========================================="
-echo ""
-
-cd "$PROJECT_DIR/airtime-server/backend"
-
-if [ -d ".venv" ]; then
-    echo -e "${YELLOW}Removing existing venv...${NC}"
-    rm -rf .venv
-fi
-
-echo -e "${YELLOW}Creating virtual environment with UV...${NC}"
-$UV_BIN sync
-echo -e "${GREEN}✓${NC} Virtual environment created"
-echo -e "${GREEN}✓${NC} Dependencies installed from pyproject.toml"
-
-cd "$PROJECT_DIR"
-echo ""
-
-echo "=========================================="
-echo "  Database Setup"
-echo "=========================================="
-echo ""
-
-if [ ! -d "$PROJECT_DIR/airtime-server/database" ]; then
-    echo -e "${YELLOW}Creating database directory...${NC}"
-    mkdir -p "$PROJECT_DIR/airtime-server/database"
-    echo -e "${GREEN}✓${NC} Database directory created"
-else
-    echo -e "${GREEN}✓${NC} Database directory exists"
-fi
-
-chmod 755 "$PROJECT_DIR/airtime-server/database"
-echo -e "${GREEN}✓${NC} Database permissions set"
-
-echo ""
-
-echo "=========================================="
-echo "  Disabling Conflicting Services"
-echo "=========================================="
-echo ""
-
-if systemctl list-unit-files | grep -q "statusled.service"; then
-    echo -e "${YELLOW}Found statusled.service (conflicts with GPIO pins)${NC}"
-
-    if systemctl is-active --quiet statusled; then
-        echo -e "${YELLOW}Stopping statusled service...${NC}"
-        systemctl stop statusled
-        echo -e "${GREEN}✓${NC} statusled stopped"
+  if [[ "${interactive}" != true ]]; then
+    printf '  ·  %s\n' "${label}"
+    local log
+    log="$(mktemp)"
+    if ! "$@" >"${log}" 2>&1; then
+      tail -n 12 "${log}" >&2
+      rm -f "${log}"
+      return 1
     fi
+    rm -f "${log}"
+    return 0
+  fi
 
-    if systemctl is-enabled --quiet statusled 2>/dev/null; then
-        echo -e "${YELLOW}Disabling statusled service...${NC}"
-        systemctl disable statusled
-        echo -e "${GREEN}✓${NC} statusled disabled"
+  local frames=('≋  ' ' ≋ ' '  ≋' ' ≋ ')
+  local log
+  log="$(mktemp)"
+
+  "$@" >"${log}" 2>&1 &
+  local pid=$!
+  local index=0
+
+  while kill -0 "${pid}" 2>/dev/null; do
+    render_status "${frames[index % ${#frames[@]}]}" "${label}"
+    index=$((index + 1))
+    sleep 0.12
+  done
+
+  if ! wait "${pid}"; then
+    printf '\n%b' "${muted}"
+    tail -n 12 "${log}" >&2
+    printf '%b' "${reset}"
+    rm -f "${log}"
+    return 1
+  fi
+
+  rm -f "${log}"
+  return 0
+}
+
+detect_asset() {
+  local machine
+  machine="$(uname -m)"
+  case "${machine}" in
+    aarch64 | arm64) printf 'airtime-linux-arm64' ;;
+    armv7l | armv6l | arm) printf 'airtime-linux-arm' ;;
+    *) fail "unsupported architecture ${machine}; AirTime ships arm64 and armv7 builds" ;;
+  esac
+}
+
+require_root() {
+  [[ "${EUID}" -eq 0 ]] || fail "run this installer with sudo"
+}
+
+preflight() {
+  require_root
+  command -v curl >/dev/null 2>&1 || fail "curl is required to download the release"
+  command -v sha256sum >/dev/null 2>&1 || fail "sha256sum is required to verify the release"
+  command -v systemctl >/dev/null 2>&1 || fail "systemd is required"
+}
+
+download_release() {
+  local asset="$1"
+
+  curl "${curl_opts[@]}" "${release_base_url}/${asset}" --output "${download_dir}/${asset}"
+  curl "${curl_opts[@]}" "${release_base_url}/${asset}.sha256" --output "${download_dir}/${asset}.sha256"
+
+  (cd "${download_dir}" && sha256sum --check --status "${asset}.sha256") \
+    || fail "checksum mismatch — refusing to install this download"
+}
+
+install_dependencies() {
+  export DEBIAN_FRONTEND=noninteractive
+  # apt-get update dominates this step on a Pi. Skip it when the lists were
+  # refreshed in the last day; apt still errors if a package is genuinely gone.
+  local stamp=/var/lib/apt/periodic/update-success-stamp
+  if [[ -z "$(find "${stamp}" -mtime -1 2>/dev/null)" ]]; then
+    apt-get update
+  fi
+  apt-get install -y --no-install-recommends chrony sqlite3
+}
+
+install_txtempus() {
+  if [[ -x /usr/bin/txtempus ]]; then
+    return 0
+  fi
+
+  apt-get install -y --no-install-recommends git build-essential cmake
+  local work
+  work="$(mktemp -d)"
+  git clone --depth 1 https://github.com/hzeller/txtempus.git "${work}/txtempus"
+  mkdir -p "${work}/txtempus/build"
+  # A Pi Zero 2W has four cores but only 512MB, and each g++ of txtempus peaks
+  # well over 100MB, so cap the parallelism rather than inviting the OOM killer.
+  local jobs
+  jobs="$(nproc 2>/dev/null || echo 1)"
+  [[ "${jobs}" -gt 2 ]] && jobs=2
+  (cd "${work}/txtempus/build" && cmake .. -DPLATFORM=rpi && make -j"${jobs}" && make install)
+  rm -rf "${work}"
+}
+
+legacy_install_present() {
+  local unit
+  for unit in airtime-server airtime-status; do
+    [[ -e "/etc/systemd/system/${unit}.service" ]] && return 0
+  done
+  [[ -e /etc/nginx/sites-enabled/airtime ]] && return 0
+  [[ -e "${legacy_dir}" ]] && return 0
+  crontab -l -u root 2>/dev/null | grep -q 'txtempus' && return 0
+  return 1
+}
+
+retire_python_install() {
+  local unit
+  # Unconditional and idempotent. An earlier version guarded this with
+  # `systemctl list-unit-files | grep -q`, which reports failure under pipefail
+  # because grep -q exits early and systemd dies of SIGPIPE.
+  for unit in airtime-server airtime-status; do
+    systemctl disable --now "${unit}.service" 2>/dev/null || true
+    rm -f "/etc/systemd/system/${unit}.service"
+  done
+  systemctl daemon-reload
+
+  for unit in airtime-server airtime-status; do
+    if [[ -e "/etc/systemd/system/${unit}.service" ]]; then
+      printf 'could not remove %s.service\n' "${unit}" >&2
+      return 1
     fi
+  done
 
-    echo -e "${GREEN}✓${NC} Conflicting GPIO service disabled"
-else
-    echo -e "${GREEN}✓${NC} No conflicting GPIO services found"
-fi
+  # The dashboard is served by the daemon now, so the nginx site goes with it.
+  if [[ -e /etc/nginx/sites-enabled/airtime ]]; then
+    rm -f /etc/nginx/sites-enabled/airtime /etc/nginx/sites-available/airtime
+    systemctl reload nginx 2>/dev/null || true
+  fi
 
-echo ""
+  # Schedules live in the database; the crontab was only ever a mirror of it.
+  if crontab -l -u root >/dev/null 2>&1; then
+    crontab -l -u root | grep -v 'txtempus' | crontab -u root - || true
+  fi
+}
 
-echo "=========================================="
-echo "  NTP Configuration"
-echo "=========================================="
-echo ""
+install_binary() {
+  local asset="$1"
+  install -m 0755 -o root -g root "${download_dir}/${asset}" "${install_path}"
+}
 
-if systemctl is-active --quiet chronyd; then
-    echo -e "${GREEN}✓${NC} Chrony is running"
-else
-    echo -e "${YELLOW}Starting chrony...${NC}"
-    systemctl start chronyd
-    systemctl enable chronyd
-    echo -e "${GREEN}✓${NC} Chrony started and enabled"
-fi
+provision_state() {
+  install -d -m 0755 -o root -g root "${state_dir}"
 
-echo ""
+  local legacy_db="${legacy_dir}/airtime-server/database/airtime.db"
+  if [[ ! -f "${legacy_db}" || -f "${state_dir}/airtime.db" ]]; then
+    return 0
+  fi
 
-echo "=========================================="
-echo "  Frontend Build"
-echo "=========================================="
-echo ""
+  # The migration happens here rather than in the daemon: the service runs with
+  # ProtectHome=true, so it cannot see a database living under /home. Use the
+  # SQLite backup API, because the legacy database is in WAL mode and recent
+  # writes may exist only in its -wal sidecar.
+  if command -v sqlite3 >/dev/null 2>&1; then
+    sqlite3 "${legacy_db}" ".backup '${state_dir}/airtime.db'"
+  else
+    cp -- "${legacy_db}" "${state_dir}/airtime.db"
+  fi
 
-if [ -d "$PROJECT_DIR/airtime-server/frontend/node_modules" ]; then
-    echo -e "${GREEN}✓${NC} Node modules already installed"
-else
-    echo -e "${YELLOW}Note: Frontend dependencies not installed${NC}"
-    echo "You'll need to build the frontend on your dev machine and commit the built files"
-    echo "See NGINX_SETUP.md for details"
-fi
+  mv -- "${legacy_db}" "${legacy_db}.migrated"
+  rm -f -- "${legacy_db}-wal" "${legacy_db}-shm"
 
-if [ -d "$PROJECT_DIR/airtime-server/frontend/dist" ]; then
-    echo -e "${GREEN}✓${NC} Frontend build exists"
-else
-    echo -e "${YELLOW}Warning: frontend/dist not found${NC}"
-    echo "Make sure to build and commit frontend on your dev machine"
-fi
+  local schedules
+  schedules="$(sqlite3 "${state_dir}/airtime.db" 'SELECT COUNT(*) FROM cron_jobs' 2>/dev/null || echo '?')"
+  printf '  %b·%b  migrated your existing database (%s schedules kept)\n' "${muted}" "${reset}" "${schedules}"
+}
 
-echo ""
-
-echo "=========================================="
-echo "  AirTime Service Setup"
-echo "=========================================="
-echo ""
-
-if [ ! -f "$PROJECT_DIR/airtime-server/backend/.venv/bin/python" ]; then
-    echo -e "${RED}Error: Python virtual environment not found at airtime-server/backend/.venv${NC}"
-    echo "Please run 'cd airtime-server/backend && uv sync' first to create the virtual environment"
-    exit 1
-fi
-
-echo -e "${GREEN}✓${NC} Python venv found"
-echo ""
-
-echo "=========================================="
-echo "  Checking Existing Services"
-echo "=========================================="
-echo ""
-
-for service in airtime-server airtime-status; do
-    if [ -f "/etc/systemd/system/$service.service" ]; then
-        echo -e "${YELLOW}Found existing $service.service${NC}"
-
-        if systemctl is-enabled $service 2>&1 | grep -q "masked"; then
-            echo -e "${YELLOW}Service is masked, unmasking...${NC}"
-            systemctl unmask $service
-            echo -e "${GREEN}✓${NC} $service unmasked"
-        fi
-
-        if systemctl is-active --quiet $service; then
-            echo -e "${YELLOW}Stopping $service...${NC}"
-            systemctl stop $service
-            echo -e "${GREEN}✓${NC} $service stopped"
-        fi
-    else
-        echo -e "${GREEN}✓${NC} No existing $service.service"
-    fi
-done
-
-echo ""
-
-echo -e "${YELLOW}Creating airtime-server.service...${NC}"
-cat > /tmp/airtime-server.service << EOF
+install_units() {
+  cat > "${service_path}" <<UNIT
 [Unit]
-Description=AirTime FastAPI Backend Server
-After=network.target
+Description=AirTime time-signal transmitter
+Wants=network-online.target
+After=network-online.target chrony.service
 
 [Service]
 Type=simple
-User=root
-WorkingDirectory=$PROJECT_DIR/airtime-server
-ExecStart=$PROJECT_DIR/airtime-server/backend/.venv/bin/python $PROJECT_DIR/airtime-server/backend/server.py
+ExecStart=${install_path}
+Environment=AIRTIME_STATE_DIR=${state_dir}
+Environment=AIRTIME_LEGACY_DB=${legacy_dir}/airtime-server/database/airtime.db
 Restart=always
-RestartSec=5
-StandardOutput=journal
-StandardError=journal
+RestartSec=3
+StateDirectory=airtime
+NoNewPrivileges=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=${state_dir}
+LockPersonality=true
 
 [Install]
 WantedBy=multi-user.target
-EOF
+UNIT
 
-echo -e "${YELLOW}Creating GPIO cleanup script...${NC}"
-cat > $PROJECT_DIR/airtime-server/gpio-cleanup.sh << 'CLEANUPEOF'
-#!/bin/bash
-for pin in 9 11 5 19; do
-    echo $pin > /sys/class/gpio/unexport 2>/dev/null || true
-done
+  install -d -m 0755 -o root -g root /usr/local/libexec
+  cat > "${update_helper}" <<HELPER
+#!/usr/bin/env bash
+# Installs the latest AirTime release. Triggered by airtime-update.path when the
+# daemon writes an update request; the daemon itself never has the privileges to
+# replace its own binary.
+set -Eeuo pipefail
 
-pkill -f "systemStatus.py" 2>/dev/null || true
-sleep 0.5
-exit 0
-CLEANUPEOF
+request="${update_request_path}"
+install_path="${install_path}"
+release_base_url="${release_base_url}"
+download_base="https://github.com/${repository}/releases/download"
 
-chmod +x $PROJECT_DIR/airtime-server/gpio-cleanup.sh
-echo -e "${GREEN}✓${NC} GPIO cleanup script created"
+# The daemon writes the tag it means to install, so a beta opt-in installs the
+# prerelease the dashboard offered rather than whatever "latest" resolves to.
+# An unreadable or malformed request falls back to the URL baked in at install.
+requested_tag="\$(head -n1 "\${request}" 2>/dev/null | tr -d '[:space:]')"
+if [[ "\${requested_tag}" =~ ^v[0-9A-Za-z.+-]+$ ]]; then
+  release_base_url="\${download_base}/\${requested_tag}"
+fi
 
-echo -e "${YELLOW}Creating airtime-status.service...${NC}"
-cat > /tmp/airtime-status.service << EOF
+curl_opts=(--fail --silent --show-error --location --retry 3)
+if [[ "\${release_base_url}" == https://* ]]; then
+  curl_opts+=(--proto '=https' --tlsv1.2)
+fi
+
+rm -f -- "\${request}"
+
+machine="\$(uname -m)"
+case "\${machine}" in
+  aarch64 | arm64) asset="airtime-linux-arm64" ;;
+  *) asset="airtime-linux-arm" ;;
+esac
+
+work="\$(mktemp -d)"
+trap 'rm -rf -- "\${work}"' EXIT
+
+curl "\${curl_opts[@]}" "\${release_base_url}/\${asset}" --output "\${work}/\${asset}"
+curl "\${curl_opts[@]}" "\${release_base_url}/\${asset}.sha256" --output "\${work}/\${asset}.sha256"
+
+cd "\${work}"
+sha256sum --check --status "\${asset}.sha256"
+
+install -m 0755 -o root -g root "\${work}/\${asset}" "\${install_path}"
+systemctl restart airtime
+HELPER
+  chmod 0755 "${update_helper}"
+
+  cat > "${update_service_path}" <<UNIT
 [Unit]
-Description=AirTime Hardware Status Monitor (GPIO/LEDs)
-After=network.target
+Description=Install an AirTime release update
+After=network-online.target
+Wants=network-online.target
 
 [Service]
-Type=simple
-User=root
-WorkingDirectory=$PROJECT_DIR/airtime-server
-ExecStartPre=$PROJECT_DIR/airtime-server/gpio-cleanup.sh
-ExecStart=python $PROJECT_DIR/airtime-server/backend/systemStatus.py
-Restart=always
-RestartSec=5
-StandardOutput=journal
-StandardError=journal
+Type=oneshot
+ExecStart=${update_helper}
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/usr/local/bin ${state_dir}
+UNIT
+
+  cat > "${update_path_unit}" <<UNIT
+[Unit]
+Description=Watch for AirTime update requests
+
+[Path]
+PathExists=${update_request_path}
+Unit=airtime-update.service
 
 [Install]
 WantedBy=multi-user.target
-EOF
+UNIT
 
-echo -e "${GREEN}✓${NC} Service files created in /tmp"
-echo ""
+  systemctl daemon-reload
+  systemctl enable "${service_name}" airtime-update.path
+}
 
-if [ ! -f "$PROJECT_DIR/airtime-server/nginx.conf" ]; then
-    echo -e "${RED}Warning: nginx.conf not found in airtime-server directory${NC}"
-    echo "Nginx setup will be skipped. See NGINX_SETUP.md for manual setup."
-    SKIP_NGINX=true
-else
-    SKIP_NGINX=false
-fi
+start_service() {
+  systemctl restart "${service_name}"
+  # Enabling the path unit only arms it for the next boot. Without starting it
+  # here, nothing watches for update requests until the Pi is rebooted, so the
+  # dashboard's update button silently does nothing on a fresh install.
+  systemctl restart airtime-update.path
+  systemctl restart chrony 2>/dev/null || systemctl restart chronyd 2>/dev/null || true
 
-echo ""
-echo -e "${YELLOW}Installing service files...${NC}"
-cp /tmp/airtime-server.service /etc/systemd/system/
-cp /tmp/airtime-status.service /etc/systemd/system/
-rm /tmp/airtime-server.service /tmp/airtime-status.service
-
-echo -e "${GREEN}✓${NC} Service files installed to /etc/systemd/system/"
-
-echo -e "${YELLOW}Reloading systemd daemon...${NC}"
-systemctl daemon-reload
-echo -e "${GREEN}✓${NC} Systemd daemon reloaded"
-
-echo -e "${YELLOW}Enabling services to start on boot...${NC}"
-systemctl enable airtime-server
-systemctl enable airtime-status
-echo -e "${GREEN}✓${NC} Services enabled"
-
-if [ "$SKIP_NGINX" = false ]; then
-    echo ""
-    echo "=========================================="
-    echo "  Nginx Setup"
-    echo "=========================================="
-    echo ""
-
-    if ! command -v nginx &> /dev/null; then
-        echo -e "${YELLOW}Nginx not found. Installing...${NC}"
-        apt-get update
-        apt-get install -y nginx
-        echo -e "${GREEN}✓${NC} Nginx installed"
-    else
-        echo -e "${GREEN}✓${NC} Nginx already installed"
+  local attempt
+  for attempt in $(seq 1 20); do
+    if systemctl is-active --quiet "${service_name}"; then
+      return 0
     fi
+    sleep 0.5
+  done
 
-    echo -e "${YELLOW}Installing nginx config...${NC}"
-    # Replace all hardcoded paths with actual project directory
-    sed "s|/home/time/airtime|$PROJECT_DIR|g" "$PROJECT_DIR/airtime-server/nginx.conf" > /etc/nginx/sites-available/airtime
+  journalctl -u "${service_name}" --no-pager -n 20 >&2
+  return 1
+}
 
-    if [ -f /etc/nginx/sites-enabled/airtime ]; then
-        echo -e "${GREEN}✓${NC} Nginx site already enabled"
-    else
-        ln -s /etc/nginx/sites-available/airtime /etc/nginx/sites-enabled/airtime
-        echo -e "${GREEN}✓${NC} Nginx site enabled"
-    fi
+render_summary() {
+  local address
+  address="$(hostname -I 2>/dev/null | awk '{print $1}' || true)"
+  [[ -n "${address}" ]] || address="pi-ip-address"
 
-    if [ -f /etc/nginx/sites-enabled/default ]; then
-        echo -e "${YELLOW}Removing default nginx site...${NC}"
-        rm /etc/nginx/sites-enabled/default
-        echo -e "${GREEN}✓${NC} Default site removed"
-    fi
+  printf '\n  %b%sAirTime is on the air%b\n\n' "${bright}" "${success}" "${reset}"
+  printf '    %bDashboard%b  https://%s\n' "${muted}" "${reset}" "${address}"
+  printf '    %bAlso at%b    https://%s:8443\n' "${muted}" "${reset}" "${address}"
+  printf '    %bStatus%b     systemctl status %s\n' "${muted}" "${reset}" "${service_name}"
+  printf '    %bLogs%b       journalctl -u %s -f\n' "${muted}" "${reset}" "${service_name}"
+  printf '    %bState%b      %s\n\n' "${muted}" "${reset}" "${state_dir}"
+  printf '  %bYour browser will warn about the self-signed certificate. That is expected.%b\n\n' "${muted}" "${reset}"
+}
 
-    echo -e "${YELLOW}Setting frontend file permissions for nginx...${NC}"
+main() {
+  render_banner
+  preflight
 
-    PROJECT_OWNER=$(stat -c '%U' "$PROJECT_DIR" 2>/dev/null || stat -f '%Su' "$PROJECT_DIR")
-    PROJECT_HOME=$(dirname "$PROJECT_DIR")
+  local asset
+  asset="$(detect_asset)"
 
-    chmod o+rx "$PROJECT_HOME" 2>/dev/null || true
-    chmod o+rx "$PROJECT_DIR"
-    chmod o+rx "$PROJECT_DIR/airtime-server"
-    chmod o+rx "$PROJECT_DIR/airtime-server/frontend"
-    chmod o+rx "$PROJECT_DIR/airtime-server/frontend/dist"
-    chmod -R o+r "$PROJECT_DIR/airtime-server/frontend/dist"
+  # with_status runs each step in a background subshell, so a step cannot
+  # export state back here. Anything later steps depend on is set in main.
+  download_dir="$(mktemp -d)"
 
-    echo -e "${GREEN}✓${NC} Frontend permissions set (nginx can read files)"
+  # Retiring an old install is a step only when there is one to retire, so the
+  # bar has to know before it draws its first frame.
+  local had_legacy=false
+  if legacy_install_present; then
+    had_legacy=true
+  else
+    step_total=$((step_total - 1))
+  fi
 
-    echo -e "${YELLOW}Testing nginx configuration...${NC}"
-    if nginx -t; then
-        echo -e "${GREEN}✓${NC} Nginx config is valid"
-    else
-        echo -e "${RED}✗${NC} Nginx config has errors!"
-        echo "Please check /etc/nginx/sites-available/airtime"
-    fi
+  complete_step "Checked this Pi (${asset#airtime-linux-})"
 
-    echo -e "${YELLOW}Configuring nginx to wait for backend...${NC}"
-    mkdir -p /etc/systemd/system/nginx.service.d
-    cat > /etc/systemd/system/nginx.service.d/airtime.conf << 'NGINXEOF'
-[Unit]
-After=airtime-server.service
-Wants=airtime-server.service
-NGINXEOF
-    echo -e "${GREEN}✓${NC} Nginx configured to wait for backend"
+  with_status "Downloading and verifying the release" download_release "${asset}" \
+    || fail "could not download a verified release"
+  complete_step "Downloaded and verified ${asset}"
 
-    systemctl daemon-reload
+  with_status "Installing system packages" install_dependencies \
+    || fail "could not install system packages"
+  complete_step "System packages installed"
 
-    systemctl enable nginx
-    echo -e "${GREEN}✓${NC} Nginx enabled to start on boot"
-fi
+  with_status "Installing the txtempus transmitter" install_txtempus \
+    || fail "could not install txtempus"
+  complete_step "Transmitter ready"
 
-echo ""
-echo "=========================================="
-echo "  SSL Certificate Setup"
-echo "=========================================="
-echo ""
+  if [[ "${had_legacy}" == true ]]; then
+    with_status "Retiring the previous install" retire_python_install \
+      || fail "could not retire the previous install"
+    complete_step "Previous install retired"
+  fi
 
-cd "$PROJECT_DIR/airtime-server/ssl"
-./setup-ssl.sh
-cd "$PROJECT_DIR"
+  with_status "Installing AirTime" install_binary "${asset}" \
+    || fail "could not install the binary"
+  provision_state
+  complete_step "AirTime installed to ${install_path}"
 
-echo ""
-echo -e "${GREEN}✓${NC} SSL certificates configured - services will start with HTTPS"
+  with_status "Writing service units" install_units \
+    || fail "could not install service units"
+  complete_step "Services registered"
 
-echo ""
-echo -e "${YELLOW}Starting airtime-server...${NC}"
-systemctl start airtime-server
-sleep 1
-systemctl status airtime-server --no-pager -l
+  with_status "Starting AirTime" start_service \
+    || fail "AirTime did not start"
+  complete_step "AirTime is running"
 
-echo ""
-echo -e "${YELLOW}Starting airtime-status...${NC}"
-systemctl start airtime-status
-sleep 1
-systemctl status airtime-status --no-pager -l
+  render_summary
+}
 
-if [ "$SKIP_NGINX" = false ]; then
-    echo ""
-    echo -e "${YELLOW}Restarting nginx...${NC}"
-    systemctl restart nginx
-    sleep 1
-    systemctl status nginx --no-pager -l
-fi
-
-echo ""
-echo "=========================================="
-echo -e "${GREEN}  Installation Complete!${NC}"
-echo "=========================================="
-echo ""
-echo "Service Management Commands:"
-echo "  Status:  sudo systemctl status airtime-server"
-echo "           sudo systemctl status airtime-status"
-if [ "$SKIP_NGINX" = false ]; then
-echo "           sudo systemctl status nginx"
-fi
-echo ""
-echo "  Start:   sudo systemctl start airtime-server"
-echo "           sudo systemctl start airtime-status"
-if [ "$SKIP_NGINX" = false ]; then
-echo "           sudo systemctl start nginx"
-fi
-echo ""
-echo "  Stop:    sudo systemctl stop airtime-server"
-echo "           sudo systemctl stop airtime-status"
-if [ "$SKIP_NGINX" = false ]; then
-echo "           sudo systemctl stop nginx"
-fi
-echo ""
-echo "  Restart: sudo ./restart.sh"
-echo ""
-echo "  Logs:    sudo journalctl -u airtime-server -f"
-echo "           sudo journalctl -u airtime-status -f"
-if [ "$SKIP_NGINX" = false ]; then
-echo "           sudo tail -f /var/log/nginx/airtime-access.log"
-echo "           sudo tail -f /var/log/nginx/airtime-error.log"
-fi
-echo ""
-if [ "$SKIP_NGINX" = false ]; then
-    # Check if SSL certs exist to show correct URL
-    if [ -f "$PROJECT_DIR/airtime-server/ssl/cert.pem" ]; then
-        echo "Dashboard URL: https://$(hostname -I | awk '{print $1}')/"
-        echo "               (Accept browser warning for self-signed certificate)"
-    else
-        echo "Dashboard URL: http://$(hostname -I | awk '{print $1}')/"
-        echo "               To enable HTTPS: sudo ./airtime-server/ssl/setup-ssl.sh && sudo ./restart.sh"
-    fi
-    echo ""
-fi
+main "$@"

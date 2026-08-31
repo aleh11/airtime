@@ -1,0 +1,226 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import './themes.css';
+
+/*
+  dist/ is a build output that is still tracked, so Tailwind's automatic source
+  detection scans it: every build then finds the previous build's class names
+  and emits them again, and the stylesheet ratchets upwards (69.89 kB -> 82.46
+  kB from one identical rebuild). Excluding it keeps the build deterministic.
+*/
+@source not './dist';
+
+/*
+  Every colour in the dashboard resolves through a token defined here. Nothing
+  under components/ may name a palette colour directly — that is what makes a
+  theme a block of variable overrides rather than a find-and-replace.
+
+  A theme overrides the variables in the :root block below, and nothing else.
+  See themes.css for the shipped themes.
+*/
+
+:root {
+  --radius: 0.75rem;
+
+  /* surfaces */
+  --background: #0f1419;
+  --foreground: #e2e8f0;
+  --card: #26354c;
+  --card-foreground: #f1f5f9;
+  --popover: #26354c;
+  --popover-foreground: #e2e8f0;
+  --surface-sunken: #0f1419;
+  --surface-raised: #1d2530;
+
+  /* text ramp, brightest to faintest */
+  --heading: #f8fafc;
+  --muted: #1e293b;
+  --muted-foreground: #94a3b8;
+  --subtle-foreground: #6d7e96;
+  --faint-foreground: #55667e;
+
+  /* interactive */
+  --primary: #06b6d4;
+  --primary-foreground: #0f1419;
+  --secondary: #334155;
+  --secondary-foreground: #e2e8f0;
+  --accent: #334155;
+  --accent-foreground: #f8fafc;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --border: #3f4f69;
+  --input: #3f4f69;
+  --ring: #06b6d4;
+
+  /*
+    Broadcast state. --on-air is the normal transmitting colour; --testing marks
+    a Time Tester run or a fixed-time Broadcast. A theme MUST keep these two
+    distinguishable from each other — it is the one semantic constraint.
+  */
+  --on-air: #06b6d4;
+  --on-air-bright: #22d3ee;
+  --testing: #8b5cf6;
+  --testing-bright: #a78bfa;
+
+  /* signed Offset badges */
+  --offset-positive: #34d399;
+  --offset-negative: #fb923c;
+
+  /* status */
+  --success: #34d399;
+  --success-strong: #10b981;
+  --warning: #fbbf24;
+  --warning-strong: #d97706;
+  --danger: #ef4444;
+  --danger-strong: #dc2626;
+
+  /* secondary accent — the RAM meter and the AirTime restart control */
+  --accent-alt: #c084fc;
+  --accent-alt-strong: #a855f7;
+
+  /* Derived — themes do not set these. Glows follow whatever colour is above. */
+  --glow-on-air: 0 0 12px color-mix(in srgb, var(--on-air-bright) 90%, transparent);
+  --glow-testing: 0 0 12px color-mix(in srgb, var(--testing-bright) 90%, transparent);
+  --glow-logo-on-air: 0 0 15px color-mix(in srgb, var(--on-air-bright) 70%, transparent);
+  --glow-logo-testing: 0 0 15px color-mix(in srgb, var(--testing-bright) 70%, transparent);
+}
+
+@theme inline {
+  --font-sans: Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-surface-raised: var(--surface-raised);
+
+  --color-heading: var(--heading);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-subtle-foreground: var(--subtle-foreground);
+  --color-faint-foreground: var(--faint-foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-on-air: var(--on-air);
+  --color-on-air-bright: var(--on-air-bright);
+  --color-testing: var(--testing);
+  --color-testing-bright: var(--testing-bright);
+  --color-offset-positive: var(--offset-positive);
+  --color-offset-negative: var(--offset-negative);
+
+  --color-success: var(--success);
+  --color-success-strong: var(--success-strong);
+  --color-warning: var(--warning);
+  --color-warning-strong: var(--warning-strong);
+  --color-danger: var(--danger);
+  --color-danger-strong: var(--danger-strong);
+  --color-accent-alt: var(--accent-alt);
+  --color-accent-alt-strong: var(--accent-alt-strong);
+
+  --animate-slide-in-right: slide-in-right 0.3s ease-out;
+  --animate-fade-in: fade-in 0.2s ease-out;
+  --animate-slide-up: slide-up 0.3s ease-out;
+}
+
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slide-up {
+  from {
+    transform: translateY(8px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/*
+  Glow utilities. Components say `glow-on-air`, never a literal rgba, so a theme
+  that changes --on-air gets a matching glow for free.
+*/
+@utility glow-on-air {
+  filter: drop-shadow(var(--glow-on-air));
+}
+
+@utility glow-testing {
+  filter: drop-shadow(var(--glow-testing));
+}
+
+@utility glow-logo-on-air {
+  filter: drop-shadow(var(--glow-logo-on-air));
+}
+
+@utility glow-logo-testing {
+  filter: drop-shadow(var(--glow-logo-testing));
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--muted);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--faint-foreground);
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--subtle-foreground);
+  }
+
+  * {
+    scrollbar-color: var(--faint-foreground) var(--muted);
+  }
+}

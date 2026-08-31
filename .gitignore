@@ -5,3 +5,14 @@ airtime-server/ssl/*.pem
 airtime-server/ssl/*.key
 airtime-server/ssl/*.crt
 airtime-server/ssl/openssl.cnf
+
+.claude/
+
+# Built artefacts
+build/
+internal/web/dist/*
+!internal/web/dist/.gitkeep
+.idea/
+
+# Local issue tracker (mattpocock skills)
+.scratch/

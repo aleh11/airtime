@@ -1,0 +1,403 @@
+/*
+  Themes. Each block overrides the tokens declared in index.css and nothing
+  else — no theme may introduce a selector, a utility, or a component style.
+
+  Adding a theme is three steps:
+    1. a block here,
+    2. its id in `Themes` in internal/api/ui.go (the daemon validates against it),
+    3. its display name in themes.ts.
+
+  Two constraints every theme must respect:
+    - --on-air and --testing must stay clearly distinguishable from each other;
+      they are how the dashboard says "broadcasting" versus "this is a test".
+    - the *-bright variants must read brighter than their base *against that
+      theme's background* — on a light theme that means darker, not lighter.
+*/
+
+/* Tokyo Night */
+:root[data-theme='tokyo-night'] {
+  --background: #0f1419;
+  --foreground: #a9b1d6;
+  --card: #2e334b;
+  --card-foreground: #c0caf5;
+  --popover: #2e334b;
+  --popover-foreground: #a9b1d6;
+  --surface-sunken: #16161e;
+  --surface-raised: #25293f;
+
+  --heading: #c0caf5;
+  --muted: #24283b;
+  --muted-foreground: #989bb1;
+  --subtle-foreground: #7780aa;
+  --faint-foreground: #5e6997;
+
+  --primary: #7aa2f7;
+  --primary-foreground: #1a1b26;
+  --secondary: #414868;
+  --secondary-foreground: #c0caf5;
+  --accent: #414868;
+  --accent-foreground: #c0caf5;
+  --destructive: #f7768e;
+  --destructive-foreground: #1a1b26;
+  --border: #454c6e;
+  --input: #454c6e;
+  --ring: #7aa2f7;
+
+  --on-air: #7aa2f7;
+  --on-air-bright: #b1cafd;
+  --testing: #bb9af7;
+  --testing-bright: #e1d1fd;
+
+  --offset-positive: #9ece6a;
+  --offset-negative: #ff9e64;
+
+  --success: #9ece6a;
+  --success-strong: #73b25a;
+  --warning: #e0af68;
+  --warning-strong: #c19551;
+  --danger: #f7768e;
+  --danger-strong: #db5c74;
+
+  --accent-alt: #ff9e64;
+  --accent-alt-strong: #ff7e31;
+}
+
+/* Dracula */
+:root[data-theme='dracula'] {
+  --background: #0f1419;
+  --foreground: #f8f8f2;
+  --card: #3d4052;
+  --card-foreground: #f8f8f2;
+  --popover: #3d4052;
+  --popover-foreground: #f8f8f2;
+  --surface-sunken: #21222c;
+  --surface-raised: #3a3d4d;
+
+  --heading: #ffffff;
+  --muted: #343746;
+  --muted-foreground: #a5acca;
+  --subtle-foreground: #8692b9;
+  --faint-foreground: #6877a7;
+
+  --primary: #bd93f9;
+  --primary-foreground: #282a36;
+  --secondary: #44475a;
+  --secondary-foreground: #f8f8f2;
+  --accent: #44475a;
+  --accent-foreground: #f8f8f2;
+  --destructive: #ff5555;
+  --destructive-foreground: #282a36;
+  --border: #565971;
+  --input: #565971;
+  --ring: #bd93f9;
+
+  --on-air: #bd93f9;
+  --on-air-bright: #e0cbfe;
+  --testing: #8be9fd;
+  --testing-bright: #c6f5ff;
+
+  --offset-positive: #50fa7b;
+  --offset-negative: #ffb86c;
+
+  --success: #50fa7b;
+  --success-strong: #3ed166;
+  --warning: #f1fa8c;
+  --warning-strong: #cbd35f;
+  --danger: #ff5555;
+  --danger-strong: #e04343;
+
+  --accent-alt: #ff79c6;
+  --accent-alt-strong: #ff46b0;
+}
+
+/* Nord */
+:root[data-theme='nord'] {
+  --background: #0f1419;
+  --foreground: #d8dee9;
+  --card: #41495b;
+  --card-foreground: #eceff4;
+  --popover: #41495b;
+  --popover-foreground: #d8dee9;
+  --surface-sunken: #272c36;
+  --surface-raised: #434c5e;
+
+  --heading: #eceff4;
+  --muted: #3b4252;
+  --muted-foreground: #afb9ca;
+  --subtle-foreground: #909bb0;
+  --faint-foreground: #75829c;
+
+  --primary: #81a1c1;
+  --primary-foreground: #2e3440;
+  --secondary: #4c566a;
+  --secondary-foreground: #eceff4;
+  --accent: #4c566a;
+  --accent-foreground: #eceff4;
+  --destructive: #bf616a;
+  --destructive-foreground: #eceff4;
+  --border: #576279;
+  --input: #576279;
+  --ring: #81a1c1;
+
+  --on-air: #81a1c1;
+  --on-air-bright: #a6c0d9;
+  --testing: #b48ead;
+  --testing-bright: #d0afca;
+
+  --offset-positive: #a3be8c;
+  --offset-negative: #d08770;
+
+  --success: #a3be8c;
+  --success-strong: #8aa974;
+  --warning: #ebcb8b;
+  --warning-strong: #cbab6b;
+  --danger: #bf616a;
+  --danger-strong: #a54e57;
+
+  --accent-alt: #d08770;
+  --accent-alt-strong: #c3674a;
+}
+
+/* Gruvbox Dark */
+:root[data-theme='gruvbox-dark'] {
+  --background: #0f1419;
+  --foreground: #ebdbb2;
+  --card: #413d3b;
+  --card-foreground: #fbf1c7;
+  --popover: #413d3b;
+  --popover-foreground: #ebdbb2;
+  --surface-sunken: #1d2021;
+  --surface-raised: #423d3a;
+
+  --heading: #fbf1c7;
+  --muted: #3c3836;
+  --muted-foreground: #bdae93;
+  --subtle-foreground: #998b7d;
+  --faint-foreground: #7f7369;
+
+  --primary: #fe8019;
+  --primary-foreground: #282828;
+  --secondary: #504945;
+  --secondary-foreground: #ebdbb2;
+  --accent: #504945;
+  --accent-foreground: #fbf1c7;
+  --destructive: #fb4934;
+  --destructive-foreground: #fbf1c7;
+  --border: #5e5551;
+  --input: #5e5551;
+  --ring: #fe8019;
+
+  --on-air: #fe8019;
+  --on-air-bright: #ffa255;
+  --testing: #83a598;
+  --testing-bright: #a2c3b7;
+
+  --offset-positive: #b8bb26;
+  --offset-negative: #fe8019;
+
+  --success: #b8bb26;
+  --success-strong: #98971a;
+  --warning: #fabd2f;
+  --warning-strong: #d79921;
+  --danger: #fb4934;
+  --danger-strong: #cc241d;
+
+  --accent-alt: #d3869b;
+  --accent-alt-strong: #c5617c;
+}
+
+/* One Dark */
+:root[data-theme='one-dark'] {
+  --background: #0f1419;
+  --foreground: #abb2bf;
+  --card: #353b45;
+  --card-foreground: #dcdfe4;
+  --popover: #353b45;
+  --popover-foreground: #abb2bf;
+  --surface-sunken: #1b1f23;
+  --surface-raised: #2c313a;
+
+  --heading: #dcdfe4;
+  --muted: #282c34;
+  --muted-foreground: #9ea6b3;
+  --subtle-foreground: #828997;
+  --faint-foreground: #687189;
+
+  --primary: #61afef;
+  --primary-foreground: #21252b;
+  --secondary: #3e4451;
+  --secondary-foreground: #dcdfe4;
+  --accent: #3e4451;
+  --accent-foreground: #dcdfe4;
+  --destructive: #e06c75;
+  --destructive-foreground: #21252b;
+  --border: #4b5362;
+  --input: #4b5362;
+  --ring: #61afef;
+
+  --on-air: #61afef;
+  --on-air-bright: #95cbf8;
+  --testing: #c678dd;
+  --testing-bright: #dca6ed;
+
+  --offset-positive: #98c379;
+  --offset-negative: #d19a66;
+
+  --success: #98c379;
+  --success-strong: #7fa862;
+  --warning: #e5c07b;
+  --warning-strong: #c9a45f;
+  --danger: #e06c75;
+  --danger-strong: #c45660;
+
+  --accent-alt: #d19a66;
+  --accent-alt-strong: #c5803f;
+}
+
+/* Catppuccin Mocha */
+:root[data-theme='catppuccin-mocha'] {
+  --background: #0f1419;
+  --foreground: #cdd6f4;
+  --card: #30304a;
+  --card-foreground: #cdd6f4;
+  --popover: #30304a;
+  --popover-foreground: #cdd6f4;
+  --surface-sunken: #11111b;
+  --surface-raised: #313244;
+
+  --heading: #f5e0dc;
+  --muted: #313244;
+  --muted-foreground: #a6adc8;
+  --subtle-foreground: #7f849c;
+  --faint-foreground: #6c7086;
+
+  --primary: #cba6f7;
+  --primary-foreground: #181825;
+  --secondary: #45475a;
+  --secondary-foreground: #cdd6f4;
+  --accent: #45475a;
+  --accent-foreground: #cdd6f4;
+  --destructive: #f38ba8;
+  --destructive-foreground: #181825;
+  --border: #494c60;
+  --input: #494c60;
+  --ring: #cba6f7;
+
+  --on-air: #cba6f7;
+  --on-air-bright: #ecddfd;
+  --testing: #94e2d5;
+  --testing-bright: #c2f1e9;
+
+  --offset-positive: #a6e3a1;
+  --offset-negative: #fab387;
+
+  --success: #a6e3a1;
+  --success-strong: #83c67e;
+  --warning: #f9e2af;
+  --warning-strong: #d9c08d;
+  --danger: #f38ba8;
+  --danger-strong: #d9718e;
+
+  --accent-alt: #f5c2e7;
+  --accent-alt-strong: #ee96d6;
+}
+
+/*
+  Solarized Light — the one light theme, and the stress test for anything that
+  assumed a dark ground. Note the *-bright tokens are DARKER than their base
+  here, because "brighter against the background" inverts on a light theme.
+*/
+:root[data-theme='solarized-light'] {
+  --background: #eef2f6;
+  --foreground: #586e75;
+  --card: #fffefb;
+  --card-foreground: #073642;
+  --popover: #fffefb;
+  --popover-foreground: #586e75;
+  --surface-sunken: #eee8d5;
+  --surface-raised: #fffefb;
+
+  --heading: #073642;
+  --muted: #e6dfc8;
+  --muted-foreground: #4d5d63;
+  --subtle-foreground: #657577;
+  --faint-foreground: #7d8e8e;
+
+  --primary: #217ab8;
+  --primary-foreground: #ffffff;
+  --secondary: #ddd6c1;
+  --secondary-foreground: #073642;
+  --accent: #ddd6c1;
+  --accent-foreground: #073642;
+  --destructive: #dc322f;
+  --destructive-foreground: #fdf6e3;
+  --border: #bdb08c;
+  --input: #bdb08c;
+  --ring: #217ab8;
+
+  --on-air: #217ab8;
+  --on-air-bright: #16649b;
+  --testing: #d33682;
+  --testing-bright: #a51d5f;
+
+  --offset-positive: #708700;
+  --offset-negative: #cb4b16;
+
+  --success: #859900;
+  --success-strong: #6b7c00;
+  --warning: #b58900;
+  --warning-strong: #967100;
+  --danger: #dc322f;
+  --danger-strong: #b52825;
+
+  --accent-alt: #cb4b16;
+  --accent-alt-strong: #e8632c;
+}
+
+/* AirTime Light — the house palette on a light ground */
+:root[data-theme='airtime-light'] {
+  --background: #eef2f6;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --surface-sunken: #e2e8f0;
+  --surface-raised: #f8fafc;
+
+  --heading: #020617;
+  --muted: #e2e8f0;
+  --muted-foreground: #475569;
+  --subtle-foreground: #627288;
+  --faint-foreground: #7589a4;
+
+  --primary: #0e7490;
+  --primary-foreground: #ffffff;
+  --secondary: #e2e8f0;
+  --secondary-foreground: #0f172a;
+  --accent: #e2e8f0;
+  --accent-foreground: #020617;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --border: #c7d7df;
+  --input: #c7d7df;
+  --ring: #0e7490;
+
+  --on-air: #0e7490;
+  --on-air-bright: #155e75;
+  --testing: #7c3aed;
+  --testing-bright: #6d28d9;
+
+  --offset-positive: #047857;
+  --offset-negative: #c2410c;
+
+  --success: #047857;
+  --success-strong: #065f46;
+  --warning: #b45309;
+  --warning-strong: #92400e;
+  --danger: #dc2626;
+  --danger-strong: #b91c1c;
+
+  --accent-alt: #9333ea;
+  --accent-alt-strong: #7e22ce;
+}

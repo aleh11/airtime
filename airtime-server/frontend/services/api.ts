@@ -5,8 +5,10 @@ import {
     CronJobInput,
     RadioConfig,
     RadioConfigInput,
-    TransmitRequest
-} from '../types';
+    UiConfig,
+    UiConfigInput,
+    TransmitRequest,
+    UpdateInfo, ReleaseChannel } from '../types';
 
 const API_BASE = '';
 
@@ -104,9 +106,23 @@ export const api = {
         return handleResponse<SystemMetrics>(res);
     },
 
-    checkUpdates: async (): Promise<{ updates_available: boolean; local_commit: string; remote_commit: string }> => {
+    checkUpdates: async (): Promise<UpdateInfo> => {
         const res = await fetch(`${API_BASE}/api/system/check-updates`);
-        return handleResponse<{ updates_available: boolean; local_commit: string; remote_commit: string }>(res);
+        return handleResponse<UpdateInfo>(res);
+    },
+
+    getReleaseChannel: async (): Promise<{ channel: ReleaseChannel }> => {
+        const res = await fetch(`${API_BASE}/api/system/release-channel`);
+        return handleResponse<{ channel: ReleaseChannel }>(res);
+    },
+
+    setReleaseChannel: async (channel: ReleaseChannel): Promise<{ channel: ReleaseChannel }> => {
+        const res = await fetch(`${API_BASE}/api/system/release-channel`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ channel }),
+        });
+        return handleResponse<{ channel: ReleaseChannel }>(res);
     },
 
     applyUpdate: async (): Promise<{ status: string; message: string }> => {
@@ -116,12 +132,31 @@ export const api = {
         return handleResponse<{ status: string; message: string }>(res);
     },
 
-    switchBranch: async (branch: string): Promise<{ status: string; message: string }> => {
-        const res = await fetch(`${API_BASE}/api/system/switch-branch`, {
+    getUiConfig: async (): Promise<UiConfig> => {
+        const res = await fetch(`${API_BASE}/api/settings/ui`);
+        return handleResponse<UiConfig>(res);
+    },
+
+    updateUiConfig: async (config: UiConfigInput): Promise<{ status: string }> => {
+        const res = await fetch(`${API_BASE}/api/settings/ui`, {
             method: 'POST',
             headers,
-            body: JSON.stringify({ branch }),
+            body: JSON.stringify(config),
         });
-        return handleResponse<{ status: string; message: string }>(res);
+        return handleResponse<{ status: string }>(res);
+    },
+
+    getTimeTester: async (): Promise<{ enabled: boolean; service: string }> => {
+        const res = await fetch(`${API_BASE}/api/control/time-tester`);
+        return handleResponse<{ enabled: boolean; service: string }>(res);
+    },
+
+    setTimeTester: async (enabled: boolean, service: string, duration_hours: number = 12): Promise<{ enabled: boolean; affected_jobs: number }> => {
+        const res = await fetch(`${API_BASE}/api/control/time-tester`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ enabled, service, duration_hours }),
+        });
+        return handleResponse<{ enabled: boolean; affected_jobs: number }>(res);
     },
 };
