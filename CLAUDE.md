@@ -9,9 +9,6 @@ The whole backend is one Go daemon: `cmd/airtimed` with packages under
 built and embedded into `internal/web/dist` by `scripts/build.sh`. State lives in
 `/var/lib/airtime`.
 
-`airtime-server/CLAUDE.md` describes the retired Python implementation and is
-superseded — do not follow it.
-
 ## Start here
 
 - [CONTEXT.md](CONTEXT.md) — domain vocabulary. Use these terms.

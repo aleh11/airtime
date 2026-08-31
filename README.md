@@ -57,6 +57,16 @@ The installer downloads a single verified binary — no git clone, no Python env
 
 To remove it again, run `sudo ./uninstall.sh` (add `--purge` to delete your schedules and settings too).
 
+### Updating from an older AirTime
+
+Installs from before the single-binary release migrate themselves: open the
+dashboard, click **Update Now** on the update banner, and the Pi moves across on
+its own, keeping your schedules and settings.
+
+If your dashboard shows its commit as `unknown`, it cannot check for updates and
+will report itself up to date forever. Run the install command above over SSH
+instead — it upgrades in place and keeps your data.
+
 After installation, your dashboard will be available at `https://pi-ip-address:8443`
 #### Useful commands
 - `sudo systemctl restart airtime` - Restart the service
@@ -78,6 +88,7 @@ The Airtime dashboard provides an easy way to interact with the Airtime pi, and 
     - **Stealth Mode**: Toggle hardware LEDs.
     - **Global Offset**: Apply a time offset to all transmissions (usefull for timezone differences on certain services/watches).
     - **Auto-Update**: Installs the latest GitHub release directly from the UI, verified by checksum.
+    - **Beta Releases**: The flask icon in the header opts this Pi into beta builds, published from every change to the development branch. Switch back to stable at any time; your Pi stays on the build it is running rather than being downgraded.
     - **System Restart**: Restart the AirTime service.
     - **Pi Reboot**: Reboot the Pi directly from the dashboard UI.
 

@@ -28,6 +28,12 @@ _Avoid_: Drift, skew, adjustment
 **Time Mode**:
 Whether a Broadcast encodes the current time plus any Offset (`time_now`), or a fixed wall-clock time the user typed (`fixed_time`).
 
+**Release Channel**:
+Which releases an install is offered — `stable` ignores prereleases, `beta`
+takes the newest release of any kind. Stored per install, changed from the
+dashboard.
+_Avoid_: Branch, experimental mode, track
+
 **Stealth Mode**:
 A setting that suppresses the hardware LEDs while leaving transmission behaviour unchanged.
 

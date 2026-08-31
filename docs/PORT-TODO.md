@@ -1,95 +1,58 @@
-# Go port + release pipeline — working plan
+# Go port + release pipeline — what is left
 
-Decisions behind this plan: [ADR 0001](adr/0001-github-releases-single-binary.md),
-[0002](adr/0002-state-lives-outside-the-install.md), [0003](adr/0003-go-backend.md),
-[0004](adr/0004-in-process-scheduler.md).
+Everything through Phase 5 is done and signed off on hardware. The decisions
+behind it live in [docs/adr/](adr/), which is where to read rather than here:
+[0001](adr/0001-github-releases-single-binary.md),
+[0002](adr/0002-state-lives-outside-the-install.md),
+[0003](adr/0003-go-backend.md),
+[0004](adr/0004-in-process-scheduler.md),
+[0005](adr/0005-bounded-schedule-catch-up.md),
+[0006](adr/0006-release-channels.md),
+[0007](adr/0007-migrating-existing-installs.md).
+
+This file is a plan, not a record. Delete it once the cutover lands.
 
 Anything marked **[PI]** cannot be signed off without hardware.
 
-## Phase 0 — state relocation (done, still on Python)
+## Cutover
 
-- [x] Resolve state dir to `/var/lib/airtime`, override via `AIRTIME_STATE_DIR`
-- [x] Migrate a legacy in-repo database via the SQLite backup API
-- [x] Installer provisions the state dir; units declare `StateDirectory=`
-- [x] **[PI]** Confirm an existing install migrates and keeps its schedules — verified: 5 schedules, 8 settings, offset preserved
+- [ ] Decide the first stable version. `VERSION` is `0.4.0`, so merging cuts
+      `v0.4.0` and `0.3.0` never exists. Permanent once published.
+- [ ] Merge `experimental` into master. Master has been merged in already, so
+      this is currently conflict-free — confirm that still holds before doing it.
+- [ ] Confirm `releases/latest/download/install.sh` returns 200 once the stable
+      release publishes. The migration shim resolves through it, and it 404s
+      while every release is a prerelease.
+- [ ] Say in the release notes that an install reporting its commit as
+      `unknown` cannot migrate itself and needs the manual installer
+      ([0007](adr/0007-migrating-existing-installs.md)).
 
-## Phase 1 — Go daemon core
+## Verification still outstanding
 
-- [x] `go.mod`, cgo off, `modernc.org/sqlite`
-- [x] Store: settings, status, schedules — same schema, same migration behaviour
-- [x] Config: state dir, listen addr, TLS paths, txtempus path
-- [x] Self-signed cert generation on first start
-- [x] `//go:embed` the frontend, serve it with SPA fallback
-- [x] Port all 17 endpoints (`/api/status`, crons, settings, control, metrics)
-- [x] Metrics from `/proc` and `/sys/class/thermal` (replaces psutil)
-- [x] Transmitter: spawn and stop txtempus, track running state
+- [ ] **[PI]** The CPU figure holds still. Three reads in a row should agree
+      with each other and with the kernel; the Pi is on a build from before the
+      fix, where they did not.
+- [ ] **[PI]** A clean SD card. The clean install was verified on a wiped Pi
+      that already had `build-essential`, `cmake` and `git`, so a missing build
+      dependency would still not be caught.
 
-## Phase 2 — scheduler
+## UI
 
-- [x] In-process scheduler driven from SQLite
-- [x] Installer strips the crontab mirror (schedules already live in SQLite)
-- [x] Offset and time-mode applied at fire time, not at write time
-- [x] **[PI]** Verify a schedule survives a reboot and fires — verified; exposed the clock-jump misfire ([ADR 0005](adr/0005-bounded-schedule-catch-up.md))
-- [x] **[PI]** Re-verify after a reboot that the clock-jump fix holds — verified: both guards fired, zero spurious broadcasts
+- [ ] Port master's custom beaker SVG onto the themed tokens. Master styles it
+      with hardcoded purple utilities, which is the one thing `index.css` says
+      components may not do.
+- [ ] Layout pass on the 7/5 grid.
+- [ ] Decide whether to surface the Time Tester. The backend supports it and the
+      modal exists, but nothing has ever rendered a trigger for it.
 
-## Phase 3 — GPIO
+## Cleanup after the cutover
 
-- [x] `go-gpiocdev` outputs for heartbeat, NTP and antenna LEDs
-- [x] Button input with kernel debounce and pull-up bias
-- [x] Stealth mode suppresses LEDs
-- [x] Fake implementation behind the same interface for development
-- [x] **[PI]** Lines behave after reboot; no leaked lines on restart — verified, kernel reports the 10ms debounce
-
-## Phase 4 — release pipeline
-
-- [x] `GOOS=linux GOARCH=arm64` cross-compile from the laptop
-- [x] Both `linux/arm64` and `linux/arm` (GOARM=7) build, so either image works
-- [x] GitHub Actions: build when `VERSION` changes, publish asset + `.sha256`
-- [x] Update helper + systemd path unit (request file, hardened oneshot)
-- [x] Rewrite the in-app updater against release assets
-- [x] Remove `/api/system/switch-branch` and its UI
-- [x] Stop committing `frontend/dist` (embedded at build time instead)
-
-## Phase 5 — installer
-
-- [x] Rewrite `install.sh` around `curl | sudo bash` of a release asset
-- [x] Banner, stepped progress, spinner, TTY-aware colour fallback
-- [x] Drop nginx, uv, virtualenv and the Python system packages
-- [x] Keep txtempus install; keep chrony setup
-- [x] Uninstall script
-
-## Phase 6 — cutover
-
-- [x] **[PI]** Full install on a clean machine — verified on the dev Pi after a
-      full purge, with txtempus and chrony removed so both were built and
-      installed from scratch. Not literally a fresh SD card: `build-essential`,
-      `cmake` and `git` were already present, so a missing build dependency
-      would not have been caught. Found three defects (see below).
-- [x] **[PI]** Upgrade from a Python install, verifying nothing is lost — verified end to end
-- [ ] Ship `restart.sh` on master as a shim that runs the new installer, so
-      existing installs migrate from the update banner they already have
-- [ ] Merge `experimental` into master (2 conflict hunks, both in built assets).
-      The merge must **keep** `restart.sh`: Phase 8 deleted it here, and
-      `apply_update` on master pulls before executing it, so letting that
-      deletion land would strip the Python backend and the script that replaces
-      it in the same pull, leaving no way to recover from the dashboard.
-- [ ] Bump `VERSION` to `0.3.0` to cut the first full release. `0.3.0-rc.1` and
-      `0.3.0-rc.2` are published as prereleases, so `releases/latest/download`
-      is still unserved and no install can reach them by accident.
-
-Defects the clean install found, all fixed in rc.2:
-
-- `with_status` runs each step in a background subshell, so `download_release`
-  could not hand `download_dir` back and the binary install resolved to `/`.
-  Only ever broke on a TTY, which is why the upgrade test missed it.
-- The scheduler ticked on a ticker aligned to daemon start, firing schedules up
-  to 30s after the minute they name.
-- Metrics rendered raw `float64`, so the dashboard showed `0.5025125628140703%`.
-
-## Phase 7 — UI
-
-- [x] Split `ControlWidget` (785 lines) and `ScheduleWidget` (722 lines)
-- [ ] Layout pass on the 7/5 grid
+- [ ] Untrack `airtime-server/frontend/dist`. It is a build output that is still
+      tracked, `scripts/build.sh` regenerates it, and Tailwind's source detection
+      scans it because it is not gitignored. Safe once no install pulls master
+      expecting nginx to serve it.
+- [ ] Prune old `-beta` prereleases. Every push to `experimental` publishes one
+      and nothing removes them.
 
 ## Notes
 
@@ -98,10 +61,3 @@ Defects the clean install found, all fixed in rc.2:
   covers them; per-package coverage needs `-coverpkg ./internal/...`.
 - The daemon cannot migrate a database from `/home` itself: the unit sets
   `ProtectHome=true`, so the installer performs that migration as root.
-
-## Phase 8 — post-Pi cleanup
-
-- [x] Delete `airtime-server/backend`, `nginx.conf`, `restart.sh`, `status.sh`.
-      `master` still carries the Python implementation if it is ever needed.
-- [ ] Decide whether to surface the Time Tester in the UI — the backend supports
-      it and the modal exists, but nothing has ever rendered a trigger for it.
