@@ -4,12 +4,17 @@ package gpio
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/warthog618/go-gpiocdev"
 )
 
 const buttonDebounce = 10 * time.Millisecond
+
+// HoldDuration is how long the button must be held for the stealth toggle,
+// matching the hat's original behaviour.
+const HoldDuration = 3 * time.Second
 
 type lines struct {
 	leds   map[LED]*gpiocdev.Line
@@ -19,7 +24,7 @@ type lines struct {
 // Open requests every line the hat uses. The returned Controller holds those
 // lines for its lifetime, which is what keeps the LEDs lit: the kernel releases
 // a line as soon as its owning file descriptor closes.
-func Open(chip string, pins Pins, onButton func()) (Controller, error) {
+func Open(chip string, pins Pins, buttons Buttons) (Controller, error) {
 	l := &lines{leds: map[LED]*gpiocdev.Line{}}
 
 	for led, offset := range map[LED]int{Heartbeat: pins.Heartbeat, NTP: pins.NTP, Antenna: pins.Antenna} {
@@ -33,16 +38,45 @@ func Open(chip string, pins Pins, onButton func()) (Controller, error) {
 		l.leds[led] = line
 	}
 
+	// Both edges, because a hold can only be told from a press by timing the
+	// two. The hold fires while the button is still down rather than on
+	// release, so the LEDs going dark is the confirmation.
+	var (
+		mu        sync.Mutex
+		holdTimer *time.Timer
+		held      bool
+	)
 	button, err := gpiocdev.RequestLine(chip, pins.Button,
 		gpiocdev.AsInput,
 		gpiocdev.WithPullUp,
 		gpiocdev.WithDebounce(buttonDebounce),
-		gpiocdev.WithFallingEdge,
+		gpiocdev.WithBothEdges,
 		gpiocdev.WithConsumer("airtime"),
-		gpiocdev.WithEventHandler(func(gpiocdev.LineEvent) {
-			if onButton != nil {
-				onButton()
+		gpiocdev.WithEventHandler(func(event gpiocdev.LineEvent) {
+			mu.Lock()
+			defer mu.Unlock()
+
+			if event.Type == gpiocdev.LineEventFallingEdge {
+				held = false
+				holdTimer = time.AfterFunc(HoldDuration, func() {
+					mu.Lock()
+					held = true
+					mu.Unlock()
+					if buttons.OnHold != nil {
+						buttons.OnHold()
+					}
+				})
+				return
 			}
+
+			if holdTimer != nil {
+				holdTimer.Stop()
+				holdTimer = nil
+			}
+			if !held && buttons.OnPress != nil {
+				buttons.OnPress()
+			}
+			held = false
 		}))
 	if err != nil {
 		l.Close()

@@ -100,7 +100,7 @@ func run() error {
 	// stale by definition at startup.
 	db.SetStatus("services", "txtempus_running", false)
 
-	leds := openGPIO(cfg, runner)
+	leds := openGPIO(cfg, db, broadcaster)
 	if leds != nil {
 		defer leds.Close()
 	}
@@ -163,11 +163,42 @@ func run() error {
 	return nil
 }
 
-func openGPIO(cfg config, runner *transmit.Runner) gpio.Controller {
-	leds, err := gpio.Open(cfg.gpioChip, gpio.DefaultPins, func() {
-		slog.Info("control button pressed")
-		runner.Stop()
-	})
+func boolText(value bool) string {
+	if value {
+		return "true"
+	}
+	return "false"
+}
+
+func openGPIO(cfg config, db *store.Store, broadcaster *broadcast.Controller) gpio.Controller {
+	buttons := gpio.Buttons{
+		// A press toggles, as the hat has always done. Wiring it to Stop alone
+		// meant the button did nothing at all unless something was already on
+		// air, and never lit the antenna LED.
+		OnPress: func() {
+			if broadcaster.Running() {
+				slog.Info("control button: stopping broadcast")
+				broadcaster.Stop()
+				return
+			}
+			request := broadcast.DefaultRequest(db)
+			slog.Info("control button: starting broadcast", "standard", request.Standard, "duration", request.DurationMinutes)
+			if err := broadcaster.Start(request); err != nil {
+				slog.Error("control button: could not start broadcast", "error", err)
+			}
+		},
+		OnHold: func() {
+			stealth, _, _ := db.Setting("app_config", "stealth_mode")
+			enabled := stealth != "true"
+			if err := db.SetSetting("app_config", "stealth_mode", boolText(enabled)); err != nil {
+				slog.Error("control button: could not toggle stealth", "error", err)
+				return
+			}
+			slog.Info("control button: stealth toggled", "enabled", enabled)
+		},
+	}
+
+	leds, err := gpio.Open(cfg.gpioChip, gpio.DefaultPins, buttons)
 	if err != nil {
 		slog.Warn("gpio unavailable; continuing without hardware indicators", "error", err)
 		return nil

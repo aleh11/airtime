@@ -128,3 +128,42 @@ func TestFinishedClearsTheRecord(t *testing.T) {
 		t.Fatalf("details should be cleared, got %+v", details)
 	}
 }
+
+func TestDefaultRequestReadsTheDashboardSettings(t *testing.T) {
+	// The button starts the same broadcast the dashboard would, so it has to
+	// read the settings the dashboard writes rather than its own defaults.
+	_, db, _ := newController(t)
+	for _, setting := range []struct{ key, value string }{
+		{"default_service", "WWVB"},
+		{"default_duration_minutes", "25"},
+		{"default_offset", "42"},
+		{"default_offset_enabled", "true"},
+		{"default_time_mode", "fixed_time"},
+		{"default_fixed_time", "09:30"},
+	} {
+		if err := db.SetSetting("radio_config", setting.key, setting.value); err != nil {
+			t.Fatalf("set %s: %v", setting.key, err)
+		}
+	}
+
+	got := broadcast.DefaultRequest(db)
+	want := transmit.Request{
+		Standard:        "WWVB",
+		DurationMinutes: 25,
+		Offset:          42,
+		OffsetEnabled:   true,
+		TimeMode:        "fixed_time",
+		FixedTime:       "09:30",
+	}
+	if got != want {
+		t.Fatalf("got %+v, want %+v", got, want)
+	}
+}
+
+func TestDefaultRequestFallsBackWhenNothingIsConfigured(t *testing.T) {
+	_, db, _ := newController(t)
+	got := broadcast.DefaultRequest(db)
+	if got.Standard != "DCF77" || got.DurationMinutes != 10 || got.TimeMode != "time_now" {
+		t.Fatalf("got %+v, want the shipped defaults", got)
+	}
+}

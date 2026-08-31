@@ -2,6 +2,6 @@
 
 package gpio
 
-func Open(chip string, pins Pins, onButton func()) (Controller, error) {
+func Open(chip string, pins Pins, buttons Buttons) (Controller, error) {
 	return nil, ErrUnsupported
 }

@@ -5,6 +5,7 @@ package broadcast
 
 import (
 	"log/slog"
+	"strconv"
 	"time"
 
 	"github.com/aleh11/airtime/internal/store"
@@ -105,4 +106,41 @@ func (c *Controller) clear() {
 	if err := c.store.SetStatus("services", "txtempus_details", Details{}); err != nil {
 		c.log.Error("clear broadcast", "error", err)
 	}
+}
+
+// DefaultRequest builds the broadcast the hat's button starts, from the same
+// settings the dashboard edits. The dashboard reads these keys itself for its
+// own form, so the fallbacks here have to stay in step with it.
+func DefaultRequest(s *store.Store) transmit.Request {
+	request := transmit.Request{
+		Standard:        "DCF77",
+		DurationMinutes: 10,
+		TimeMode:        "time_now",
+		FixedTime:       "12:00",
+	}
+
+	if value, ok, _ := s.Setting("radio_config", "default_service"); ok && value != "" {
+		request.Standard = value
+	}
+	if value, ok, _ := s.Setting("radio_config", "default_duration_minutes"); ok {
+		if parsed, err := strconv.Atoi(value); err == nil {
+			request.DurationMinutes = parsed
+		}
+	}
+	if value, ok, _ := s.Setting("radio_config", "default_offset"); ok {
+		if parsed, err := strconv.Atoi(value); err == nil {
+			request.Offset = parsed
+		}
+	}
+	if value, ok, _ := s.Setting("radio_config", "default_offset_enabled"); ok {
+		request.OffsetEnabled = value == "true"
+	}
+	if value, ok, _ := s.Setting("radio_config", "default_time_mode"); ok && value != "" {
+		request.TimeMode = value
+	}
+	if value, ok, _ := s.Setting("radio_config", "default_fixed_time"); ok && value != "" {
+		request.FixedTime = value
+	}
+
+	return request
 }
