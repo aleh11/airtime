@@ -54,9 +54,7 @@ func (f *Fake) IsOn(led LED) bool { return f.state[led] }
 
 func (f *Fake) Close() error { return nil }
 
-// StartupAnimation sweeps the three LEDs three times, as the hat has always
-// done on boot. It is the only sign a user gets that the daemon came back after
-// a reboot or an update, so it survived the port on purpose.
+// The hat's boot sweep: the only sign the daemon came back.
 func StartupAnimation(c Controller) {
 	if c == nil {
 		return

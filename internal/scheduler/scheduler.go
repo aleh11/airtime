@@ -11,9 +11,7 @@ import (
 
 var specParser = cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
 
-// Due reports which schedules should fire for the window (last, now]. A
-// schedule that was missed entirely while the daemon was down fires once on
-// return rather than once per missed occurrence.
+// Due reports schedules firing in (last, now]; a missed one fires once, not per occurrence.
 func Due(schedules []store.Schedule, last, now time.Time) ([]store.Schedule, error) {
 	var due []store.Schedule
 	var problems []error

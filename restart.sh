@@ -1,12 +1,5 @@
 #!/usr/bin/env bash
-#
-# AirTime now ships as a single verified binary instead of a git checkout.
-#
-# The dashboard's "Update Now" button pulls this repository and then runs this
-# script as root, so this is the last thing the git-based updater ever does: it
-# hands over to the release installer, which retires the Python services, drops
-# the nginx site and the crontab mirror, and migrates the database.
-#
+# The last thing the git updater ever does: hand over to the release installer.
 set -Eeuo pipefail
 
 repository="aleh11/airtime"
@@ -15,13 +8,7 @@ installer_url="${AIRTIME_INSTALLER_URL:-}"
 release_base_url="${AIRTIME_RELEASE_BASE_URL:-}"
 log="/var/log/airtime-migration.log"
 
-# By the time this script runs, the pull that delivered it has already removed
-# the Python backend, so there is no working install to fall back to: whatever
-# happens next, it has to end with a daemon installed. Resolving through
-# releases/latest is therefore not enough on its own — it serves nothing at all
-# until a stable release exists, and a Pi that pulled this from a development
-# branch beforehand would be left with neither implementation. Fall back to the
-# newest release of any kind so the migration still completes.
+# releases/latest serves nothing until a stable exists, so fall back to the newest.
 resolve_installer() {
   if [[ -n "${installer_url}" ]]; then
     return 0
@@ -34,10 +21,7 @@ resolve_installer() {
 
   echo "no stable release published; falling back to the newest prerelease" >&2
 
-  # Read the response into a variable and parse it without a pipeline. Any
-  # reader that stops early — grep -m1, head, awk with exit — leaves curl
-  # writing to a closed pipe, and under pipefail that failure kills the script
-  # before it has installed anything. install.sh carries the same warning.
+  # No pipeline: a reader that stops early leaves curl on a closed pipe, fatal under pipefail.
   local body tag
   body="$(curl -fsSL --retry 2 -H 'Accept: application/vnd.github+json' \
     "https://api.github.com/repos/${repository}/releases?per_page=10" 2>/dev/null)" || body=""
@@ -69,10 +53,7 @@ fi
 
 resolve_installer
 
-# This script is a child of airtime-server.service, and the installer stops that
-# unit. systemd kills the whole cgroup when it does, which would kill this
-# script mid-migration and leave the Pi with neither the old stack nor the new
-# one. A transient unit gets its own cgroup and survives the teardown.
+# A child of the unit the installer stops, so it needs its own cgroup to survive.
 args=(
   --unit=airtime-migration
   --collect

@@ -11,9 +11,7 @@ import (
 
 const (
 	DefaultReleaseAPI = "https://api.github.com/repos/aleh11/airtime/releases/latest"
-	// The list endpoint is the only one that returns prereleases; /releases/latest
-	// deliberately skips them, which is what keeps beta builds away from everyone
-	// who has not asked for them.
+	// Only this endpoint returns prereleases; /releases/latest excludes them by design.
 	DefaultPrereleaseAPI = "https://api.github.com/repos/aleh11/airtime/releases?per_page=20"
 )
 
@@ -26,19 +24,14 @@ type Info struct {
 	Prerelease bool   `json:"prerelease"`
 }
 
-// Checker asks GitHub what the latest release is, and asks the update helper to
-// install it. The daemon never installs anything itself: it writes a request
-// file that a systemd path unit is watching, so the privileged work happens in
-// a separate, hardened unit.
+// The daemon never installs anything itself; it writes a request a path unit watches.
 type Checker struct {
 	Current       string
 	ReleaseAPI    string
 	PrereleaseAPI string
 	RequestPath   string
 	Client        *http.Client
-	// Beta reports whether this install has opted into prereleases. Nil means
-	// stable only, so a caller that knows nothing about channels keeps the old
-	// behaviour.
+	// Nil means stable only.
 	Beta func() bool
 }
 
@@ -63,9 +56,7 @@ func (c Checker) Check() (Info, error) {
 	}
 
 	return Info{
-		// Newer, not merely different: an install that switched back to stable
-		// while running a beta is ahead of the stable release, and offering that
-		// as an update would be offering a downgrade.
+		// Newer, not merely different: a beta install is ahead of stable.
 		Available:  newer(latest.TagName, c.Current),
 		Current:    c.Current,
 		Latest:     latest.TagName,
@@ -75,9 +66,7 @@ func (c Checker) Check() (Info, error) {
 	}, nil
 }
 
-// latest resolves the release this install should be running. On the beta
-// channel that is the newest release of any kind, so a stable release newer
-// than the last prerelease still wins.
+// On beta this is the newest release of any kind, so a newer stable still wins.
 func (c Checker) latest() (release, error) {
 	if !c.beta() {
 		endpoint := c.ReleaseAPI
@@ -152,10 +141,7 @@ func (c Checker) Apply() error {
 		return fmt.Errorf("create request dir: %w", err)
 	}
 
-	// The request names the exact tag to install, so the helper installs what the
-	// dashboard offered rather than whatever "latest" means by the time it runs.
-	// A failed lookup still writes a request: the helper falls back to the base
-	// URL baked in at install time.
+	// Naming the tag installs what the dashboard offered, not whatever latest becomes.
 	payload := time.Now().UTC().Format(time.RFC3339)
 	if info, err := c.Check(); err == nil && info.Latest != "" {
 		payload = info.Latest

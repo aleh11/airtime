@@ -1,9 +1,5 @@
 #!/usr/bin/env bash
-#
-# AirTime installer.
-#
-#   curl -fsSL https://github.com/aleh11/airtime/releases/latest/download/install.sh | sudo bash
-#
+# AirTime installer: curl -fsSL .../releases/latest/download/install.sh | sudo bash
 set -Eeuo pipefail
 
 service_name="airtime"
@@ -246,9 +242,7 @@ legacy_install_present() {
 
 retire_python_install() {
   local unit
-  # Unconditional and idempotent. An earlier version guarded this with
-  # `systemctl list-unit-files | grep -q`, which reports failure under pipefail
-  # because grep -q exits early and systemd dies of SIGPIPE.
+  # Unconditional: guarding with `list-unit-files | grep -q` dies of SIGPIPE under pipefail.
   for unit in airtime-server airtime-status; do
     systemctl disable --now "${unit}.service" 2>/dev/null || true
     rm -f "/etc/systemd/system/${unit}.service"
@@ -287,10 +281,7 @@ provision_state() {
     return 0
   fi
 
-  # The migration happens here rather than in the daemon: the service runs with
-  # ProtectHome=true, so it cannot see a database living under /home. Use the
-  # SQLite backup API, because the legacy database is in WAL mode and recent
-  # writes may exist only in its -wal sidecar.
+  # Here, not in the daemon: ProtectHome hides /home. Backup API, because of the WAL.
   if command -v sqlite3 >/dev/null 2>&1; then
     sqlite3 "${legacy_db}" ".backup '${state_dir}/airtime.db'"
   else
@@ -333,9 +324,7 @@ UNIT
   install -d -m 0755 -o root -g root /usr/local/libexec
   cat > "${update_helper}" <<HELPER
 #!/usr/bin/env bash
-# Installs the latest AirTime release. Triggered by airtime-update.path when the
-# daemon writes an update request; the daemon itself never has the privileges to
-# replace its own binary.
+# Triggered by airtime-update.path; the daemon cannot replace its own binary.
 set -Eeuo pipefail
 
 request="${update_request_path}"
@@ -343,9 +332,7 @@ install_path="${install_path}"
 release_base_url="${release_base_url}"
 download_base="https://github.com/${repository}/releases/download"
 
-# The daemon writes the tag it means to install, so a beta opt-in installs the
-# prerelease the dashboard offered rather than whatever "latest" resolves to.
-# An unreadable or malformed request falls back to the URL baked in at install.
+# The daemon names the tag; a malformed request falls back to the baked-in URL.
 requested_tag="\$(head -n1 "\${request}" 2>/dev/null | tr -d '[:space:]')"
 if [[ "\${requested_tag}" =~ ^v[0-9A-Za-z.+-]+$ ]]; then
   release_base_url="\${download_base}/\${requested_tag}"
@@ -411,9 +398,7 @@ UNIT
 
 start_service() {
   systemctl restart "${service_name}"
-  # Enabling the path unit only arms it for the next boot. Without starting it
-  # here, nothing watches for update requests until the Pi is rebooted, so the
-  # dashboard's update button silently does nothing on a fresh install.
+  # Enabling only arms it for the next boot; unstarted, the update button does nothing.
   systemctl restart airtime-update.path
   systemctl restart chrony 2>/dev/null || systemctl restart chronyd 2>/dev/null || true
 

@@ -1,9 +1,4 @@
-/**
- * Display names for the themes defined in themes.css. The daemon owns the list
- * of ids that are actually valid (internal/api/ui.go) and serves it as
- * `available_themes`; anything it offers that is missing here falls back to its
- * raw id rather than disappearing from the picker.
- */
+// Display names only; the daemon owns which ids are valid. Unknown ids fall back to the id.
 export const THEME_LABELS: Record<string, string> = {
     'airtime-dark': 'AirTime Dark',
     'airtime-light': 'AirTime Light',
@@ -28,12 +23,7 @@ export function applyTheme(id: string): void {
     document.documentElement.dataset.theme = id;
 }
 
-/**
- * The appliance is the source of truth for the theme, but fetching it takes a
- * round trip and the page would paint the default first. Caching the last known
- * theme locally lets the first paint be right; the server value still wins as
- * soon as it lands.
- */
+// Cached only so the first paint is right; the server value wins once it lands.
 export function cacheTheme(id: string): void {
     try {
         localStorage.setItem(CACHE_KEY, id);

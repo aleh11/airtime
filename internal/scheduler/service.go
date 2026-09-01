@@ -9,15 +9,10 @@ import (
 	"github.com/aleh11/airtime/internal/store"
 )
 
-// Ticks are aligned to the wall clock rather than to daemon start, because a
-// schedule names a minute and cron fired exactly on it. An unaligned ticker
-// fires up to a full interval late, which reads as the schedule being wrong.
+// Aligned to the wall clock: an unaligned ticker fires a schedule up to an interval late.
 const tickInterval = 30 * time.Second
 
-// maxCatchUp bounds how much missed time is worth acting on. A Raspberry Pi has
-// no real-time clock, so it boots with a stale time and jumps forward when
-// chrony syncs; without this bound that jump reads as downtime and every
-// schedule fires at once.
+// A Pi has no RTC, so the chrony jump at boot reads as downtime and fires everything.
 const maxCatchUp = 10 * time.Minute
 
 // Broadcaster starts the transmitter for a due schedule and records it, so a

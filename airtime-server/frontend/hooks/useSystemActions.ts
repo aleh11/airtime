@@ -18,10 +18,6 @@ async function waitForDaemon(): Promise<boolean> {
 
 export type RestartTarget = 'service' | 'pi';
 
-/**
- * Restarts the daemon or the Pi and waits for the dashboard to be answered
- * again, so the UI can show progress rather than appearing to hang.
- */
 export function useSystemActions() {
     const [restarting, setRestarting] = useState<RestartTarget | null>(null);
 

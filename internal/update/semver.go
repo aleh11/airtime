@@ -5,10 +5,7 @@ import (
 	"strings"
 )
 
-// newer reports whether a is a later version than b, by semantic version
-// precedence rather than publication date. GitHub lists releases newest-first,
-// but a hotfix cut from master publishes after a beta while ranking below it,
-// so ordering by date would offer that beta install a downgrade.
+// By precedence, not publication date: a hotfix publishes after a beta but ranks below it.
 func newer(a, b string) bool { return compareVersions(a, b) > 0 }
 
 func compareVersions(a, b string) int {

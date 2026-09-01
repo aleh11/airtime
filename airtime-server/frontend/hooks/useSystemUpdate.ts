@@ -8,14 +8,7 @@ const RECONNECT_DELAY_MS = 1000;
 
 type BannerType = 'available' | 'up-to-date' | null;
 
-/**
- * Waits for the daemon to come back reporting a different version.
- *
- * Waiting for it to merely answer is not enough: the helper downloads and
- * verifies the release before it restarts anything, so the old daemon is still
- * serving for most of the update. Reloading then just re-renders the version
- * being replaced, which looks like the update silently did nothing.
- */
+// The old daemon still answers while the helper downloads, so wait for the version to change.
 async function waitForNewVersion(before: string | undefined): Promise<boolean> {
     for (let attempt = 0; attempt < RECONNECT_ATTEMPTS; attempt++) {
         try {
@@ -31,10 +24,6 @@ async function waitForNewVersion(before: string | undefined): Promise<boolean> {
     return false;
 }
 
-/**
- * Owns the update lifecycle: asking GitHub what the latest release is, showing
- * the outcome, and waiting for the daemon to come back after it installs one.
- */
 export function useSystemUpdate() {
     const [info, setInfo] = useState<UpdateInfo | null>(null);
     const [banner, setBanner] = useState<BannerType>(null);

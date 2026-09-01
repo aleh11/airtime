@@ -85,6 +85,7 @@ jobs:
             build/airtime-linux-arm
             build/airtime-linux-arm.sha256
             install.sh
+            legacy-port.sh
           # Always a prerelease: this is the mechanism that keeps beta builds
           # away from stable installs.
           prerelease: true

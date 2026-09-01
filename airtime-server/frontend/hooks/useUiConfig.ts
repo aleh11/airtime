@@ -2,11 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { applyTheme, cacheTheme, DEFAULT_THEME } from '../themes';
 
-/**
- * Dashboard appearance, stored on the appliance so it follows the hardware
- * rather than the browser. The local cache in themes.ts only covers the first
- * paint; whatever the daemon returns wins.
- */
+// Stored on the appliance so appearance follows the hardware, not the browser.
 export function useUiConfig() {
     const [theme, setThemeState] = useState(DEFAULT_THEME);
     const [availableThemes, setAvailableThemes] = useState<string[]>([]);

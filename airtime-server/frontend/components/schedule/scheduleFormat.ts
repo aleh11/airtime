@@ -14,10 +14,7 @@ export function durationLabel(minutes: number): string {
     return DURATION_OPTIONS.find((option) => option.value === minutes)?.label ?? `${minutes}m`;
 }
 
-/**
- * Reports whether a schedule is the one currently on air, by matching the
- * running broadcast's standard, duration and start time against it.
- */
+// Matches a schedule against the running broadcast's standard, duration and start.
 export function isScheduleLive(job: CronJob, status: SystemStatus | null): boolean {
     if (!status?.services.txtempus_running) return false;
     if (status.services.txtempus_duration !== parseInt(job.radio_details.duration)) return false;

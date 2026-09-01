@@ -43,6 +43,11 @@ Run **one command**:
 curl -fsSL https://github.com/aleh11/airtime/releases/latest/download/install.sh | sudo bash
 ```
 
+> **Already running AirTime from before 1 September 2026?**
+> Don't run the command above yet — your Pi can move itself across, and there is
+> a recovery path if it can't. Skip to
+> [Moving an older AirTime to 2.0](#moving-an-older-airtime-to-20).
+
 The installer downloads a single verified binary — no git clone, no Python environment, no nginx. It:
 - Verifies the release against its published `sha256` before installing anything
 - Installs and sets up the [txtempus](https://github.com/hzeller/txtempus) binary
@@ -56,16 +61,6 @@ The installer downloads a single verified binary — no git clone, no Python env
 - `airtime-update.path`: watches for update requests from the dashboard
 
 To remove it again, run `sudo ./uninstall.sh` (add `--purge` to delete your schedules and settings too).
-
-### Updating from an older AirTime
-
-Installs from before the single-binary release migrate themselves: open the
-dashboard, click **Update Now** on the update banner, and the Pi moves across on
-its own, keeping your schedules and settings.
-
-If your dashboard shows its commit as `unknown`, it cannot check for updates and
-will report itself up to date forever. Run the install command above over SSH
-instead — it upgrades in place and keeps your data.
 
 After installation, your dashboard will be available at `https://pi-ip-address`. Plain
 HTTP redirects to it, and `https://pi-ip-address:8443` keeps working, so any address you
@@ -96,6 +91,52 @@ The Airtime dashboard provides an easy way to interact with the Airtime pi, and 
 
 The UI is also fully covered within the [full user guide](docs/Airtime3.pdf), so if you still have questions, refer to that document.
   
+## Moving an older AirTime to 2.0
+
+AirTime 2.0 replaces the Python services, nginx and the git checkout with a
+single binary. Your schedules, offsets and settings are kept.
+
+### The normal way: click the update button
+
+Open your dashboard as usual. The **Update Available** banner appears, and
+clicking **Update Now** does the whole thing for you.
+
+It takes noticeably longer than an update used to — it downloads and verifies
+the release, and on some Pis rebuilds the transmitter from source. **The
+dashboard will go unresponsive partway through, and may look like it has
+failed. That is the old services being retired; leave it alone.** Give it up to
+ten minutes, then reload the page.
+
+When it comes back you'll be on the new dashboard, at your Pi's address with no
+port number.
+
+### If the button doesn't work
+
+Some older installs cannot update themselves. You'll recognise them by any of:
+
+- the dashboard reports its version or commit as **`unknown`**
+- it insists it is **up to date** no matter how long you wait
+- you click **Update Now** and nothing happens at all
+
+This happens when the Pi's copy of the repository can no longer be updated — the
+database was once tracked in git and is now modified, or the folder's ownership
+has changed. The update button runs a `git pull` that quietly fails, so it can
+never reach the new version. Nothing is wrong with your Pi, and nothing is lost.
+
+Log in over SSH and run:
+
+```bash
+curl -fsSL https://github.com/aleh11/airtime/releases/latest/download/legacy-port.sh | sudo bash
+```
+
+That script does what the button would have: stops and removes the old
+services, drops the nginx site and the old crontab entries, moves your database
+to `/var/lib/airtime`, and installs the current release. It prints what it finds
+as it goes, and it is safe to run twice.
+
+Afterwards, the old folder in your home directory is no longer used and can be
+deleted whenever you like.
+
 ## Supported Frequencies and encoding
 - **DCF77** - Germany (77.5 kHz)
 - **WWVB** - USA (60 kHz)

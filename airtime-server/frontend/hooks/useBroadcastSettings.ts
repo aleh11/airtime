@@ -4,11 +4,7 @@ import { RadioConfig, RadioConfigInput } from '../types';
 
 export type TimeMode = 'time_now' | 'time_now_with_offset' | 'fixed_time';
 
-/**
- * Owns how a broadcast is encoded: which standard, for how long, and against
- * what clock. Every change is written straight back to the daemon, which is the
- * only source of truth for these values.
- */
+// Every change is written straight back to the daemon, the only source of truth.
 export function useBroadcastSettings(radioConfig: RadioConfig | null, onSaved?: () => void) {
     const [standard, setStandard] = useState('DCF77');
     const [duration, setDuration] = useState(10);

@@ -21,9 +21,7 @@ type lines struct {
 	button *gpiocdev.Line
 }
 
-// Open requests every line the hat uses. The returned Controller holds those
-// lines for its lifetime, which is what keeps the LEDs lit: the kernel releases
-// a line as soon as its owning file descriptor closes.
+// The Controller must outlive the LEDs: the kernel frees a line when its fd closes.
 func Open(chip string, pins Pins, buttons Buttons) (Controller, error) {
 	l := &lines{leds: map[LED]*gpiocdev.Line{}}
 
@@ -38,9 +36,7 @@ func Open(chip string, pins Pins, buttons Buttons) (Controller, error) {
 		l.leds[led] = line
 	}
 
-	// Both edges, because a hold can only be told from a press by timing the
-	// two. The hold fires while the button is still down rather than on
-	// release, so the LEDs going dark is the confirmation.
+	// Both edges: a hold is only distinguishable from a press by timing it.
 	var (
 		mu        sync.Mutex
 		holdTimer *time.Timer

@@ -1,6 +1,4 @@
-// Package broadcast owns starting and stopping a transmission and recording
-// what is on air. Both the API and the scheduler go through it, so a scheduled
-// broadcast is reported to the dashboard exactly like a manual one.
+// Package broadcast starts, stops and records what is on air.
 package broadcast
 
 import (
@@ -108,9 +106,7 @@ func (c *Controller) clear() {
 	}
 }
 
-// DefaultRequest builds the broadcast the hat's button starts, from the same
-// settings the dashboard edits. The dashboard reads these keys itself for its
-// own form, so the fallbacks here have to stay in step with it.
+// These fallbacks must stay in step with the dashboard's own defaults.
 func DefaultRequest(s *store.Store) transmit.Request {
 	request := transmit.Request{
 		Standard:        "DCF77",

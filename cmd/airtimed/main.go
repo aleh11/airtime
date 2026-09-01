@@ -48,9 +48,7 @@ func loadConfig() config {
 		stateDir: stateDir,
 		legacyDB: envOr("AIRTIME_LEGACY_DB", "/home/time/airtime/airtime-server/database/airtime.db"),
 		listen:   envOr("AIRTIME_LISTEN", ":443"),
-		// The dashboard answered on :8443 for the whole of the port, and on the
-		// bare address before that, so both keep working: a user should never
-		// have to be told their bookmark changed.
+		// Both addresses keep working so no bookmark breaks.
 		altListen:   envOr("AIRTIME_LISTEN_ALT", ":8443"),
 		httpListen:  envOr("AIRTIME_LISTEN_HTTP", ":80"),
 		certPath:    envOr("AIRTIME_TLS_CERT", filepath.Join(stateDir, "tls", "cert.pem")),
@@ -111,9 +109,7 @@ func run() error {
 	leds := openGPIO(cfg, db, broadcaster)
 	if leds != nil {
 		defer leds.Close()
-		// Runs before the monitor starts, not alongside it: the monitor drives the
-		// same three lines every 50ms and caches what it last wrote, so a
-		// concurrent sweep would both fight it and leave that cache lying.
+		// Before the monitor, which drives the same lines and caches their state.
 		gpio.StartupAnimation(leds)
 	}
 
@@ -158,9 +154,7 @@ func run() error {
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
-	// The extra listeners are best effort. Something else holding :80 or :443 —
-	// an nginx left over from a migration that has not finished retiring it — is
-	// a reason to log and carry on, not to leave the Pi with no dashboard.
+	// Best effort: a leftover nginx on :80 or :443 must not cost us the dashboard.
 	extras := serveExtras(ctx, cfg, handler)
 
 	go func() {
@@ -245,9 +239,7 @@ func boolText(value bool) string {
 
 func openGPIO(cfg config, db *store.Store, broadcaster *broadcast.Controller) gpio.Controller {
 	buttons := gpio.Buttons{
-		// A press toggles, as the hat has always done. Wiring it to Stop alone
-		// meant the button did nothing at all unless something was already on
-		// air, and never lit the antenna LED.
+		// Toggles, as the hat always has: Stop alone did nothing while idle.
 		OnPress: func() {
 			if broadcaster.Running() {
 				slog.Info("control button: stopping broadcast")
