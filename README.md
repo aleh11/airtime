@@ -31,7 +31,8 @@ This system makes use of several hardware components:
 - Aircoil (handmade) / [Ferrite core antenna](https://www.aliexpress.com/item/1005007832198551.html)
 - Optional: [Ethernet/USB HUB HAT Expansion](https://www.amazon.com/expansi%25C3%25B3n-USB-HUB-HAT-compatible/dp/B07X1BH5FN?__mk_es_US=%C3%85M%C3%85%C5%BD%C3%95%C3%91&sr=8-1&language=en_US&currency=USD)
 
-### Building the Airtime Hat
+### The Airtime Hat
+You can either purchase a pre-built airtime unit from our website on [airtime.diy](https://airtime.diy), or build and assemble your own.
 Refer to the full user guide on assembling the Airtime Pi Hat [here](docs/Airtime3.pdf).
 
 ## Installing the Airtime software
@@ -48,13 +49,13 @@ curl -fsSL https://github.com/aleh11/airtime/releases/latest/download/install.sh
 > a recovery path if it can't. Skip to
 > [Moving an older AirTime to 2.0](#moving-an-older-airtime-to-20).
 
-The installer downloads a single verified binary — no git clone, no Python environment, no nginx. It:
+The installer downloads a single verified binary which:
 - Verifies the release against its published `sha256` before installing anything
 - Installs and sets up the [txtempus](https://github.com/hzeller/txtempus) binary
 - Installs `chrony` (NTP) and configures it
-- Creates the state directory at `/var/lib/airtime` (databases from older installs are migrated automatically on first start)
+- Creates the state directory at `/var/lib/airtime`
 - Registers the `airtime` service so the system starts on boot
-- Retires any previous Python-based install it finds
+- Retires any previous Python-based install it finds (pre-v2 installs)
 
 **Services created:**
 - `airtime`: the daemon — REST API, dashboard, scheduler and GPIO in one binary
@@ -62,9 +63,7 @@ The installer downloads a single verified binary — no git clone, no Python env
 
 To remove it again, run `sudo ./uninstall.sh` (add `--purge` to delete your schedules and settings too).
 
-After installation, your dashboard will be available at `https://pi-ip-address`. Plain
-HTTP redirects to it, and `https://pi-ip-address:8443` keeps working, so any address you
-have bookmarked still reaches it.
+After installation, your dashboard will be available at `https://pi-ip-address`.
 #### Useful commands
 - `sudo systemctl restart airtime` - Restart the service
 - `sudo systemctl status airtime` - Check the service
@@ -107,8 +106,7 @@ dashboard will go unresponsive partway through, and may look like it has
 failed. That is the old services being retired; leave it alone.** Give it up to
 ten minutes, then reload the page.
 
-When it comes back you'll be on the new dashboard, at your Pi's address with no
-port number.
+When it comes back you'll be on the new dashboard.
 
 ### If the button doesn't work
 
