@@ -84,6 +84,7 @@ jobs:
             build/airtime-linux-arm
             build/airtime-linux-arm.sha256
             install.sh
+            legacy-port.sh
           generate_release_notes: true
           # A hyphenated version (0.3.0-rc.1) publishes as a prerelease, so it is
           # not served by releases/latest/download and existing installs are left
