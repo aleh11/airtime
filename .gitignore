@@ -5,9 +5,8 @@ airtime-server/ssl/*.pem
 airtime-server/ssl/*.key
 airtime-server/ssl/*.crt
 airtime-server/ssl/openssl.cnf
-
+# Claude
 .claude/
-
 # Built artefacts
 build/
 internal/web/dist/*
@@ -16,3 +15,7 @@ internal/web/dist/*
 
 # Local issue tracker (mattpocock skills)
 .scratch/
+docs/adr
+docs/agents
+CLAUDE.md
+CONTEXT.md
