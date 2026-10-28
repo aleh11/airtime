@@ -16,6 +16,7 @@ export function useScheduleEditor(onSaved: () => void, onError: (message: string
     const [draft, setDraft] = useState<ScheduleDraft>(EMPTY_DRAFT);
     const [adding, setAdding] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
+    const [editingEnabled, setEditingEnabled] = useState(true);
 
     const rowRef = useRef<HTMLTableRowElement | null>(null);
     const cardRef = useRef<HTMLDivElement | null>(null);
@@ -26,8 +27,10 @@ export function useScheduleEditor(onSaved: () => void, onError: (message: string
         if (!editingId) return;
 
         const onClickOutside = (event: MouseEvent) => {
-            const target = event.target as Node;
-            const inside = rowRef.current?.contains(target) || cardRef.current?.contains(target);
+            const target = event.target as Element;
+            // Select menus render in a portal on <body>, so picking an option is not "outside".
+            const inside = rowRef.current?.contains(target) || cardRef.current?.contains(target)
+                || target.closest?.('[data-slot="select-content"]');
             if (!inside) cancel();
         };
         const onEscape = (event: KeyboardEvent) => {
@@ -57,6 +60,7 @@ export function useScheduleEditor(onSaved: () => void, onError: (message: string
         });
         setAdding(false);
         setEditingId(job.id);
+        setEditingEnabled(job.enabled);
     };
 
     const save = async (id?: string) => {
@@ -67,7 +71,7 @@ export function useScheduleEditor(onSaved: () => void, onError: (message: string
                 frequency: draft.frequency,
                 service: draft.standard,
                 duration: draft.duration,
-                enabled: true,
+                enabled: id ? editingEnabled : true,
             });
             setAdding(false);
             setEditingId(null);
