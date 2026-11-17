@@ -29,10 +29,15 @@ func (s *server) alwaysOnEnabled() bool { return alwayson.Enabled(s.Store) }
 func (s *server) alwaysOnState() alwaysOnStatus {
 	status := alwaysOnStatus{State: "off"}
 	s.Store.Status("always_on", "status", &status)
-	if !s.alwaysOnEnabled() {
+	enabled := s.alwaysOnEnabled()
+	switch {
+	case !enabled:
 		// The supervisor catches up within a check; never report a mode
 		// that is off as anything else.
 		status = alwaysOnStatus{State: "off", Restarts: status.Restarts}
+	case status.State == "off" || status.State == "":
+		// Just enabled: the supervisor has not looked yet.
+		status.State = "starting"
 	}
 	return status
 }

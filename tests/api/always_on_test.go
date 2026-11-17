@@ -35,8 +35,8 @@ func TestEnablingAlwaysOnPersistsAndValidates(t *testing.T) {
 		t.Fatalf("status %d: %s", rec.Code, rec.Body)
 	}
 	got := decode(t, rec)
-	if got["enabled"] != true || got["standard"] != "MSF" {
-		t.Fatalf("got %v", got)
+	if got["enabled"] != true || got["standard"] != "MSF" || got["state"] != "starting" {
+		t.Fatalf("got %v, want enabled MSF starting (before the supervisor's first check)", got)
 	}
 	if v, _, _ := s.Setting("app_config", "always_on_enabled"); v != "true" {
 		t.Fatalf("always_on_enabled = %q, want true", v)
