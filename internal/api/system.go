@@ -70,7 +70,9 @@ func (s *server) getStatus(w http.ResponseWriter, r *http.Request) {
 			"txtempus_offset":            offset,
 			"txtempus_fixed_time":        fixedTime,
 			"txtempus_remaining_seconds": remaining,
+			"txtempus_always_on":         running && details.AlwaysOn,
 		},
+		"always_on":       s.alwaysOnSummary(),
 		"ntp_status":      ntp,
 		"internet_status": internet,
 		"app_config":      map[string]any{"stealth_mode": stealth == "true"},
@@ -176,4 +178,16 @@ func (s *server) releaseChannel() string {
 		return channelStable
 	}
 	return channelBeta
+}
+
+func (s *server) alwaysOnSummary() map[string]any {
+	status := s.alwaysOnState()
+	return map[string]any{
+		"enabled":    s.alwaysOnEnabled(),
+		"standard":   s.alwaysOnStandard(),
+		"state":      status.State,
+		"since":      status.Since,
+		"last_error": status.LastError,
+		"retry_at":   status.RetryAt,
+	}
 }

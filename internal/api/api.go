@@ -39,6 +39,9 @@ type Deps struct {
 	Now     func() time.Time
 	Static  http.Handler
 
+	// WakeAlwaysOn asks the Always On supervisor to check now. Optional.
+	WakeAlwaysOn func()
+
 	// RestartService and RebootHost are injected so tests never reboot anything.
 	RestartService func() error
 	RebootHost     func() error
@@ -70,6 +73,8 @@ func New(deps Deps) http.Handler {
 	mux.HandleFunc("POST /api/control/stop", s.stopTransmit)
 	mux.HandleFunc("GET /api/control/time-tester", s.getTimeTester)
 	mux.HandleFunc("POST /api/control/time-tester", s.setTimeTester)
+	mux.HandleFunc("GET /api/control/always-on", s.getAlwaysOn)
+	mux.HandleFunc("POST /api/control/always-on", s.setAlwaysOn)
 	mux.HandleFunc("POST /api/control/restart", s.restartService)
 	mux.HandleFunc("POST /api/control/restart-pi", s.rebootHost)
 	mux.HandleFunc("GET /api/system/metrics", s.getMetrics)
