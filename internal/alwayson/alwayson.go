@@ -360,10 +360,7 @@ func (s *Supervisor) publish() {
 	s.published = &snapshot
 }
 
-func (s *Supervisor) enabled() bool {
-	v, _, _ := s.store.Setting("app_config", "always_on_enabled")
-	return v == "true"
-}
+func (s *Supervisor) enabled() bool { return Enabled(s.store) }
 
 func (s *Supervisor) requireSync() bool {
 	v, ok, _ := s.store.Setting("always_on", "require_time_sync")
@@ -386,9 +383,7 @@ func (s *Supervisor) thermalCutoff() int {
 // offset, the Always On standard, real time, no end.
 func (s *Supervisor) request() transmit.Request {
 	req := broadcast.DefaultRequest(s.store)
-	if v, ok, _ := s.store.Setting("always_on", "standard"); ok && v != "" {
-		req.Standard = v
-	}
+	req.Standard = Standard(s.store)
 	return broadcast.AlwaysOnRequest(req)
 }
 

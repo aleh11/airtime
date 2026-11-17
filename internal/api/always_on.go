@@ -4,8 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/aleh11/airtime/internal/broadcast"
-	"github.com/aleh11/airtime/internal/transmit"
+	"github.com/aleh11/airtime/internal/alwayson"
 )
 
 const alwaysOnConflict = "Always On is enabled; turn it off first"
@@ -25,10 +24,7 @@ type alwaysOnInput struct {
 	Standard string `json:"service"`
 }
 
-func (s *server) alwaysOnEnabled() bool {
-	v, _, _ := s.Store.Setting("app_config", "always_on_enabled")
-	return v == "true"
-}
+func (s *server) alwaysOnEnabled() bool { return alwayson.Enabled(s.Store) }
 
 func (s *server) alwaysOnState() alwaysOnStatus {
 	status := alwaysOnStatus{State: "off"}
@@ -41,12 +37,7 @@ func (s *server) alwaysOnState() alwaysOnStatus {
 	return status
 }
 
-func (s *server) alwaysOnStandard() string {
-	if v, ok, _ := s.Store.Setting("always_on", "standard"); ok && v != "" {
-		return v
-	}
-	return s.radioConfig().Standard
-}
+func (s *server) alwaysOnStandard() string { return alwayson.Standard(s.Store) }
 
 func (s *server) alwaysOnResponse() map[string]any {
 	requireSync, _, _ := s.Store.Setting("always_on", "require_time_sync")
@@ -86,26 +77,9 @@ func (s *server) setAlwaysOn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	standard := input.Standard
-	if standard == "" {
-		standard = s.alwaysOnStandard()
-	}
-	if err := transmit.ValidateStandard(standard); err != nil {
+	standard, err := alwayson.Enable(s.Store, s.Runner, input.Standard)
+	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	// Always On replaces the Time Tester rather than fighting it.
-	if active, _, _ := s.Store.Setting("app_config", "time_tester_active"); active == "true" {
-		s.disableTimeTester()
-	}
-
-	if err := s.Store.SetSetting("always_on", "standard", standard); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	if err := s.Store.SetSetting("app_config", "always_on_enabled", "true"); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	s.wakeAlwaysOn()
@@ -117,15 +91,12 @@ func (s *server) setAlwaysOn(w http.ResponseWriter, r *http.Request) {
 // disableAlwaysOn turns the mode off and silences its broadcast at once,
 // rather than leaving it on the air until the supervisor's next check.
 func (s *server) disableAlwaysOn() {
-	wasEnabled := s.alwaysOnEnabled()
-	s.Store.SetSetting("app_config", "always_on_enabled", "false")
-
-	var details broadcast.Details
-	if found, _ := s.Store.Status("services", "txtempus_details", &details); found && details.AlwaysOn {
-		s.Runner.Stop()
+	was, err := alwayson.Disable(s.Store, s.Runner)
+	if err != nil {
+		s.log.Error("disable always on", "error", err)
 	}
 	s.wakeAlwaysOn()
-	if wasEnabled {
+	if was {
 		s.log.Info("always on disabled")
 	}
 }
