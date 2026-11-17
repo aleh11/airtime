@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Card } from './Card';
-import { RadioConfig } from '../types';
+import { AlwaysOnStatus, RadioConfig } from '../types';
 import { api } from '../services/api';
 import { ConfirmModal, ModalType } from './ConfirmModal';
 import { RestartOverlay } from './RestartOverlay';
@@ -23,6 +23,7 @@ interface ControlWidgetProps {
     activeService?: string | null;
     activeDuration?: number | null;
     remainingSeconds?: number;
+    alwaysOn?: AlwaysOnStatus | null;
     onTimeTesterChange?: (enabled: boolean, service: string) => void;
 }
 
@@ -42,6 +43,7 @@ export function ControlWidget({
     isTransmitting = false,
     activeService,
     activeDuration,
+    alwaysOn,
     onTimeTesterChange,
 }: ControlWidgetProps) {
     const settings = useBroadcastSettings(radioConfig, onSettingsSaved);
@@ -53,11 +55,58 @@ export function ControlWidget({
     const [showTimeSettings, setShowTimeSettings] = useState(false);
     const [showTimeTester, setShowTimeTester] = useState(false);
     const [prompt, setPrompt] = useState<Prompt | null>(null);
+    // "Always On" picked in the Duration list; local until it is started, so
+    // the saved default duration stays a real duration.
+    const [alwaysOnPicked, setAlwaysOnPicked] = useState(false);
     const standards = radioConfig?.available_services ?? FALLBACK_STANDARDS;
+    const alwaysOnEnabled = !!alwaysOn?.enabled;
+    const active = isTransmitting || alwaysOnEnabled;
 
-    const toggleBroadcast = async () => {
+    const run = async (action: () => Promise<unknown>) => {
         setBusy(true);
         try {
+            await action();
+            onBroadcastStart();
+        } catch (e) {
+            console.error('Broadcast control failed', e);
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const toggleBroadcast = () => {
+        if (alwaysOnEnabled) {
+            setPrompt({
+                title: 'Turn Off Always On?',
+                message: 'The broadcast stops now and will not start again after a reboot. Paused schedules run again.',
+                type: 'warning',
+                confirmText: 'Turn Off',
+                // Stop also turns Always On off on the daemon.
+                onConfirm: () => run(() => api.stopTransmit()),
+            });
+            return;
+        }
+        if (!isTransmitting && alwaysOnPicked) {
+            const fixedNote = settings.timeMode === 'fixed_time'
+                ? '\n\nAlways On always sends the real time, not your fixed time.'
+                : '';
+            setPrompt({
+                title: 'Start Always On?',
+                message: `AirTime will transmit ${settings.standard} without an end, and start again by itself after every reboot or power cut, until you stop it.
+
+Schedules are paused while it is on. It needs Wi-Fi or Ethernet to get the time, and waits until it has it.
+
+Tip: a double press of the button on the unit also turns Always On on or off.${fixedNote}`,
+                type: 'info',
+                confirmText: 'Start Always On',
+                onConfirm: () => run(async () => {
+                    await api.setAlwaysOn(true, settings.standard);
+                    setAlwaysOnPicked(false);
+                }),
+            });
+            return;
+        }
+        run(async () => {
             if (!isTransmitting) {
                 await api.transmit({ service: settings.standard, duration: settings.duration });
             } else if (tester.enabled) {
@@ -67,12 +116,7 @@ export function ControlWidget({
             } else {
                 await api.stopTransmit();
             }
-            onBroadcastStart();
-        } catch (e) {
-            console.error('Broadcast control failed', e);
-        } finally {
-            setBusy(false);
-        }
+        });
     };
 
     const toggleLeds = async () => {
@@ -110,11 +154,15 @@ export function ControlWidget({
                         standards={standards}
                         standard={settings.standard}
                         duration={settings.duration}
+                        alwaysOnPicked={alwaysOnPicked}
+                        alwaysOn={alwaysOn}
+                        fixedTimeMode={settings.timeMode === 'fixed_time'}
                         isTransmitting={isTransmitting}
                         activeStandard={activeService}
                         activeDuration={activeDuration}
                         busy={busy}
                         onChange={settings.saveDefaults}
+                        onPickAlwaysOn={setAlwaysOnPicked}
                         onToggleBroadcast={toggleBroadcast}
                     />
 
@@ -122,7 +170,7 @@ export function ControlWidget({
 
                     <SystemControlPanel
                         ledsEnabled={ledsEnabled}
-                        isTransmitting={isTransmitting}
+                        isTransmitting={active}
                         timeMode={settings.timeMode}
                         fixedTime={settings.fixedTime}
                         offsetEnabled={settings.offsetEnabled}
@@ -131,10 +179,12 @@ export function ControlWidget({
                         offsetSign={settings.offsetSign}
                         onToggleLeds={toggleLeds}
                         onOpenTimeSettings={() => {
-                            if (isTransmitting) {
+                            if (active) {
                                 setPrompt({
                                     title: 'Control Locked',
-                                    message: "You can't change time settings while broadcasting.",
+                                    message: alwaysOnEnabled
+                                        ? "You can't change time settings while Always On is enabled."
+                                        : "You can't change time settings while broadcasting.",
                                     type: 'warning',
                                 });
                                 return;

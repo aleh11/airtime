@@ -8,7 +8,8 @@ import {
     UiConfig,
     UiConfigInput,
     TransmitRequest,
-    UpdateInfo, ReleaseChannel } from '../types';
+    UpdateInfo, ReleaseChannel,
+    AlwaysOnInfo } from '../types';
 
 const API_BASE = '';
 
@@ -158,5 +159,19 @@ export const api = {
             body: JSON.stringify({ enabled, service, duration_hours }),
         });
         return handleResponse<{ enabled: boolean; affected_jobs: number }>(res);
+    },
+
+    getAlwaysOn: async (): Promise<AlwaysOnInfo> => {
+        const res = await fetch(`${API_BASE}/api/control/always-on`);
+        return handleResponse<AlwaysOnInfo>(res);
+    },
+
+    setAlwaysOn: async (enabled: boolean, service?: string): Promise<AlwaysOnInfo> => {
+        const res = await fetch(`${API_BASE}/api/control/always-on`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ enabled, service }),
+        });
+        return handleResponse<AlwaysOnInfo>(res);
     },
 };

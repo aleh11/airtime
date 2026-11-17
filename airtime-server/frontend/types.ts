@@ -19,6 +19,26 @@ export interface ServicesStatus {
     txtempus_offset?: number | null;
     txtempus_fixed_time?: string | null;
     txtempus_remaining_seconds?: number;
+    txtempus_always_on?: boolean;
+}
+
+export type AlwaysOnState = 'off' | 'starting' | 'waiting_for_sync' | 'on_air' | 'backoff' | 'thermal_pause';
+
+/** The always_on block of /api/status. */
+export interface AlwaysOnStatus {
+    enabled: boolean;
+    standard: string;
+    state: AlwaysOnState;
+    since: string;
+    last_error: string;
+    retry_at: string;
+}
+
+/** GET/POST /api/control/always-on. */
+export interface AlwaysOnInfo extends AlwaysOnStatus {
+    restarts: number;
+    require_time_sync: boolean;
+    thermal_cutoff_c: number;
 }
 
 export interface AppConfig {
@@ -51,6 +71,7 @@ export interface SystemStatus {
     ntp_status: NtpStatus;
     services: ServicesStatus;
     app_config: AppConfig;
+    always_on?: AlwaysOnStatus;
     system_time: string;
     version?: string;
 }
