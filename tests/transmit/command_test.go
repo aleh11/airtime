@@ -96,3 +96,16 @@ func TestValidateDurationBounds(t *testing.T) {
 		t.Fatalf("got %d, %v; want 30, nil", got, err)
 	}
 }
+
+// txtempus treats a missing -r as no limit, which is how Always On escapes
+// the twelve-hour cap.
+func TestUnlimitedCommandLeavesOutTheDuration(t *testing.T) {
+	got := transmit.Command(transmit.Request{
+		Standard: "DCF77", DurationMinutes: 30, Unlimited: true,
+		TimeMode: "time_now", Offset: 60, OffsetEnabled: true,
+	}, noon)
+	want := []string{"/usr/bin/txtempus", "-s", "DCF77", "-z", "60"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+}

@@ -25,6 +25,9 @@ type Request struct {
 	Offset          int
 	OffsetEnabled   bool
 	FixedTime       string
+	// Unlimited leaves out -r, which txtempus reads as no limit. Only Always
+	// On sets it; DurationMinutes is ignored and never validated then.
+	Unlimited bool
 }
 
 func ValidateStandard(standard string) error {
@@ -55,10 +58,9 @@ func ValidateDuration(minutes int) (int, error) {
 
 // Arguments go as a slice, never through a shell.
 func Command(req Request, now time.Time) []string {
-	args := []string{
-		BinaryPath,
-		"-s", req.Standard,
-		"-r", strconv.Itoa(req.DurationMinutes),
+	args := []string{BinaryPath, "-s", req.Standard}
+	if !req.Unlimited {
+		args = append(args, "-r", strconv.Itoa(req.DurationMinutes))
 	}
 
 	switch {

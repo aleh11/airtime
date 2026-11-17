@@ -1,6 +1,7 @@
 package broadcast_test
 
 import (
+	"reflect"
 	"testing"
 	"time"
 
@@ -165,5 +166,46 @@ func TestDefaultRequestFallsBackWhenNothingIsConfigured(t *testing.T) {
 	got := broadcast.DefaultRequest(db)
 	if got.Standard != "DCF77" || got.DurationMinutes != 10 || got.TimeMode != "time_now" {
 		t.Fatalf("got %+v, want the shipped defaults", got)
+	}
+}
+
+func TestStartAlwaysOnRunsUnlimitedRealTime(t *testing.T) {
+	controller, s, runner := newController(t)
+
+	err := controller.StartAlwaysOn(transmit.Request{
+		Standard: "DCF77", DurationMinutes: 720,
+		TimeMode: "fixed_time", FixedTime: "09:30",
+		Offset: 60, OffsetEnabled: true,
+	})
+	if err != nil {
+		t.Fatalf("start: %v", err)
+	}
+
+	want := []string{"/usr/bin/txtempus", "-s", "DCF77", "-z", "60"}
+	if len(runner.started) != 1 || !reflect.DeepEqual(runner.started[0], want) {
+		t.Fatalf("started %v, want %v (no -r, no fixed time, offset kept)", runner.started, want)
+	}
+
+	var details broadcast.Details
+	s.Status("services", "txtempus_details", &details)
+	if !details.AlwaysOn || details.IsTester {
+		t.Fatalf("details should mark an always-on broadcast, got %+v", details)
+	}
+	if details.Duration != 0 || details.FixedTime != "" {
+		t.Fatalf("always on has no duration or fixed time, got %+v", details)
+	}
+	if details.Offset == nil || *details.Offset != 60 {
+		t.Fatalf("offset not recorded: %+v", details)
+	}
+}
+
+func TestOrdinaryBroadcastIsNotMarkedAlwaysOn(t *testing.T) {
+	controller, s, _ := newController(t)
+	controller.Start(transmit.Request{Standard: "MSF", DurationMinutes: 10, TimeMode: "time_now"})
+
+	var details broadcast.Details
+	s.Status("services", "txtempus_details", &details)
+	if details.AlwaysOn {
+		t.Fatal("a timed broadcast was recorded as always on")
 	}
 }
