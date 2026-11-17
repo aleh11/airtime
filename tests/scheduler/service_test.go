@@ -95,6 +95,27 @@ func TestTimeTesterSuspendsSchedules(t *testing.T) {
 	}
 }
 
+func TestAlwaysOnSuspendsSchedules(t *testing.T) {
+	service, s, runner := newService(t)
+	s.SaveSchedule(store.Schedule{ID: "nightly", Command: "/usr/bin/txtempus -s DCF77 -r 360", Spec: "55 23 * * *", Enabled: true})
+	s.SetSetting("app_config", "always_on_enabled", "true")
+
+	service.Tick(at(t, "2026-08-22 23:54:00"))
+	service.Tick(at(t, "2026-08-22 23:55:30"))
+
+	if len(runner.started) != 0 {
+		t.Fatalf("fired %d broadcasts while Always On was enabled, want none", len(runner.started))
+	}
+
+	// Turned off, schedules fire again.
+	s.SetSetting("app_config", "always_on_enabled", "false")
+	service.Tick(at(t, "2026-08-23 23:54:00"))
+	service.Tick(at(t, "2026-08-23 23:55:30"))
+	if len(runner.started) != 1 {
+		t.Fatalf("fired %d broadcasts after Always On was turned off, want 1", len(runner.started))
+	}
+}
+
 var _ = time.Second
 
 // The chrony jump at boot reads as downtime; on hardware this fired five at once.
