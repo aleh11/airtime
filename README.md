@@ -79,6 +79,12 @@ The Airtime dashboard provides an easy way to interact with the Airtime pi, and 
     - Manually start/stop transmissions.
     - Select from all supported time signal standards.
     - Configure transmission duration and custom time offsets.
+- **Always On**: Pick **Always On** at the bottom of the Duration list to transmit without an end. It starts again by itself after every reboot or power cut, so you can plug the Pi in and forget it.
+    - It needs **Wi-Fi or Ethernet** to get the time. The Pi has no clock of its own, so until it has the time from the network it waits ("Waiting for time sync") rather than broadcast a wrong time. An offline Pi will wait forever.
+    - It always sends the real time (plus your offset, if you set one), never a fixed time.
+    - Schedules are paused while it is on. **Stop Broadcast** turns it off.
+    - It pauses if the Pi gets too hot (85°C) and carries on once it has cooled to 75°C.
+    - **Without the dashboard**: double-press the button on the Airtime hat to turn Always On on or off; the antenna LED blinks three times to confirm. While it is on, a single press turns it off. While it waits for the time, the antenna LED blinks slowly (one second on, one second off). Because the hat now listens for a second press, a single press takes about half a second to act.
 - **Scheduler**: Automate daily or weekly broadcasts with a user-friendly schedule manager.
 - **Additional Features**: 
     - **Stealth Mode**: Toggle hardware LEDs.
