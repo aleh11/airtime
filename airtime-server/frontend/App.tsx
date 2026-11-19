@@ -153,6 +153,7 @@ It stays on ${status?.version ?? 'the current build'} until a stable release is 
               status={status}
               radioConfig={radioConfig}
               timeTesterEnabled={timeTesterEnabled}
+              alwaysOn={status?.always_on}
             />
           </div>
 
@@ -166,6 +167,7 @@ It stays on ${status?.version ?? 'the current build'} until a stable release is 
               activeService={status?.services.txtempus_service}
               activeDuration={status?.services.txtempus_duration}
               remainingSeconds={status?.services.txtempus_remaining_seconds}
+              alwaysOn={status?.always_on}
               onTimeTesterChange={(enabled) => {
                 setTimeTesterEnabled(enabled);
                 refresh();
@@ -184,6 +186,7 @@ It stays on ${status?.version ?? 'the current build'} until a stable release is 
               radioConfig={radioConfig}
               status={status}
               timeTesterEnabled={timeTesterEnabled}
+              alwaysOnEnabled={!!status?.always_on?.enabled}
             />
           </div>
         </main>

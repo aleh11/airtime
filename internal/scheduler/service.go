@@ -72,6 +72,11 @@ func (s *Service) Tick(now time.Time) {
 	if paused, _, _ := s.store.Setting("app_config", "time_tester_active"); paused == "true" {
 		return
 	}
+	// Starting a schedule would kill the always-on broadcast (Runner.Start
+	// replaces whatever is running), so schedules wait until it is turned off.
+	if alwaysOn, _, _ := s.store.Setting("app_config", "always_on_enabled"); alwaysOn == "true" {
+		return
+	}
 
 	schedules, err := s.store.Schedules()
 	if err != nil {

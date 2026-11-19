@@ -41,6 +41,7 @@ func Open(chip string, pins Pins, buttons Buttons) (Controller, error) {
 		mu        sync.Mutex
 		holdTimer *time.Timer
 		held      bool
+		presses   = &Presses{OnPress: buttons.OnPress, OnDoublePress: buttons.OnDoublePress}
 	)
 	button, err := gpiocdev.RequestLine(chip, pins.Button,
 		gpiocdev.AsInput,
@@ -69,8 +70,8 @@ func Open(chip string, pins Pins, buttons Buttons) (Controller, error) {
 				holdTimer.Stop()
 				holdTimer = nil
 			}
-			if !held && buttons.OnPress != nil {
-				buttons.OnPress()
+			if !held {
+				presses.Press()
 			}
 			held = false
 		}))

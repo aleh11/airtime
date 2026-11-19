@@ -18,6 +18,7 @@ type Details struct {
 	Offset    *int   `json:"offset"`
 	FixedTime string `json:"fixed_time"`
 	IsTester  bool   `json:"is_tester"`
+	AlwaysOn  bool   `json:"always_on"`
 }
 
 // Runner is the process supervisor a Controller drives.
@@ -45,8 +46,32 @@ func (c *Controller) Start(req transmit.Request) error {
 	if err := c.runner.Start(transmit.Command(req, c.now())); err != nil {
 		return err
 	}
-	c.record(req, false)
+	c.record(req, kindNormal)
 	return nil
+}
+
+// StartAlwaysOn runs the continuous broadcast. It always sends the real time
+// (a fixed time repeated forever is meaningless) with the configured offset,
+// and has no duration.
+func (c *Controller) StartAlwaysOn(req transmit.Request) error {
+	req = AlwaysOnRequest(req)
+	if err := c.runner.Start(transmit.Command(req, c.now())); err != nil {
+		return err
+	}
+	c.record(req, kindAlwaysOn)
+	return nil
+}
+
+// AlwaysOnRequest turns a broadcast request into the continuous one: real
+// time, offset kept, no duration.
+func AlwaysOnRequest(req transmit.Request) transmit.Request {
+	if req.TimeMode == "fixed_time" {
+		req.TimeMode = "time_now"
+	}
+	req.FixedTime = ""
+	req.DurationMinutes = 0
+	req.Unlimited = true
+	return req
 }
 
 // StartTester runs the fixed-time test broadcast, which is recorded so the
@@ -55,7 +80,7 @@ func (c *Controller) StartTester(req transmit.Request) error {
 	if err := c.runner.Start(transmit.Command(req, c.now())); err != nil {
 		return err
 	}
-	c.record(req, true)
+	c.record(req, kindTester)
 	return nil
 }
 
@@ -74,12 +99,21 @@ func (c *Controller) Finished() { c.clear() }
 
 func (c *Controller) Running() bool { return c.runner.Running() }
 
-func (c *Controller) record(req transmit.Request, isTester bool) {
+type kind int
+
+const (
+	kindNormal kind = iota
+	kindTester
+	kindAlwaysOn
+)
+
+func (c *Controller) record(req transmit.Request, k kind) {
 	details := Details{
 		Standard:  req.Standard,
 		Duration:  req.DurationMinutes,
 		StartedAt: c.now().Format(time.RFC3339),
-		IsTester:  isTester,
+		IsTester:  k == kindTester,
+		AlwaysOn:  k == kindAlwaysOn,
 	}
 	if (req.TimeMode == "time_now_with_offset" || req.OffsetEnabled) && req.Offset != 0 {
 		offset := req.Offset

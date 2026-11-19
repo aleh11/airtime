@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Card } from './Card';
 import { Badge } from './ui/badge';
-import { SystemStatus, RadioConfig } from '../types';
+import { AlwaysOnStatus, SystemStatus, RadioConfig } from '../types';
 import { RadioTower } from 'lucide-react';
 
 const formatTimeAgo = (seconds: number): string => {
@@ -16,9 +16,10 @@ interface ClockWidgetProps {
     status: SystemStatus | null;
     radioConfig?: RadioConfig | null;
     timeTesterEnabled?: boolean;
+    alwaysOn?: AlwaysOnStatus | null;
 }
 
-export const ClockWidget: React.FC<ClockWidgetProps> = ({ status, radioConfig, timeTesterEnabled = false }) => {
+export const ClockWidget: React.FC<ClockWidgetProps> = ({ status, radioConfig, timeTesterEnabled = false, alwaysOn }) => {
     const [displayTime, setDisplayTime] = useState<Date>(new Date());
     const [serverOffset, setServerOffset] = useState<number>(0);
     const [initDone, setInitDone] = useState(false);
@@ -66,12 +67,15 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({ status, radioConfig, t
     };
 
     const isTransmitting = status?.services.txtempus_running;
+    const isAlwaysOn = !!isTransmitting && !!status?.services.txtempus_always_on;
+    // Always On never sends a fixed time, whatever the settings say.
+    const alwaysOnWaiting = !isTransmitting && !!alwaysOn?.enabled;
     const serviceName = status?.services.txtempus_service || 'Unknown';
 
     // Derive time mode from settings (radioConfig), not from runtime status parsing
     const timeMode = radioConfig?.default_time_mode || 'time_now';
     const fixedTime = timeMode === 'fixed_time' ? (radioConfig?.default_fixed_time || null) : null;
-    const isFixedTimeBroadcast = !!isTransmitting && timeMode === 'fixed_time' && !timeTesterEnabled;
+    const isFixedTimeBroadcast = !!isTransmitting && timeMode === 'fixed_time' && !timeTesterEnabled && !isAlwaysOn;
 
     const rawOffset = (timeMode === 'time_now_with_offset' && radioConfig?.default_offset_enabled)
         ? (radioConfig?.default_offset || 0)
@@ -178,12 +182,28 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({ status, radioConfig, t
                             </div>
                         </div>
 
-                        <div className="text-right">
-                            <div className="text-[12px] font-bold tracking-wider text-muted-foreground uppercase">Remaining</div>
-                            <div className={`mt-0.5 font-mono text-3xl leading-none font-bold drop-shadow-md ${c.countdown}`}>
-                                {formatCountdown(countdown)}
+                        {isAlwaysOn ? (
+                            <div className="text-right">
+                                <div className="text-[12px] font-bold tracking-wider text-muted-foreground uppercase">Mode</div>
+                                <Badge variant="onAir" className="mt-1 rounded-md border px-2 py-0.5 text-[12px] font-bold tracking-widest uppercase">
+                                    Always On
+                                </Badge>
                             </div>
-                        </div>
+                        ) : (
+                            <div className="text-right">
+                                <div className="text-[12px] font-bold tracking-wider text-muted-foreground uppercase">Remaining</div>
+                                <div className={`mt-0.5 font-mono text-3xl leading-none font-bold drop-shadow-md ${c.countdown}`}>
+                                    {formatCountdown(countdown)}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                ) : alwaysOnWaiting ? (
+                    <div className="w-full text-center text-lg font-medium tracking-wide text-warning">
+                        Always On • {alwaysOn?.state === 'thermal_pause' ? 'Paused, too hot'
+                            : alwaysOn?.state === 'backoff' ? 'Restarting'
+                                    : alwaysOn?.state === 'starting' ? 'Starting'
+                                        : 'Waiting for time sync'}
                     </div>
                 ) : (
                     <div className="w-full text-center text-lg font-medium tracking-wide text-subtle-foreground italic">

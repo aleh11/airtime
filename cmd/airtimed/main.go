@@ -10,9 +10,11 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"sync/atomic"
 	"syscall"
 	"time"
 
+	"github.com/aleh11/airtime/internal/alwayson"
 	"github.com/aleh11/airtime/internal/api"
 	"github.com/aleh11/airtime/internal/broadcast"
 	"github.com/aleh11/airtime/internal/gpio"
@@ -94,27 +96,49 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	var broadcaster *broadcast.Controller
+	var (
+		broadcaster *broadcast.Controller
+		supervisor  *alwayson.Supervisor
+		// The button can fire before the monitor exists.
+		monitor atomic.Pointer[health.Monitor]
+	)
 	runner := transmit.NewRunner(func(err error) {
 		if err != nil && !errors.Is(err, context.Canceled) {
 			slog.Info("transmission ended", "reason", err)
 		}
 		broadcaster.Finished()
+		// Restart a crashed always-on broadcast now, not at the next check.
+		supervisor.Wake()
 	})
 	broadcaster = broadcast.New(db, runner, time.Now)
 	// A transmission never survives a daemon restart, so the recorded state is
 	// stale by definition at startup.
 	db.SetStatus("services", "txtempus_running", false)
 
-	leds := openGPIO(cfg, db, broadcaster)
+	supervisor = alwayson.New(alwayson.Options{
+		Store:        db,
+		Broadcaster:  broadcaster,
+		ClockTrusted: func() bool { return health.ClockTrusted(ctx) },
+		Temperature:  readTemperature,
+	})
+
+	confirm := func() {
+		if m := monitor.Load(); m != nil {
+			m.Confirm()
+		}
+	}
+	leds := openGPIO(cfg, db, broadcaster, supervisor, confirm)
 	if leds != nil {
 		defer leds.Close()
 		// Before the monitor, which drives the same lines and caches their state.
 		gpio.StartupAnimation(leds)
 	}
 
-	monitor := health.NewMonitor(db, leds, broadcaster.Running)
-	go monitor.Run(ctx)
+	healthMonitor := health.NewMonitor(db, leds, broadcaster.Running)
+	monitor.Store(healthMonitor)
+	go healthMonitor.Run(ctx)
+
+	go supervisor.Run(ctx)
 
 	schedules := scheduler.NewService(db, broadcaster)
 	go schedules.Run(ctx)
@@ -127,9 +151,10 @@ func run() error {
 	go collector.Run(ctx)
 
 	handler := api.New(api.Deps{
-		Store:   db,
-		Runner:  broadcaster,
-		Metrics: collector,
+		WakeAlwaysOn: supervisor.Wake,
+		Store:        db,
+		Runner:       broadcaster,
+		Metrics:      collector,
 		Updater: update.Checker{
 			Current:     version,
 			RequestPath: cfg.requestPath,
@@ -237,10 +262,28 @@ func boolText(value bool) string {
 	return "false"
 }
 
-func openGPIO(cfg config, db *store.Store, broadcaster *broadcast.Controller) gpio.Controller {
+func readTemperature() (float64, error) {
+	contents, err := os.ReadFile("/sys/class/thermal/thermal_zone0/temp")
+	if err != nil {
+		return 0, err
+	}
+	return metrics.ParseTemperature(string(contents))
+}
+
+func openGPIO(cfg config, db *store.Store, broadcaster *broadcast.Controller, supervisor *alwayson.Supervisor, confirm func()) gpio.Controller {
 	buttons := gpio.Buttons{
 		// Toggles, as the hat always has: Stop alone did nothing while idle.
 		OnPress: func() {
+			// While Always On is enabled a press turns it off, the same as
+			// the dashboard's button; the antenna LED going dark confirms it.
+			if alwayson.Enabled(db) {
+				slog.Info("control button: turning Always On off")
+				if _, err := alwayson.Disable(db, broadcaster); err != nil {
+					slog.Error("control button: could not turn Always On off", "error", err)
+				}
+				supervisor.Wake()
+				return
+			}
 			if broadcaster.Running() {
 				slog.Info("control button: stopping broadcast")
 				broadcaster.Stop()
@@ -251,6 +294,26 @@ func openGPIO(cfg config, db *store.Store, broadcaster *broadcast.Controller) gp
 			if err := broadcaster.Start(request); err != nil {
 				slog.Error("control button: could not start broadcast", "error", err)
 			}
+		},
+		// The only way to enable Always On without a dashboard. It persists,
+		// so this is needed once.
+		OnDoublePress: func() {
+			if alwayson.Enabled(db) {
+				slog.Info("control button: turning Always On off")
+				if _, err := alwayson.Disable(db, broadcaster); err != nil {
+					slog.Error("control button: could not turn Always On off", "error", err)
+					return
+				}
+			} else {
+				standard, err := alwayson.Enable(db, broadcaster, "")
+				if err != nil {
+					slog.Error("control button: could not turn Always On on", "error", err)
+					return
+				}
+				slog.Info("control button: turning Always On on", "standard", standard)
+			}
+			supervisor.Wake()
+			confirm()
 		},
 		OnHold: func() {
 			stealth, _, _ := db.Setting("app_config", "stealth_mode")
