@@ -4,6 +4,7 @@ set -Eeuo pipefail
 
 service_name="airtime"
 install_path="/usr/local/bin/airtime"
+txtempus_path="/usr/bin/txtempus"
 service_path="/etc/systemd/system/airtime.service"
 update_service_path="/etc/systemd/system/airtime-update.service"
 update_path_unit="/etc/systemd/system/airtime-update.path"
@@ -191,12 +192,16 @@ preflight() {
 
 download_release() {
   local asset="$1"
+  local txtempus_asset="txtempus-${asset#airtime-}"
+  local file
 
-  curl "${curl_opts[@]}" "${release_base_url}/${asset}" --output "${download_dir}/${asset}"
-  curl "${curl_opts[@]}" "${release_base_url}/${asset}.sha256" --output "${download_dir}/${asset}.sha256"
+  for file in "${asset}" "${txtempus_asset}"; do
+    curl "${curl_opts[@]}" "${release_base_url}/${file}" --output "${download_dir}/${file}"
+    curl "${curl_opts[@]}" "${release_base_url}/${file}.sha256" --output "${download_dir}/${file}.sha256"
 
-  (cd "${download_dir}" && sha256sum --check --status "${asset}.sha256") \
-    || fail "checksum mismatch — refusing to install this download"
+    (cd "${download_dir}" && sha256sum --check --status "${file}.sha256") \
+      || fail "checksum mismatch on ${file} — refusing to install this download"
+  done
 }
 
 install_dependencies() {
@@ -210,23 +215,20 @@ install_dependencies() {
   apt-get install -y --no-install-recommends chrony sqlite3
 }
 
+# Each release ships a prebuilt txtempus (the AirTime fork, with Raspberry Pi 4
+# support), so the Pi no longer compiles one. It replaces whatever is installed,
+# including a copy an older installer built from upstream.
 install_txtempus() {
-  if [[ -x /usr/bin/txtempus ]]; then
+  local asset="txtempus-${1#airtime-}"
+  local source="${download_dir}/${asset}"
+
+  if cmp -s "${source}" "${txtempus_path}"; then
     return 0
   fi
-
-  apt-get install -y --no-install-recommends git build-essential cmake
-  local work
-  work="$(mktemp -d)"
-  git clone --depth 1 https://github.com/hzeller/txtempus.git "${work}/txtempus"
-  mkdir -p "${work}/txtempus/build"
-  # A Pi Zero 2W has four cores but only 512MB, and each g++ of txtempus peaks
-  # well over 100MB, so cap the parallelism rather than inviting the OOM killer.
-  local jobs
-  jobs="$(nproc 2>/dev/null || echo 1)"
-  [[ "${jobs}" -gt 2 ]] && jobs=2
-  (cd "${work}/txtempus/build" && cmake .. -DPLATFORM=rpi && make -j"${jobs}" && make install)
-  rm -rf "${work}"
+  # Rename into place, so a txtempus that is on the air keeps running the old
+  # file until AirTime restarts it.
+  install -m 0755 -o root -g root "${source}" "${txtempus_path}.new"
+  mv -f -- "${txtempus_path}.new" "${txtempus_path}"
 }
 
 legacy_install_present() {
@@ -360,6 +362,22 @@ curl "\${curl_opts[@]}" "\${release_base_url}/\${asset}.sha256" --output "\${wor
 cd "\${work}"
 sha256sum --check --status "\${asset}.sha256"
 
+# The release's txtempus goes in first, so the restarted daemon finds the
+# transmitter it was built with. A release without one leaves txtempus alone.
+txtempus_asset="txtempus-\${asset#airtime-}"
+txtempus_path="${txtempus_path}"
+if curl "\${curl_opts[@]}" "\${release_base_url}/\${txtempus_asset}" --output "\${work}/\${txtempus_asset}" \\
+  && curl "\${curl_opts[@]}" "\${release_base_url}/\${txtempus_asset}.sha256" --output "\${work}/\${txtempus_asset}.sha256"; then
+  sha256sum --check --status "\${txtempus_asset}.sha256"
+  if ! cmp -s "\${work}/\${txtempus_asset}" "\${txtempus_path}"; then
+    install -m 0755 -o root -g root "\${work}/\${txtempus_asset}" "\${txtempus_path}.new"
+    mv -f -- "\${txtempus_path}.new" "\${txtempus_path}"
+    echo "installed \${txtempus_asset}"
+  fi
+else
+  echo "this release ships no \${txtempus_asset}; keeping the installed txtempus"
+fi
+
 install -m 0755 -o root -g root "\${work}/\${asset}" "\${install_path}"
 systemctl restart airtime
 HELPER
@@ -377,7 +395,7 @@ ExecStart=${update_helper}
 PrivateTmp=true
 ProtectHome=true
 ProtectSystem=strict
-ReadWritePaths=/usr/local/bin ${state_dir}
+ReadWritePaths=/usr/local/bin /usr/bin ${state_dir}
 UNIT
 
   cat > "${update_path_unit}" <<UNIT
@@ -458,7 +476,7 @@ main() {
     || fail "could not install system packages"
   complete_step "System packages installed"
 
-  with_status "Installing the txtempus transmitter" install_txtempus \
+  with_status "Installing the txtempus transmitter" install_txtempus "${asset}" \
     || fail "could not install txtempus"
   complete_step "Transmitter ready"
 

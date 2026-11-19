@@ -63,6 +63,13 @@ jobs:
         if: steps.version.outputs.publish == 'true'
         run: go test ./...
 
+      - name: Install txtempus cross compilers
+        if: steps.version.outputs.publish == 'true'
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends \
+            g++-aarch64-linux-gnu g++-arm-linux-gnueabihf
+
       - name: Build beta binaries
         if: steps.version.outputs.publish == 'true'
         run: scripts/build.sh "${{ steps.version.outputs.tag }}" linux/arm64 linux/arm
@@ -84,6 +91,10 @@ jobs:
             build/airtime-linux-arm64.sha256
             build/airtime-linux-arm
             build/airtime-linux-arm.sha256
+            build/txtempus-linux-arm64
+            build/txtempus-linux-arm64.sha256
+            build/txtempus-linux-arm
+            build/txtempus-linux-arm.sha256
             install.sh
             legacy-port.sh
           # Always a prerelease: this is the mechanism that keeps beta builds

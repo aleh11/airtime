@@ -20,6 +20,7 @@ import (
 	"github.com/aleh11/airtime/internal/gpio"
 	"github.com/aleh11/airtime/internal/health"
 	"github.com/aleh11/airtime/internal/metrics"
+	"github.com/aleh11/airtime/internal/reinstall"
 	"github.com/aleh11/airtime/internal/scheduler"
 	"github.com/aleh11/airtime/internal/store"
 	"github.com/aleh11/airtime/internal/tlsgen"
@@ -30,6 +31,10 @@ import (
 
 // version is set at build time with -ldflags "-X main.version=v0.1.0".
 var version = "dev"
+
+// txtempusSHA256 is the checksum of the txtempus built with this release, set
+// by scripts/build.sh. Empty in builds that do not ship one.
+var txtempusSHA256 = ""
 
 type config struct {
 	stateDir    string
@@ -150,6 +155,8 @@ func run() error {
 	collector := metrics.NewCollector()
 	go collector.Run(ctx)
 
+	go checkTxtempus(ctx, cfg)
+
 	handler := api.New(api.Deps{
 		WakeAlwaysOn: supervisor.Wake,
 		Store:        db,
@@ -260,6 +267,40 @@ func boolText(value bool) string {
 		return "true"
 	}
 	return "false"
+}
+
+// checkTxtempus reinstalls this release when the Pi's txtempus is not the one
+// it ships, which is how installs with the old update helper get a new one.
+// It waits first, so the network is up and a crash loop cannot hammer it.
+func checkTxtempus(ctx context.Context, cfg config) {
+	select {
+	case <-ctx.Done():
+		return
+	case <-time.After(30 * time.Second):
+	}
+
+	checker := reinstall.Checker{
+		Version:        version,
+		ExpectedSHA256: txtempusSHA256,
+		BinaryPath:     transmit.BinaryPath,
+		StatePath:      filepath.Join(cfg.stateDir, "reinstall.json"),
+		Repository:     "aleh11/airtime",
+		RetryAfter:     6 * time.Hour,
+		Start: func(name string, args ...string) error {
+			return exec.Command(name, args...).Start()
+		},
+	}
+	outcome, err := checker.Check()
+	switch {
+	case err != nil:
+		slog.Error("txtempus check failed", "error", err)
+	case outcome == reinstall.Started:
+		slog.Info("txtempus is not the one this release ships; reinstalling",
+			"unit", reinstall.UnitName, "logs", "journalctl -u "+reinstall.UnitName)
+	case outcome == reinstall.Throttled:
+		slog.Warn("txtempus is still not the one this release ships; a reinstall was tried recently",
+			"logs", "journalctl -u "+reinstall.UnitName)
+	}
 }
 
 func readTemperature() (float64, error) {

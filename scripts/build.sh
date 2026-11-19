@@ -29,15 +29,23 @@ echo "▸ embedding dashboard"
 rm -rf internal/web/dist
 cp -R airtime-server/frontend/dist internal/web/dist
 
+echo "▸ building txtempus"
+"${repo_root}/scripts/build-txtempus.sh" "${targets[@]}"
+
 mkdir -p build
 for target in "${targets[@]}"; do
   goos="${target%%/*}"
   goarch="${target##*/}"
   output="build/airtime-${goos}-${goarch}"
 
+  # The daemon carries the checksum of the txtempus built alongside it, so it
+  # can tell when the Pi's transmitter is not the one this release ships.
+  txtempus_sha256="$(cut -d' ' -f1 "build/txtempus-${goos}-${goarch}.sha256")"
+
   echo "▸ compiling ${output}"
   CGO_ENABLED=0 GOOS="${goos}" GOARCH="${goarch}" GOARM=7 \
-    go build -trimpath -ldflags "-s -w -X main.version=${version}" \
+    go build -trimpath \
+    -ldflags "-s -w -X main.version=${version} -X main.txtempusSHA256=${txtempus_sha256}" \
     -o "${output}" ./cmd/airtimed
 
   (cd build && sha256sum "$(basename "${output}")" > "$(basename "${output}").sha256")
