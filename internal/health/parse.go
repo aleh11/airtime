@@ -92,3 +92,50 @@ func ParsePing(output string) Ping {
 	}
 	return Ping{Connected: true, Score: PingScore(latency), LatencyMS: latency}
 }
+
+// Tracking is what `chronyc -n tracking` says about the system clock itself,
+// as opposed to the sources chrony is listening to.
+type Tracking struct {
+	// Synced is true once chrony has corrected the system clock at least once.
+	// Until then "Leap status" reads "Not synchronised" and the clock is
+	// whatever was restored at boot, which must not be broadcast. "Insert
+	// second" and "Delete second" are synced clocks on a leap-second day.
+	Synced bool
+	// OffsetSeconds is how far the system clock is from NTP time; positive
+	// means the system clock is fast.
+	OffsetSeconds float64
+}
+
+// ParseChronyTracking reads `chronyc -n tracking`. Anything it cannot read
+// counts as not synced: a clock we cannot vouch for is never trusted.
+func ParseChronyTracking(output string) Tracking {
+	var t Tracking
+	for _, line := range strings.Split(output, "\n") {
+		key, value, ok := strings.Cut(line, ":")
+		if !ok {
+			continue
+		}
+		value = strings.TrimSpace(value)
+		switch strings.TrimSpace(key) {
+		case "Leap status":
+			switch value {
+			case "Normal", "Insert second", "Delete second":
+				t.Synced = true
+			}
+		case "System time":
+			fields := strings.Fields(value)
+			if len(fields) < 3 {
+				continue
+			}
+			offset, err := strconv.ParseFloat(fields[0], 64)
+			if err != nil {
+				continue
+			}
+			if fields[2] == "slow" {
+				offset = -offset
+			}
+			t.OffsetSeconds = offset
+		}
+	}
+	return t
+}

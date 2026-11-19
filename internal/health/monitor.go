@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"os/exec"
+	"sync/atomic"
 	"time"
 
 	"github.com/aleh11/airtime/internal/gpio"
@@ -34,6 +35,15 @@ type Monitor struct {
 	lastState map[gpio.LED]bool
 
 	transmitState *bool
+
+	confirmUntil atomic.Int64 // unix nanos
+	waiting      bool
+	waitingAt    time.Time
+}
+
+// Confirm blinks the antenna LED quickly three times. Safe from any goroutine.
+func (m *Monitor) Confirm() {
+	m.confirmUntil.Store(time.Now().Add(ConfirmDuration).UnixNano())
 }
 
 func NewMonitor(s *store.Store, leds gpio.Controller, transmitting func() bool) *Monitor {
@@ -77,7 +87,8 @@ func (m *Monitor) driveLEDs(now time.Time) {
 	}
 
 	transmitting := m.transmitting()
-	m.setLED(gpio.Antenna, transmitting)
+	confirm := time.Unix(0, m.confirmUntil.Load())
+	m.setLED(gpio.Antenna, AntennaState(now, transmitting, m.alwaysOnWaiting(now), confirm))
 	m.recordTransmitting(transmitting)
 }
 
@@ -152,6 +163,21 @@ func (m *Monitor) setLED(led gpio.LED, on bool) {
 	if err := m.leds.Set(led, on); err != nil {
 		m.log.Error("set led", "led", led, "error", err)
 	}
+}
+
+// alwaysOnWaiting caches whether Always On is waiting for the clock; like
+// stealth it is consulted on every LED tick.
+func (m *Monitor) alwaysOnWaiting(now time.Time) bool {
+	if now.Sub(m.waitingAt) >= stateRefresh {
+		var status struct {
+			State string `json:"state"`
+		}
+		m.store.Status("always_on", "status", &status)
+		enabled, _, _ := m.store.Setting("app_config", "always_on_enabled")
+		m.waiting = enabled == "true" && status.State == waitingState
+		m.waitingAt = now
+	}
+	return m.waiting
 }
 
 // stealthMode caches the setting: it is consulted on every LED tick, which is

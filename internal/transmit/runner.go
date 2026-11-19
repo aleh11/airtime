@@ -45,12 +45,16 @@ func (r *Runner) Start(args []string) error {
 	go func() {
 		err := cmd.Wait()
 		r.mu.Lock()
-		if r.cmd == cmd {
+		// A process that Start or Stop replaced was killed on purpose, and
+		// whoever did that already owns the state. Reporting its exit would
+		// clear the record of the broadcast that replaced it.
+		current := r.cmd == cmd
+		if current {
 			r.cmd = nil
 			r.started = false
 		}
 		r.mu.Unlock()
-		if r.onExit != nil {
+		if current && r.onExit != nil {
 			r.onExit(err)
 		}
 	}()

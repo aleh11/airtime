@@ -353,3 +353,36 @@ func TestBranchSwitchingIsGone(t *testing.T) {
 		t.Fatalf("got %d, want 404 for a removed endpoint", rec.Code)
 	}
 }
+
+func newServerWithController(t *testing.T) (http.Handler, *store.Store, *broadcast.Controller, *fakeRunner) {
+	t.Helper()
+	s, err := store.Open(t.TempDir())
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	t.Cleanup(func() { s.Close() })
+
+	runner := &fakeRunner{}
+	now := func() time.Time { return time.Date(2026, 8, 22, 12, 0, 0, 0, time.UTC) }
+	ctl := broadcast.New(s, runner, now)
+	handler := api.New(api.Deps{Store: s, Runner: ctl, Metrics: fakeMetrics{}, Now: now})
+	return handler, s, ctl, runner
+}
+
+func newServerWithWake(t *testing.T) (http.Handler, *store.Store, *fakeRunner, *int) {
+	t.Helper()
+	s, err := store.Open(t.TempDir())
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	t.Cleanup(func() { s.Close() })
+
+	runner := &fakeRunner{}
+	now := func() time.Time { return time.Date(2026, 8, 22, 12, 0, 0, 0, time.UTC) }
+	wakes := new(int)
+	handler := api.New(api.Deps{
+		Store: s, Runner: broadcast.New(s, runner, now), Metrics: fakeMetrics{}, Now: now,
+		WakeAlwaysOn: func() { *wakes++ },
+	})
+	return handler, s, runner, wakes
+}

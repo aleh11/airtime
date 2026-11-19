@@ -26,11 +26,14 @@ type Pins struct {
 // DefaultPins matches the AirTime Pi Hat.
 var DefaultPins = Pins{Heartbeat: 9, NTP: 11, Antenna: 5, Button: 19}
 
-// Buttons are the two actions the hat's single button carries: a press toggles
-// the broadcast, and a hold toggles stealth mode.
+// Buttons are the actions the hat's single button carries: a press toggles
+// the broadcast, a double press toggles Always On, and a hold toggles
+// stealth mode. With OnDoublePress set, a single press waits
+// DoublePressWindow to be sure it is not the first of two.
 type Buttons struct {
-	OnPress func()
-	OnHold  func()
+	OnPress       func()
+	OnDoublePress func()
+	OnHold        func()
 }
 
 type Controller interface {

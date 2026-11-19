@@ -16,6 +16,10 @@ func (s *server) startTransmit(w http.ResponseWriter, r *http.Request) {
 	if !readJSON(w, r, &input) {
 		return
 	}
+	if s.alwaysOnEnabled() {
+		writeError(w, http.StatusConflict, alwaysOnConflict)
+		return
+	}
 	if err := transmit.ValidateStandard(input.Standard); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
@@ -47,7 +51,12 @@ func (s *server) startTransmit(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// Stop also turns Always On off; otherwise the supervisor would put the
+// broadcast straight back on the air and Stop would look broken.
 func (s *server) stopTransmit(w http.ResponseWriter, r *http.Request) {
+	if s.alwaysOnEnabled() {
+		s.disableAlwaysOn()
+	}
 	s.Runner.Stop()
 
 	s.log.Info("broadcast stopped")
@@ -108,6 +117,10 @@ func (s *server) setTimeTester(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if s.alwaysOnEnabled() {
+		writeError(w, http.StatusConflict, alwaysOnConflict)
+		return
+	}
 	if err := transmit.ValidateStandard(input.Standard); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return

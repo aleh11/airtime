@@ -16,6 +16,7 @@ interface ScheduleWidgetProps {
     radioConfig: RadioConfig | null;
     status: SystemStatus | null;
     timeTesterEnabled?: boolean;
+    alwaysOnEnabled?: boolean;
 }
 
 interface Prompt {
@@ -26,7 +27,8 @@ interface Prompt {
     onConfirm?: () => void;
 }
 
-export function ScheduleWidget({ jobs, onUpdate, status, timeTesterEnabled = false }: ScheduleWidgetProps) {
+export function ScheduleWidget({ jobs, onUpdate, status, timeTesterEnabled = false, alwaysOnEnabled = false }: ScheduleWidgetProps) {
+    const locked = timeTesterEnabled || alwaysOnEnabled;
     const [prompt, setPrompt] = useState<Prompt | null>(null);
     const sorting = useScheduleSorting(jobs);
     const editor = useScheduleEditor(onUpdate, (message) =>
@@ -52,7 +54,7 @@ export function ScheduleWidget({ jobs, onUpdate, status, timeTesterEnabled = fal
     const shared = {
         jobs: sorting.sorted,
         status,
-        locked: timeTesterEnabled,
+        locked,
         draft: editor.draft,
         adding: editor.adding,
         editingId: editor.editingId,
@@ -75,13 +77,18 @@ export function ScheduleWidget({ jobs, onUpdate, status, timeTesterEnabled = fal
                         size="icon"
                         onClick={() => (editor.adding ? editor.stopAdding() : editor.startAdding())}
                         className="rounded-full"
-                        disabled={timeTesterEnabled}
+                        disabled={locked}
                         aria-label={editor.adding ? 'Cancel new schedule' : 'Add schedule'}
                     >
                         {editor.adding ? <X size={16} /> : <Plus size={16} />}
                     </Button>
                 }
             >
+                {alwaysOnEnabled && (
+                    <p className="mb-3 text-xs font-medium text-muted-foreground">
+                        Paused while Always On is enabled
+                    </p>
+                )}
                 <div className="overflow-x-auto">
                     <ScheduleTable
                         {...shared}
